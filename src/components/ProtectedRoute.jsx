@@ -1,13 +1,31 @@
+import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
 
 export default function ProtectedRoute({ adminOnly = false }) {
   const { session, profile, loading, isAdmin } = useAuth()
+  const [showMissingProfile, setShowMissingProfile] = useState(false)
+
+  useEffect(() => {
+    if (loading || profile || !session) {
+      setShowMissingProfile(false)
+      return undefined
+    }
+
+    const timer = setTimeout(() => setShowMissingProfile(true), 1200)
+    return () => clearTimeout(timer)
+  }, [loading, profile, session])
 
   if (loading) return <div className="center-message">사용자 정보를 확인하고 있습니다.</div>
   if (!session) return <Navigate to="/login" replace />
-  if (!profile) return <div className="center-message error">회원 프로필을 찾을 수 없습니다. 관리자에게 문의해 주세요.</div>
+  if (!profile) {
+    return (
+      <div className={showMissingProfile ? 'center-message error' : 'center-message'}>
+        {showMissingProfile ? '회원 프로필을 찾을 수 없습니다. 관리자에게 문의해 주세요.' : '회원 정보를 불러오는 중입니다.'}
+      </div>
+    )
+  }
   if (profile.is_active === false) {
     return (
       <main className="inactive-page">

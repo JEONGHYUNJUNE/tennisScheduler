@@ -19,9 +19,10 @@ export function AuthProvider({ children }) {
 
     const loadProfile = async (nextSession) => {
       if (!active) return
+      setLoading(true)
       setSession(nextSession)
+      setProfile(null)
       if (!nextSession?.user) {
-        setProfile(null)
         setLoading(false)
         return
       }
