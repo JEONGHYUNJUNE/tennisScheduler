@@ -1,0 +1,138 @@
+import { supabase } from '../lib/supabase'
+
+const localDate = () => {
+  const now = new Date()
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
+export const getTodayDateText = localDate
+
+export async function getUpcomingEvents() {
+  const { data, error } = await supabase
+    .from('tennis_events')
+    .select('*, tennis_attendances(id, member_id, status, otmember(id, username, display_name))')
+    .gte('event_date', localDate())
+    .order('event_date')
+    .order('start_time')
+  if (error) throw error
+  return data.map(normalizeEvent)
+}
+
+export async function getMyUpcomingEvents(memberId) {
+  const { data, error } = await supabase
+    .from('tennis_events')
+    .select('*, tennis_attendances!inner(id, member_id, status)')
+    .eq('tennis_attendances.member_id', memberId)
+    .in('tennis_attendances.status', ['attending', 'waiting'])
+    .gte('event_date', localDate())
+    .order('event_date')
+    .order('start_time')
+
+  if (error) throw error
+  return data.map(normalizeEvent)
+}
+
+export async function getEvent(eventId) {
+  const { data, error } = await supabase
+    .from('tennis_events')
+    .select(`
+      *,
+      tennis_attendances(
+        id, member_id, status, created_at,
+        otmember(id, username, display_name, tennis_start_date)
+      )
+    `)
+    .eq('id', eventId)
+    .single()
+  if (error) throw error
+  return normalizeEvent(data)
+}
+
+export async function saveEvent(event, memberId) {
+  if (event.event_date < localDate()) {
+    throw new Error('오늘 이전 날짜로는 일정을 저장할 수 없습니다.')
+  }
+
+  const payload = {
+    title: event.title.trim(),
+    event_date: event.event_date,
+    start_time: event.start_time,
+    end_time: event.end_time || null,
+    location: event.location.trim(),
+    max_participants: event.max_players ? Number(event.max_players) : null,
+    memo: event.memo.trim() || null,
+  }
+
+  if (event.id) {
+    const { data, error } = await supabase
+      .from('tennis_events')
+      .update(payload)
+      .eq('id', event.id)
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  }
+
+  const { data, error } = await supabase
+    .from('tennis_events')
+    .insert({ ...payload, created_by: memberId })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function attendEvent(event, memberId) {
+  const attendingCount = event.tennis_attendances?.filter((item) => item.status === 'attending').length || 0
+  const isFull = event.max_players && attendingCount >= event.max_players
+  const status = isFull ? 'waiting' : 'attending'
+
+  const { data, error } = await supabase
+    .from('tennis_attendances')
+    .insert({ event_id: event.id, member_id: memberId, status })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function cancelAttendance(attendanceId) {
+  const { error } = await supabase.from('tennis_attendances').delete().eq('id', attendanceId)
+  if (error) throw error
+}
+
+export async function deleteEvent(eventId) {
+  const { error } = await supabase.from('tennis_events').delete().eq('id', eventId)
+  if (error) throw error
+}
+
+export function isCancellationBlocked(eventDate) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const eventDay = new Date(`${eventDate}T00:00:00`)
+  const daysUntilEvent = Math.ceil((eventDay - today) / 86400000)
+  return daysUntilEvent <= 5
+}
+
+function normalizeMember(member) {
+  if (!member) return member
+  return {
+    ...member,
+    user_id: member.username,
+    name: member.display_name,
+  }
+}
+
+function normalizeEvent(event) {
+  const attendances = event.tennis_attendances?.map((attendance) => ({
+    ...attendance,
+    otmember: normalizeMember(attendance.otmember),
+  })) || []
+
+  return {
+    ...event,
+    max_players: event.max_participants,
+    tennis_attendances: attendances.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)),
+  }
+}

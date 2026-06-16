@@ -1,0 +1,25 @@
+import { Navigate, Outlet } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { signOut } from '../services/authService'
+
+export default function ProtectedRoute({ adminOnly = false }) {
+  const { session, profile, loading, isAdmin } = useAuth()
+
+  if (loading) return <div className="center-message">사용자 정보를 확인하고 있습니다.</div>
+  if (!session) return <Navigate to="/login" replace />
+  if (!profile) return <div className="center-message error">회원 프로필을 찾을 수 없습니다. 관리자에게 문의해 주세요.</div>
+  if (profile.is_active === false) {
+    return (
+      <main className="inactive-page">
+        <section className="inactive-card">
+          <p className="eyebrow">계정 비활성</p>
+          <h1>비활성 회원입니다</h1>
+          <p>현재 계정은 서비스 이용이 제한되어 있습니다. 관리자에게 문의해 주세요.</p>
+          <button className="primary-button" onClick={signOut}>로그아웃</button>
+        </section>
+      </main>
+    )
+  }
+  if (adminOnly && !isAdmin) return <Navigate to="/events" replace />
+  return <Outlet />
+}
