@@ -32,7 +32,7 @@ export default function SignupPage() {
     <main className="auth-layout">
       <section className="auth-copy">
         <p className="eyebrow">ONS TENNIS</p>
-        <h1><br /></h1>
+        <h1>ONS Tennis</h1>
         <p>가입 후 다가오는 일정에 참석 해주세요</p>
         <small>v1.0.0</small>
       </section>
