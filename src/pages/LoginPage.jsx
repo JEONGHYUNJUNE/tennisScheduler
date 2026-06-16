@@ -31,7 +31,7 @@ export default function LoginPage() {
       <section className="auth-copy">
         <p className="eyebrow">ONS TENNIS</p>
         <h1>ONS Tennis</h1>
-        <p>코트 일정 및 참석 관리시스템 입니다!</p>
+        <p>코트 일정 및 참석 관리시스템 입니다.</p>
         <small>v1.0.0</small>
       </section>
       <section className="auth-panel">
