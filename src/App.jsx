@@ -34,10 +34,10 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
+          <Route path="/events/new" element={<EventFormPage />} />
+          <Route path="/events/:eventId/edit" element={<EventFormPage />} />
 
           <Route element={<ProtectedRoute adminOnly />}>
-            <Route path="/admin/events/new" element={<EventFormPage />} />
-            <Route path="/admin/events/:eventId/edit" element={<EventFormPage />} />
             <Route path="/admin/members" element={<MembersPage />} />
           </Route>
         </Route>

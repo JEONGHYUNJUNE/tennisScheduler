@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getEvent, getTodayDateText, saveEvent } from '../services/eventService'
 
@@ -7,25 +7,39 @@ const emptyForm = { title: '', event_date: '', start_time: '', end_time: '', loc
 
 export default function EventFormPage() {
   const { eventId } = useParams()
-  const { profile } = useAuth()
+  const { profile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState(emptyForm)
+  const [eventOwnerId, setEventOwnerId] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] = useState(Boolean(eventId))
 
   useEffect(() => {
     if (!eventId) return
-    getEvent(eventId).then((data) => setForm({
-      id: data.id,
-      title: data.title,
-      event_date: data.event_date,
-      start_time: data.start_time?.slice(0, 5) || '',
-      end_time: data.end_time?.slice(0, 5) || '',
-      location: data.location,
-      max_players: data.max_players || '',
-      memo: data.memo || '',
-    })).catch((err) => setError(err.message))
+    getEvent(eventId)
+      .then((data) => {
+        setEventOwnerId(data.created_by)
+        setForm({
+          id: data.id,
+          title: data.title,
+          event_date: data.event_date,
+          start_time: data.start_time?.slice(0, 5) || '',
+          end_time: data.end_time?.slice(0, 5) || '',
+          location: data.location,
+          max_players: data.max_players || '',
+          memo: data.memo || '',
+        })
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
   }, [eventId])
+
+  if (loading) return <p>일정 정보를 불러오는 중입니다.</p>
+
+  if (eventId && eventOwnerId && !isAdmin && eventOwnerId !== profile.id) {
+    return <Navigate to={`/events/${eventId}`} replace />
+  }
 
   const update = (key) => (event) => setForm({ ...form, [key]: event.target.value })
   const handleSubmit = async (event) => {
@@ -49,7 +63,7 @@ export default function EventFormPage() {
 
   return (
     <section className="form-card">
-      <p className="eyebrow">ADMIN</p>
+      <p className="eyebrow">{eventId ? 'EDIT EVENT' : 'NEW EVENT'}</p>
       <h1>{eventId ? '일정 수정' : '일정 등록'}</h1>
       <form onSubmit={handleSubmit}>
         <label>일정명<input required value={form.title} onChange={update('title')} /></label>

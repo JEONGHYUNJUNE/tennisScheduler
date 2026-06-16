@@ -49,7 +49,7 @@ export default function EventsPage() {
     <>
       <div className="page-heading main-heading">
         <div><p className="eyebrow">ONS TENNIS</p><h1>다가오는 일정</h1><p className="heading-copy">참석할 일정을 확인하고 신청해 주세요.</p></div>
-        {isAdmin && <Link className="primary-button" to="/admin/events/new">새 일정 등록</Link>}
+        <Link className="primary-button" to="/events/new">새 일정 등록</Link>
       </div>
       {loading && <p>일정을 불러오는 중입니다.</p>}
       {error && <p className="error">{error}</p>}
@@ -59,6 +59,7 @@ export default function EventsPage() {
           const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
           const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []
           const mine = event.tennis_attendances?.find((item) => item.member_id === profile.id)
+          const canManageEvent = isAdmin || event.created_by === profile.id
           const isFull = event.max_players && attending.length >= event.max_players
           const nextActionLabel = mine
             ? mine.status === 'waiting' ? '대기 취소' : '참석 취소'
@@ -77,7 +78,7 @@ export default function EventsPage() {
                 <button className={mine ? 'secondary-button' : 'primary-button'} onClick={() => handleAttendance(event, mine)}>
                   {nextActionLabel}
                 </button>
-                {isAdmin && <div className="admin-card-actions"><Link className="secondary-button" to={`/admin/events/${event.id}/edit`}>수정</Link><button className="danger-button" onClick={() => handleDelete(event)}>삭제</button></div>}
+                {canManageEvent && <div className="admin-card-actions"><Link className="secondary-button" to={`/events/${event.id}/edit`}>수정</Link><button className="danger-button" onClick={() => handleDelete(event)}>삭제</button></div>}
               </div>
               <div className="card-attendees">
                 <strong>참석자</strong>

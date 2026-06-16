@@ -20,7 +20,7 @@ export default function Layout() {
         <nav>
           <UserMenu profile={profile} />
           {isAdmin && <Link to="/admin/members">멤버관리</Link>}
-          {isAdmin && <Link to="/admin/events/new">일정등록</Link>}
+          <Link to="/events/new">일정등록</Link>
           <NotificationMenu profile={profile} />
           <button className="text-button" onClick={handleLogout}>로그아웃</button>
         </nav>

@@ -45,7 +45,7 @@ export default function SignupPage() {
           <label>아이디<input required minLength="3" autoComplete="username" placeholder="id" value={form.userId} onChange={update('userId')} /></label>
           <label>비밀번호<input required minLength="6" type="password" autoComplete="new-password" placeholder="6자 이상" value={form.password} onChange={update('password')} /></label>
           <label>이름<input required placeholder="홍길동" value={form.name} onChange={update('name')} /></label>
-          <label>테니스 시작일 <small>참고용</small><input required type="date" value={form.tennisStartDate} onChange={update('tennisStartDate')} /></label>
+          <label>테니스 시작일<input required type="date" value={form.tennisStartDate} onChange={update('tennisStartDate')} /></label>
           {error && <p className="error">{error}</p>}
           <button className="primary-button" disabled={submitting}>{submitting ? '가입 중...' : '회원가입'}</button>
         </form>

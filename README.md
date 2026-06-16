@@ -24,13 +24,20 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 
 현재 프로젝트는 기존 OT Tennis DB(`username`, `display_name`, `max_participants` 컬럼 사용)에 맞춰져 있습니다.
 
-1. Supabase 프로젝트의 SQL Editor에서 `supabase/migrations/20260616_001_apply_waiting_notifications.sql` 파일 전체를 실행합니다.
+1. Supabase 프로젝트의 SQL Editor에서 아래 파일들을 순서대로 실행합니다.
+   `supabase/migrations/20260616_001_apply_waiting_notifications.sql`
+   `supabase/migrations/20260616_002_hide_self_attendance_notifications.sql`
+   `supabase/migrations/20260616_003_enforce_active_members.sql`
+   `supabase/migrations/20260616_004_block_past_event_dates.sql`
+   `supabase/migrations/20260616_005_member_event_permissions.sql`
 2. Authentication > Providers > Email에서 **Confirm email**을 끕니다. 이 앱은 실제 이메일 대신 `아이디@ot-tennis.app`을 사용합니다.
 3. 앱에서 최초 회원가입 후 SQL Editor에서 해당 회원을 관리자로 지정합니다.
 
 ```sql
 update public.otmember set role = 'admin' where username = '관리자아이디';
 ```
+
+이제 일반 회원도 일정 등록은 가능하고, 수정/삭제는 일정 작성자 본인 또는 관리자만 가능합니다.
 
 새 Supabase DB를 처음부터 만들 때만 `supabase/schema.sql`을 참고하세요. 지금 사용하는 기존 DB에는 `schema.sql`을 실행하지 않는 것을 권장합니다.
 

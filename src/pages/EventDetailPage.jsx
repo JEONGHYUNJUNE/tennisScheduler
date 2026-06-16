@@ -22,6 +22,7 @@ export default function EventDetailPage() {
   const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
   const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []
   const myAttendance = event.tennis_attendances?.find((item) => item.member_id === profile.id)
+  const canManageEvent = isAdmin || event.created_by === profile.id
   const isFull = event.max_players && attending.length >= event.max_players
 
   const handleAttendance = async () => {
@@ -46,7 +47,7 @@ export default function EventDetailPage() {
     <>
       <div className="page-heading">
         <div><p className="eyebrow">MATCH DETAIL</p><h1>{event.title}</h1></div>
-        {isAdmin && <Link className="secondary-button" to={`/admin/events/${event.id}/edit`}>일정 수정</Link>}
+        {canManageEvent && <Link className="secondary-button" to={`/events/${event.id}/edit`}>일정 수정</Link>}
       </div>
       <section className="detail-card">
         <dl>
