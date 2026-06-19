@@ -41,6 +41,7 @@ VITE_APP_URL=
    `supabase/migrations/20260619_011_member_admin_update_policy.sql`
    `supabase/migrations/20260619_012_free_opinions.sql`
    `supabase/migrations/20260619_013_free_opinion_reads.sql`
+   `supabase/migrations/20260619_014_tennis_video_settings.sql`
 2. Authentication > Providers > Email에서 **Confirm email**을 끕니다. 이 앱은 실제 이메일 대신 `아이디@ot-tennis.app`을 사용합니다.
 3. Google 로그인도 사용할 예정이면 Authentication > Providers > Google을 활성화합니다. Google Cloud의 Authorized redirect URI에는 Supabase 콜백 주소(`https://YOUR_PROJECT.supabase.co/auth/v1/callback`)를 등록합니다.
 4. Authentication > URL Configuration에서 **Site URL**을 실제 서비스 주소로 설정하고, **Redirect URLs**에 아래 주소를 추가합니다.

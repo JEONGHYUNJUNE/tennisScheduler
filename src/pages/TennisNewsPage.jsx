@@ -1,8 +1,6 @@
-const recommendedVideo = {
-  title: '추천 테니스 영상',
-  description: '',
-  url: 'https://youtu.be/Ec9cQyAH6oE?si=pdHfE9Z973YVjugp',
-}
+import { useEffect, useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { defaultRecommendedVideo, getRecommendedVideo, saveRecommendedVideo } from '../services/tennisVideoService'
 
 function getYoutubeEmbedUrl(url) {
   try {
@@ -27,9 +25,43 @@ function getYoutubeEmbedUrl(url) {
   }
 }
 
-const embedUrl = getYoutubeEmbedUrl(recommendedVideo.url)
-
 export default function TennisNewsPage() {
+  const { isAdmin } = useAuth()
+  const [recommendedVideo, setRecommendedVideo] = useState(defaultRecommendedVideo)
+  const [videoForm, setVideoForm] = useState(defaultRecommendedVideo)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const embedUrl = getYoutubeEmbedUrl(recommendedVideo.url)
+
+  useEffect(() => {
+    getRecommendedVideo()
+      .then((video) => {
+        setRecommendedVideo(video)
+        setVideoForm(video)
+      })
+      .catch((error) => setMessage(error.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setMessage('')
+
+    try {
+      const savedVideo = await saveRecommendedVideo(videoForm)
+      setRecommendedVideo(savedVideo)
+      setVideoForm(savedVideo)
+      setMessage('추천 영상이 저장됐습니다.')
+    } catch (error) {
+      setMessage(`${error.message} SQL 014번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <>
       <div className="page-heading main-heading">
@@ -41,6 +73,9 @@ export default function TennisNewsPage() {
       </div>
 
       <section className="tennis-news-shell">
+        {loading && <p className="notification-empty">추천 영상을 불러오는 중입니다.</p>}
+        {message && <p className="notice">{message}</p>}
+
         <article className="video-pick-card">
           <div className="video-pick-copy">
             <p className="eyebrow">YOUTUBE</p>
@@ -61,6 +96,44 @@ export default function TennisNewsPage() {
             <div className="empty-state">YouTube URL을 확인해 주세요.</div>
           )}
         </article>
+
+        {isAdmin && (
+          <form className="video-admin-form" onSubmit={handleSubmit}>
+            <div>
+              <p className="eyebrow">ADMIN</p>
+              <h2>추천 영상 변경</h2>
+            </div>
+            <label>
+              제목
+              <input
+                value={videoForm.title}
+                onChange={(event) => setVideoForm({ ...videoForm, title: event.target.value })}
+                placeholder="추천 테니스 영상"
+              />
+            </label>
+            <label>
+              YouTube URL
+              <input
+                required
+                value={videoForm.url}
+                onChange={(event) => setVideoForm({ ...videoForm, url: event.target.value })}
+                placeholder="https://youtu.be/..."
+              />
+            </label>
+            <label>
+              설명
+              <textarea
+                rows="2"
+                value={videoForm.description}
+                onChange={(event) => setVideoForm({ ...videoForm, description: event.target.value })}
+                placeholder="영상 설명을 입력해 주세요."
+              />
+            </label>
+            <button className="primary-button" disabled={saving || !videoForm.url.trim()}>
+              {saving ? '저장 중...' : '추천 영상 저장'}
+            </button>
+          </form>
+        )}
 
         <div className="news-link-grid">
           <a href="https://www.flashscore.com/tennis/" target="_blank" rel="noreferrer">
