@@ -19,6 +19,7 @@ export default function Layout() {
         <Link className="brand" to="/events">ONS TENNIS</Link>
         <nav>
           <UserMenu profile={profile} />
+          <Link to="/members">멤버</Link>
           {isAdmin && <Link to="/admin/members">멤버관리</Link>}
           <Link to="/events/new">일정등록</Link>
           <NotificationMenu profile={profile} />

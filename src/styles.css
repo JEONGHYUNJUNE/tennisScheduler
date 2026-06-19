@@ -76,8 +76,19 @@ h2 { margin: 0; }
 .auth-copy small { margin-top: 70px; color: #d9e8d5; }
 .auth-panel { padding: clamp(35px, 8vw, 100px); display: flex; flex-direction: column; justify-content: center; background: var(--cream); }
 .auth-panel > * { width: min(460px, 100%); margin-left: auto; margin-right: auto; }
+.gsi-material-button { width: min(460px, 100%); height: 44px; margin: 18px auto 0; border: 1px solid #747775; border-radius: 4px; padding: 0; display: block; position: relative; overflow: hidden; background-color: white; color: #1f1f1f; font-family: Roboto, Arial, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: .25px; outline: none; transition: background-color .218s, border-color .218s, box-shadow .218s; }
+.gsi-material-button:disabled { cursor: default; background-color: #ffffff61; border-color: #1f1f1f1f; color: #1f1f1f61; }
+.gsi-material-button:not(:disabled):hover { box-shadow: 0 1px 2px rgba(60, 64, 67, .3), 0 1px 3px 1px rgba(60, 64, 67, .15); }
+.gsi-material-button:not(:disabled):active .gsi-material-button-state,
+.gsi-material-button:not(:disabled):focus .gsi-material-button-state { opacity: .12; }
+.gsi-material-button-state { position: absolute; inset: 0; background-color: #303030; opacity: 0; transition: opacity .218s; }
+.gsi-material-button-content-wrapper { height: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; position: relative; }
+.gsi-material-button-icon { width: 20px; height: 20px; flex: 0 0 auto; }
+.gsi-material-button-icon svg { width: 20px; height: 20px; }
+.gsi-material-button-contents { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gsi-material-button:disabled .gsi-material-button-icon { opacity: .38; }
 .mode-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 42px; border-bottom: 1px solid var(--line); }
-.mode-tabs a, .mode-tabs span { padding: 15px 8px; color: #8b918d; font-size: 1.05rem; font-weight: 800; text-align: center; text-decoration: none; }
+.mode-tabs a, .mode-tabs span, .mode-tabs button { border: 0; padding: 15px 8px; color: #8b918d; background: transparent; font-size: 1.05rem; font-weight: 800; text-align: center; text-decoration: none; }
 .mode-tabs .active { border-bottom: 3px solid var(--green-700); color: var(--green-800); }
 .auth-panel form, .form-card form { display: grid; gap: 20px; }
 .form-card, .detail-card { border: 1px solid var(--line); background: var(--cream); box-shadow: 8px 8px 0 var(--accent); }
@@ -118,6 +129,12 @@ dd { margin: 0; white-space: pre-wrap; }
 .attendee-list { margin: 20px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
 .attendee-list li { display: flex; justify-content: space-between; padding: 14px 16px; background: rgba(255,255,255,.55); border-bottom: 1px solid var(--line); }
 .attendee-list span { color: var(--muted); }
+.attendee-copy { display: grid; gap: 6px; }
+.attendee-remove { color: var(--warm); font-weight: 900; }
+.guest-card { margin-top: 26px; }
+.guest-card-head { margin-bottom: 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+.guest-card-head p:last-child { margin: 0; color: var(--muted); }
+.guest-form { display: grid; gap: 16px; }
 .form-card { max-width: 760px; margin: 0 auto; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .member-card { overflow: auto; border: 1px solid rgba(217, 228, 213, .9); border-radius: 18px; background: rgba(255, 253, 248, .92); box-shadow: 0 12px 30px rgba(49, 95, 59, .08); backdrop-filter: blur(6px); }
@@ -126,6 +143,10 @@ dd { margin: 0; white-space: pre-wrap; }
 .member-row:last-child { border-bottom: 0; }
 .member-row-head { color: var(--muted); font-size: .82rem; font-weight: 900; letter-spacing: .04em; background: rgba(237, 246, 234, .7); }
 .member-row button { padding: 10px 12px; }
+.public-member-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.public-member-item { min-height: 82px; padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .9); border-left: 4px solid var(--green-700); border-radius: 8px; display: grid; align-content: center; gap: 8px; background: rgba(255, 253, 248, .9); box-shadow: 0 10px 24px rgba(49, 95, 59, .07); }
+.public-member-item strong { font-size: 1.1rem; }
+.public-member-item span { color: var(--muted); font-weight: 800; }
 .error { color: #a13b31; font-weight: 700; }
 .empty-state, .center-message { padding: 60px 20px; text-align: center; }
 .setup-shell { min-height: 100vh; display: grid; place-items: center; padding: 30px; background: var(--green-700); }

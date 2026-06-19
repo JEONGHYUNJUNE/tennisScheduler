@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { attendEvent, cancelAttendance, getEvent, isCancellationBlocked } from '../services/eventService'
+import { addGuestAttendance, attendEvent, cancelAttendance, getEvent, isCancellationBlocked, removeGuestAttendance } from '../services/eventService'
+
+const emptyGuestForm = {
+  guest_name: '',
+  guest_memo: '',
+}
 
 export default function EventDetailPage() {
   const { eventId } = useParams()
@@ -9,6 +14,8 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [guestForm, setGuestForm] = useState(emptyGuestForm)
+  const [guestSubmitting, setGuestSubmitting] = useState(false)
 
   useEffect(() => {
     getEvent(eventId).then(setEvent).catch((err) => setError(err.message))
@@ -43,6 +50,31 @@ export default function EventDetailPage() {
     }
   }
 
+  const handleGuestSubmit = async (submitEvent) => {
+    submitEvent.preventDefault()
+    setGuestSubmitting(true)
+    setError('')
+    try {
+      await addGuestAttendance(event, guestForm, profile.id)
+      setGuestForm(emptyGuestForm)
+      await reload()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setGuestSubmitting(false)
+    }
+  }
+
+  const handleGuestRemove = async (attendanceId) => {
+    setError('')
+    try {
+      await removeGuestAttendance(attendanceId)
+      await reload()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   return (
     <>
       <div className="page-heading">
@@ -66,17 +98,54 @@ export default function EventDetailPage() {
               : isFull ? '대기 신청' : '참석 신청'}
         </button>
       </section>
+      {isAdmin && event.supports_guest_attendance && (
+        <section className="detail-card guest-card">
+          <div className="guest-card-head">
+            <div>
+              <p className="eyebrow">GUEST</p>
+              <h2>게스트 참석 추가</h2>
+            </div>
+            <p>비회원 참석자를 바로 등록할 수 있습니다.</p>
+          </div>
+          <form className="guest-form" onSubmit={handleGuestSubmit}>
+            <div className="form-row">
+              <label>게스트 이름<input required value={guestForm.guest_name} onChange={(submitEvent) => setGuestForm({ ...guestForm, guest_name: submitEvent.target.value })} placeholder="예: 김민수" /></label>
+              <label>메모<input value={guestForm.guest_memo} onChange={(submitEvent) => setGuestForm({ ...guestForm, guest_memo: submitEvent.target.value })} placeholder="지인, 체험 참석 등" /></label>
+            </div>
+            <button className="secondary-button" disabled={guestSubmitting}>
+              {guestSubmitting ? '추가 중...' : '게스트 추가'}
+            </button>
+          </form>
+        </section>
+      )}
       <section className="attendee-section">
         <h2>참석자 <span>{attending.length}</span></h2>
         <ul className="attendee-list">
-          {attending.map((item) => <li key={item.id}><strong>{item.otmember?.name}</strong><span>{item.otmember?.user_id}</span></li>)}
+          {attending.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
+          {attending.map((item) => (
+            <li key={item.id}>
+              <div className="attendee-copy">
+                <strong>{item.display_name}</strong>
+                <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
+              </div>
+              {isAdmin && item.is_guest && <button className="text-button attendee-remove" onClick={() => handleGuestRemove(item.id)}>삭제</button>}
+            </li>
+          ))}
         </ul>
       </section>
       <section className="attendee-section">
         <h2>대기자 <span>{waiting.length}</span></h2>
         <ul className="attendee-list">
           {waiting.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
-          {waiting.map((item, index) => <li key={item.id}><strong>{index + 1}. {item.otmember?.name}</strong><span>{item.otmember?.user_id}</span></li>)}
+          {waiting.map((item, index) => (
+            <li key={item.id}>
+              <div className="attendee-copy">
+                <strong>{index + 1}. {item.display_name}</strong>
+                <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
+              </div>
+              {isAdmin && item.is_guest && <button className="text-button attendee-remove" onClick={() => handleGuestRemove(item.id)}>삭제</button>}
+            </li>
+          ))}
         </ul>
       </section>
     </>

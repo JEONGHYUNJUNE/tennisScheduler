@@ -1,5 +1,8 @@
 import { supabase } from '../lib/supabase'
 
+const missingGuestColumnCodes = new Set(['42703', 'PGRST204'])
+const relationshipAmbiguousCodes = new Set(['PGRST201'])
+
 const localDate = () => {
   const now = new Date()
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
@@ -8,14 +11,24 @@ const localDate = () => {
 export const getTodayDateText = localDate
 
 export async function getUpcomingEvents() {
+  const withGuestColumns = await supabase
+    .from('tennis_events')
+    .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .gte('event_date', localDate())
+    .order('event_date')
+    .order('start_time')
+
+  if (!withGuestColumns.error) return withGuestColumns.data.map((event) => normalizeEvent(event, true))
+  if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
+
   const { data, error } = await supabase
     .from('tennis_events')
-    .select('*, tennis_attendances(id, member_id, status, otmember(id, username, display_name))')
+    .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
     .gte('event_date', localDate())
     .order('event_date')
     .order('start_time')
   if (error) throw error
-  return data.map(normalizeEvent)
+  return data.map((event) => normalizeEvent(event, false))
 }
 
 export async function getMyUpcomingEvents(memberId) {
@@ -33,19 +46,34 @@ export async function getMyUpcomingEvents(memberId) {
 }
 
 export async function getEvent(eventId) {
+  const withGuestColumns = await supabase
+    .from('tennis_events')
+    .select(`
+      *,
+      tennis_attendances(
+        id, member_id, guest_name, guest_memo, created_by, status, created_at,
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date)
+      )
+    `)
+    .eq('id', eventId)
+    .single()
+
+  if (!withGuestColumns.error) return normalizeEvent(withGuestColumns.data, true)
+  if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
+
   const { data, error } = await supabase
     .from('tennis_events')
     .select(`
       *,
       tennis_attendances(
         id, member_id, status, created_at,
-        otmember(id, username, display_name, tennis_start_date)
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date)
       )
     `)
     .eq('id', eventId)
     .single()
   if (error) throw error
-  return normalizeEvent(data)
+  return normalizeEvent(data, false)
 }
 
 export async function saveEvent(event, memberId) {
@@ -97,7 +125,39 @@ export async function attendEvent(event, memberId) {
   return data
 }
 
+export async function addGuestAttendance(event, guest, actorId) {
+  const guestName = guest.guest_name?.trim()
+  const guestMemo = guest.guest_memo?.trim()
+
+  if (!guestName) throw new Error('게스트 이름을 입력해 주세요.')
+
+  const attendingCount = event.tennis_attendances?.filter((item) => item.status === 'attending').length || 0
+  const isFull = event.max_players && attendingCount >= event.max_players
+  const status = isFull ? 'waiting' : 'attending'
+
+  const { data, error } = await supabase
+    .from('tennis_attendances')
+    .insert({
+      event_id: event.id,
+      member_id: null,
+      guest_name: guestName,
+      guest_memo: guestMemo || null,
+      created_by: actorId,
+      status,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export async function cancelAttendance(attendanceId) {
+  const { error } = await supabase.from('tennis_attendances').delete().eq('id', attendanceId)
+  if (error) throw error
+}
+
+export async function removeGuestAttendance(attendanceId) {
   const { error } = await supabase.from('tennis_attendances').delete().eq('id', attendanceId)
   if (error) throw error
 }
@@ -124,15 +184,27 @@ function normalizeMember(member) {
   }
 }
 
-function normalizeEvent(event) {
+function normalizeEvent(event, supportsGuestAttendance = true) {
   const attendances = event.tennis_attendances?.map((attendance) => ({
     ...attendance,
     otmember: normalizeMember(attendance.otmember),
+    display_name: attendance.guest_name || normalizeMember(attendance.otmember)?.name || '',
+    identifier: attendance.guest_name ? '게스트' : normalizeMember(attendance.otmember)?.user_id || '',
+    is_guest: Boolean(attendance.guest_name),
   })) || []
 
   return {
     ...event,
     max_players: event.max_participants,
+    supports_guest_attendance: supportsGuestAttendance,
     tennis_attendances: attendances.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)),
   }
+}
+
+function isMissingGuestColumnError(error) {
+  return missingGuestColumnCodes.has(error.code) || /guest_name|guest_memo|created_by/.test(error.message || '')
+}
+
+function isRecoverableAttendanceEmbedError(error) {
+  return isMissingGuestColumnError(error) || relationshipAmbiguousCodes.has(error.code)
 }

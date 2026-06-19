@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import GoogleButton from '../components/GoogleButton'
 import { useAuth } from '../contexts/AuthContext'
-import { signIn } from '../services/authService'
+import { signIn, signInWithGoogle } from '../services/authService'
 
 export default function LoginPage() {
-  const { session } = useAuth()
+  const { session, profile, loading } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ userId: '', password: '' })
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  if (session) return <Navigate to="/events" replace />
+  if (!loading && session) {
+    const isGoogleUser = session.user?.app_metadata?.provider === 'google'
+    return <Navigate to={profile || !isGoogleUser ? '/events' : '/complete-profile'} replace />
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -22,6 +26,17 @@ export default function LoginPage() {
     } catch (err) {
       setError(err.message === 'Invalid login credentials' ? '아이디 또는 비밀번호가 올바르지 않습니다.' : err.message)
     } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setError('')
+    setSubmitting(true)
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      setError(err.message)
       setSubmitting(false)
     }
   }
@@ -45,6 +60,7 @@ export default function LoginPage() {
           {error && <p className="error">{error}</p>}
           <button className="primary-button" disabled={submitting}>{submitting ? '로그인 중...' : '로그인'}</button>
         </form>
+        <GoogleButton disabled={submitting} onClick={handleGoogleLogin}>Google로 계속하기</GoogleButton>
       </section>
     </main>
   )

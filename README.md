@@ -30,14 +30,17 @@ VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
    `supabase/migrations/20260616_003_enforce_active_members.sql`
    `supabase/migrations/20260616_004_block_past_event_dates.sql`
    `supabase/migrations/20260616_005_member_event_permissions.sql`
+   `supabase/migrations/20260619_006_guest_attendance.sql`
+   `supabase/migrations/20260619_007_google_account_linking.sql`
 2. Authentication > Providers > Email에서 **Confirm email**을 끕니다. 이 앱은 실제 이메일 대신 `아이디@ot-tennis.app`을 사용합니다.
-3. 앱에서 최초 회원가입 후 SQL Editor에서 해당 회원을 관리자로 지정합니다.
+3. Google 로그인도 사용할 예정이면 Authentication > Providers > Google을 활성화하고, Redirect URL에 현재 서비스 주소를 등록합니다.
+4. 앱에서 최초 회원가입 후 SQL Editor에서 해당 회원을 관리자로 지정합니다.
 
 ```sql
 update public.otmember set role = 'admin' where username = '관리자아이디';
 ```
 
-이제 일반 회원도 일정 등록은 가능하고, 수정/삭제는 일정 작성자 본인 또는 관리자만 가능합니다.
+이제 일반 회원도 일정 등록은 가능하고, 수정/삭제는 일정 작성자 본인 또는 관리자만 가능합니다. 관리자는 일정 상세 화면에서 게스트 참석도 직접 추가할 수 있고, Google 로그인 사용자는 첫 로그인 뒤 새 계정 가입 또는 기존 계정 연결을 선택할 수 있습니다.
 
 새 Supabase DB를 처음부터 만들 때만 `supabase/schema.sql`을 참고하세요. 지금 사용하는 기존 DB에는 `schema.sql`을 실행하지 않는 것을 권장합니다.
 

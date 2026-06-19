@@ -8,6 +8,8 @@ import EventsPage from './pages/EventsPage'
 import LoginPage from './pages/LoginPage'
 import MembersPage from './pages/MembersPage'
 import SignupPage from './pages/SignupPage'
+import CompleteProfilePage from './pages/CompleteProfilePage'
+import MemberListPage from './pages/MemberListPage'
 
 export default function App() {
   if (!isSupabaseConfigured) {
@@ -29,6 +31,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route element={<ProtectedRoute allowIncompleteProfile />}>
+        <Route path="/complete-profile" element={<CompleteProfilePage />} />
+      </Route>
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
@@ -36,6 +41,7 @@ export default function App() {
           <Route path="/events/:eventId" element={<EventDetailPage />} />
           <Route path="/events/new" element={<EventFormPage />} />
           <Route path="/events/:eventId/edit" element={<EventFormPage />} />
+          <Route path="/members" element={<MemberListPage />} />
 
           <Route element={<ProtectedRoute adminOnly />}>
             <Route path="/admin/members" element={<MembersPage />} />

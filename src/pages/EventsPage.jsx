@@ -82,8 +82,8 @@ export default function EventsPage() {
               </div>
               <div className="card-attendees">
                 <strong>참석자</strong>
-                <p>{attending.length ? attending.map((item) => item.otmember?.name || item.otmember?.user_id).join(', ') : '아직 없습니다.'}</p>
-                {waiting.length > 0 && <p className="waiting-list">대기: {waiting.map((item, index) => `${index + 1}. ${item.otmember?.name || item.otmember?.user_id}`).join(', ')}</p>}
+                <p>{attending.length ? attending.map((item) => item.is_guest ? `${item.display_name} (게스트)` : item.display_name || item.identifier).join(', ') : '아직 없습니다.'}</p>
+                {waiting.length > 0 && <p className="waiting-list">대기: {waiting.map((item, index) => `${index + 1}. ${item.is_guest ? `${item.display_name} (게스트)` : item.display_name || item.identifier}`).join(', ')}</p>}
               </div>
             </article>
           )

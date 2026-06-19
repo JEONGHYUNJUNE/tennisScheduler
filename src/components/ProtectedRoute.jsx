@@ -3,9 +3,10 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
 
-export default function ProtectedRoute({ adminOnly = false }) {
+export default function ProtectedRoute({ adminOnly = false, allowIncompleteProfile = false }) {
   const { session, profile, loading, isAdmin } = useAuth()
   const [showMissingProfile, setShowMissingProfile] = useState(false)
+  const isGoogleUser = session?.user?.app_metadata?.provider === 'google'
 
   useEffect(() => {
     if (loading || profile || !session) {
@@ -19,12 +20,11 @@ export default function ProtectedRoute({ adminOnly = false }) {
 
   if (loading) return <div className="center-message">사용자 정보를 확인하고 있습니다.</div>
   if (!session) return <Navigate to="/login" replace />
+  if (!profile && allowIncompleteProfile && isGoogleUser) return <Outlet />
   if (!profile) {
-    return (
-      <div className={showMissingProfile ? 'center-message error' : 'center-message'}>
-        {showMissingProfile ? '회원 프로필을 찾을 수 없습니다. 관리자에게 문의해 주세요.' : '회원 정보를 불러오는 중입니다.'}
-      </div>
-    )
+    if (!showMissingProfile) return <div className="center-message">회원 정보를 불러오는 중입니다.</div>
+    if (isGoogleUser) return <Navigate to="/complete-profile" replace />
+    return <div className="center-message error">회원 프로필을 찾을 수 없습니다. 관리자에게 문의해 주세요.</div>
   }
   if (profile.is_active === false) {
     return (

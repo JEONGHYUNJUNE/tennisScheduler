@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signUp } from '../services/authService'
+import GoogleButton from '../components/GoogleButton'
+import { signInWithGoogle, signUp } from '../services/authService'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -28,6 +29,17 @@ export default function SignupPage() {
     }
   }
 
+  const handleGoogleSignup = async () => {
+    setSubmitting(true)
+    setError('')
+    try {
+      await signInWithGoogle()
+    } catch (err) {
+      setError(err.message)
+      setSubmitting(false)
+    }
+  }
+
   return (
     <main className="auth-layout">
       <section className="auth-copy">
@@ -49,6 +61,7 @@ export default function SignupPage() {
           {error && <p className="error">{error}</p>}
           <button className="primary-button" disabled={submitting}>{submitting ? '가입 중...' : '회원가입'}</button>
         </form>
+        <GoogleButton disabled={submitting} onClick={handleGoogleSignup}>Google로 계속하기</GoogleButton>
       </section>
     </main>
   )
