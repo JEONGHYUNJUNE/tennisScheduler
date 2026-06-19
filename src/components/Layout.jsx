@@ -77,7 +77,7 @@ export default function Layout() {
       </header>
       <main className="page"><Outlet /></main>
       <footer className="site-footer">
-        <span>© ONS Tennis</span>
+        <span> ONS Tennis</span>
         <span>제작.정현준</span>
       </footer>
     </div>
