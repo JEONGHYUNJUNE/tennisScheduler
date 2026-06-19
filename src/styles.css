@@ -24,10 +24,10 @@ button { cursor: pointer; }
 .app-shell::before { content: ""; position: fixed; z-index: -2; inset: 0; background: linear-gradient(rgba(237, 246, 234, .82), rgba(247, 251, 244, .94)), url('./assets/tennis-court-bg.svg') center top / 1500px auto no-repeat; }
 .app-shell::after { content: ""; position: fixed; z-index: -1; inset: 0; background: radial-gradient(circle at 86% 16%, rgba(216, 239, 72, .22), transparent 22rem), radial-gradient(circle at 12% 28%, rgba(79, 143, 93, .18), transparent 26rem); pointer-events: none; }
 .site-header { position: relative; z-index: 10000; min-height: 72px; padding: 0 5vw; display: flex; align-items: center; justify-content: space-between; gap: 30px; color: white; background: rgba(79, 143, 93, .96); backdrop-filter: blur(8px); box-shadow: 0 12px 30px rgba(49, 95, 59, .16); overflow: visible; }
-.header-main { display: flex; align-items: center; justify-content: space-between; gap: 22px; }
-.header-actions { display: flex; align-items: center; gap: 14px; }
+.header-main { display: flex; align-items: center; justify-content: flex-start; gap: 28px; min-width: 0; }
+.header-actions { margin-left: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
 .brand { flex: 0 0 auto; font-size: clamp(1.2rem, 2.5vw, 1.85rem); font-weight: 950; letter-spacing: .08em; text-decoration: none; text-shadow: 0 2px 16px rgba(0,0,0,.14); }
-.header-nav { display: flex; align-items: center; gap: 14px; font-size: .92rem; }
+.header-nav { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-size: .92rem; }
 .header-nav a { border-radius: 999px; padding: 10px 14px; text-decoration: none; font-weight: 900; transition: background .16s, color .16s, transform .16s; }
 .header-nav a:hover { background: rgba(255, 255, 255, .14); transform: translateY(-1px); }
 .header-nav a.active { color: var(--green-800); background: rgba(255, 253, 248, .96); box-shadow: 0 8px 20px rgba(49, 95, 59, .16); }
@@ -50,6 +50,9 @@ button { cursor: pointer; }
 .my-event-list strong { color: var(--green-900); }
 .my-event-list span { color: var(--muted); font-size: .9rem; }
 .my-event-list em { width: fit-content; padding: 4px 9px; border-radius: 999px; color: white; background: var(--green-700); font-size: .76rem; font-style: normal; font-weight: 900; }
+.user-menu-footer { padding: 14px 18px 18px; border-top: 1px solid var(--line); background: rgba(247, 251, 244, .72); }
+.user-menu-footer button { width: 100%; min-height: 42px; border: 1px solid rgba(208, 97, 56, .26); border-radius: 12px; color: var(--warm); background: rgba(208, 97, 56, .08); font-weight: 950; }
+.user-menu-footer button:hover { background: rgba(208, 97, 56, .13); }
 .notification-wrap { position: relative; }
 .notification-button { position: relative; width: 34px; height: 34px; border: 1px solid rgba(255, 255, 255, .46); border-radius: 999px; display: grid; place-items: center; color: white; background: rgba(255, 255, 255, .14); }
 .notification-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -249,16 +252,14 @@ dd { margin: 0; white-space: pre-wrap; }
   .auth-copy h1 { font-size: 3rem; }
   .auth-copy small { display: none; }
   .auth-panel { padding: 40px 28px 60px; }
-  .site-header { min-height: 0; padding: 16px 16px 12px; display: grid; gap: 12px; align-items: stretch; }
-  .header-main { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .site-header { min-height: 0; padding: 16px 16px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand actions" "nav nav"; gap: 12px; align-items: center; }
+  .header-main { grid-area: brand; min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: 12px; }
   .brand { min-width: 0; overflow: hidden; font-size: clamp(1.08rem, 5vw, 1.35rem); letter-spacing: .1em; text-overflow: ellipsis; white-space: nowrap; }
-  .header-actions { flex: 0 0 auto; gap: 7px; }
-  .header-nav { width: 100%; margin: 0 -4px; padding: 2px 4px 8px; display: flex; align-items: center; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .header-actions { grid-area: actions; margin-left: 0; flex: 0 0 auto; gap: 7px; }
+  .header-nav { grid-area: nav; width: 100%; margin: 0 -4px; padding: 2px 4px 8px; display: flex; align-items: center; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
   .header-nav::-webkit-scrollbar { display: none; }
   .header-nav a,
-  .user-menu-button,
-  .site-header .text-button { flex: 0 0 auto; min-height: 38px; border-radius: 999px; padding: 9px 13px; display: inline-flex; align-items: center; justify-content: center; color: white; background: rgba(255, 255, 255, .12); font-size: .9rem; font-weight: 900; white-space: nowrap; }
-  .header-actions .text-button { padding: 9px 10px; }
+  .user-menu-button { flex: 0 0 auto; min-height: 38px; border-radius: 999px; padding: 9px 13px; display: inline-flex; align-items: center; justify-content: center; color: white; background: rgba(255, 255, 255, .12); font-size: .9rem; font-weight: 900; white-space: nowrap; }
   .header-nav a.active { color: var(--green-800); background: rgba(255, 253, 248, .96); }
   .notification-wrap { flex: 0 0 auto; }
   .notification-button { width: 38px; height: 38px; background: rgba(255, 255, 255, .12); }

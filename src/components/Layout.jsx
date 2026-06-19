@@ -56,11 +56,6 @@ export default function Layout() {
       <header className="site-header">
         <div className="header-main">
           <Link className="brand" to="/">ONS TENNIS</Link>
-          <div className="header-actions">
-            <UserMenu profile={profile} />
-            <NotificationMenu profile={profile} />
-            <button className="text-button" onClick={handleLogout}>로그아웃</button>
-          </div>
         </div>
         <nav className="header-nav">
           <NavLink to="/" end>홈</NavLink>
@@ -71,10 +66,14 @@ export default function Layout() {
           <NavLink to="/free-opinions">
             <span>소통</span>
             {freeOpinionUnreadCount > 0 && (
-              <span className="nav-new-badge">{freeOpinionUnreadCount}</span>
+              <span className="nav-new-badge">NEW {freeOpinionUnreadCount}</span>
             )}
           </NavLink>
         </nav>
+        <div className="header-actions">
+          <UserMenu profile={profile} onLogout={handleLogout} />
+          <NotificationMenu profile={profile} />
+        </div>
       </header>
       <main className="page"><Outlet /></main>
     </div>

@@ -31,7 +31,7 @@ function formatTennisExperience(startDate) {
   return `${years}년 ${remainingMonths}개월`
 }
 
-export default function UserMenu({ profile }) {
+export default function UserMenu({ profile, onLogout }) {
   const menuRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
   const [activePanel, setActivePanel] = useState('profile')
@@ -54,6 +54,11 @@ export default function UserMenu({ profile }) {
     } finally {
       setLoadingEvents(false)
     }
+  }
+
+  const handleLogout = async () => {
+    setIsOpen(false)
+    await onLogout?.()
   }
 
   useEffect(() => {
@@ -117,6 +122,10 @@ export default function UserMenu({ profile }) {
               })}
             </div>
           )}
+
+          <div className="user-menu-footer">
+            <button type="button" onClick={handleLogout}>로그아웃</button>
+          </div>
         </div>
       )}
     </div>
