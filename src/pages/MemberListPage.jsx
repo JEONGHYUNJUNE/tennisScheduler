@@ -20,7 +20,7 @@ export default function MemberListPage() {
         <div>
           <p className="eyebrow">MEMBERS</p>
           <h1>멤버</h1>
-          <p className="heading-copy">함께 코트에 서는 멤버들의 이름과 구력을 확인합니다.</p>
+          <p className="heading-copy">멤버들의 이름과 구력을 확인합니다.</p>
         </div>
       </div>
 
