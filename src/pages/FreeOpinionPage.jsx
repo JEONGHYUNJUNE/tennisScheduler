@@ -65,7 +65,7 @@ export default function FreeOpinionPage() {
             의견 남기기
             <textarea
               maxLength={300}
-              placeholder="운영 아이디어, 코트 의견, 하고 싶은 말 등을 편하게 남겨주세요."
+              placeholder="운영 아이디어, 코트 의견, 모임 후기, 하고 싶은 말 등을 편하게 남겨주세요."
               rows="3"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
