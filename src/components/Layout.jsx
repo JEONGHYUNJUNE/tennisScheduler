@@ -30,7 +30,7 @@ export default function Layout() {
           <NavLink to="/members">멤버</NavLink>
           <NavLink to="/ranking">랭킹</NavLink>
           {isAdmin && <NavLink to="/admin/members">멤버관리</NavLink>}
-          <NavLink to="/free-opinions">자유의견</NavLink>
+          <NavLink to="/free-opinions">소통</NavLink>
         </nav>
       </header>
       <main className="page"><Outlet /></main>
