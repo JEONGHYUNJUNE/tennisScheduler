@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getMyUpcomingEvents } from '../services/eventService'
 
@@ -32,6 +32,7 @@ function formatTennisExperience(startDate) {
 }
 
 export default function UserMenu({ profile }) {
+  const menuRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
   const [activePanel, setActivePanel] = useState('profile')
   const [myEvents, setMyEvents] = useState([])
@@ -55,8 +56,29 @@ export default function UserMenu({ profile }) {
     }
   }
 
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (menuRef.current?.contains(event.target)) return
+      setIsOpen(false)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
   return (
-    <div className="user-menu-wrap">
+    <div className="user-menu-wrap" ref={menuRef}>
       <button className="user-menu-button" onClick={() => setIsOpen((open) => !open)}>
         {profile?.name || '회원'}님
       </button>

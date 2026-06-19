@@ -8,6 +8,10 @@ const localDate = () => {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
+const formatLocalDate = (date) => {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}
+
 export const getTodayDateText = localDate
 
 export async function getUpcomingEvents() {
@@ -43,6 +47,73 @@ export async function getMyUpcomingEvents(memberId) {
 
   if (error) throw error
   return data.map(normalizeEvent)
+}
+
+export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
+  const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+  const nextMonthStart = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1)
+
+  const withPosition = await supabase
+    .from('tennis_events')
+    .select(`
+      id, title, event_date,
+      tennis_attendances(
+        id, member_id, status,
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, club_position, is_active)
+      )
+    `)
+    .gte('event_date', formatLocalDate(monthStart))
+    .lt('event_date', formatLocalDate(nextMonthStart))
+    .lt('event_date', localDate())
+    .order('event_date', { ascending: false })
+
+  if (!withPosition.error) return buildRanking(withPosition.data)
+  if (!/club_position/.test(withPosition.error.message || '')) throw withPosition.error
+
+  const { data, error } = await supabase
+    .from('tennis_events')
+    .select(`
+      id, title, event_date,
+      tennis_attendances(
+        id, member_id, status,
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, is_active)
+      )
+    `)
+    .gte('event_date', formatLocalDate(monthStart))
+    .lt('event_date', formatLocalDate(nextMonthStart))
+    .lt('event_date', localDate())
+    .order('event_date', { ascending: false })
+
+  if (error) throw error
+  return buildRanking(data)
+}
+
+function buildRanking(events) {
+  const rankingMap = new Map()
+
+  for (const event of events || []) {
+    for (const attendance of event.tennis_attendances || []) {
+      if (attendance.status !== 'attending' || !attendance.member_id || attendance.otmember?.is_active === false) continue
+
+      const member = normalizeMember(attendance.otmember)
+      const current = rankingMap.get(attendance.member_id) || {
+        member_id: attendance.member_id,
+        name: member?.name || '-',
+        user_id: member?.user_id || '',
+        club_position: member?.club_position || '',
+        count: 0,
+        events: [],
+      }
+
+      current.count += 1
+      current.events.push({ id: event.id, title: event.title, event_date: event.event_date })
+      rankingMap.set(attendance.member_id, current)
+    }
+  }
+
+  return [...rankingMap.values()]
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko-KR'))
+    .map((item, index) => ({ ...item, rank: index + 1 }))
 }
 
 export async function getEvent(eventId) {
@@ -181,6 +252,7 @@ function normalizeMember(member) {
     ...member,
     user_id: member.username,
     name: member.display_name,
+    club_position: member.club_position || '',
   }
 }
 

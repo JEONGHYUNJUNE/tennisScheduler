@@ -48,6 +48,7 @@ export default function MembersPage() {
               <span>아이디</span>
               <span>테니스 시작일</span>
               <span>구력</span>
+              <span>직책</span>
               <span>권한</span>
               <span>상태</span>
             </div>
@@ -57,6 +58,17 @@ export default function MembersPage() {
                 <span>{member.user_id}</span>
                 <span>{member.tennis_start_date || '-'}</span>
                 <span>{formatTennisExperience(member.tennis_start_date)}</span>
+                <select
+                  value={member.club_position || ''}
+                  disabled={updatingId === member.id}
+                  onChange={(event) => handleUpdate(member.id, { club_position: event.target.value })}
+                >
+                  <option value="">미지정</option>
+                  <option value="회장">회장</option>
+                  <option value="부회장">부회장</option>
+                  <option value="총무">총무</option>
+                  <option value="경기이사">경기이사</option>
+                </select>
                 <select
                   value={member.role || 'member'}
                   disabled={updatingId === member.id}

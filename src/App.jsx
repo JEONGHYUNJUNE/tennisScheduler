@@ -10,6 +10,7 @@ import MembersPage from './pages/MembersPage'
 import SignupPage from './pages/SignupPage'
 import CompleteProfilePage from './pages/CompleteProfilePage'
 import MemberListPage from './pages/MemberListPage'
+import RankingPage from './pages/RankingPage'
 
 export default function App() {
   if (!isSupabaseConfigured) {
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/events/new" element={<EventFormPage />} />
           <Route path="/events/:eventId/edit" element={<EventFormPage />} />
           <Route path="/members" element={<MemberListPage />} />
+          <Route path="/ranking" element={<RankingPage />} />
 
           <Route element={<ProtectedRoute adminOnly />}>
             <Route path="/admin/members" element={<MembersPage />} />

@@ -31,7 +31,10 @@ export default function MemberListPage() {
         <section className="public-member-list">
           {members.map((member) => (
             <article className="public-member-item" key={member.id}>
-              <strong>{member.name || '-'}</strong>
+              <div className="public-member-name">
+                <strong>{member.name || '-'}</strong>
+                {member.club_position && <em>{member.club_position}</em>}
+              </div>
               <span>구력 : {formatTennisExperience(member.tennis_start_date)}</span>
             </article>
           ))}

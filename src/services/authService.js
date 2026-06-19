@@ -40,7 +40,7 @@ export async function signOut() {
 }
 
 export async function signInWithGoogle() {
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = getOAuthRedirectUrl()
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -50,6 +50,16 @@ export async function signInWithGoogle() {
 
   if (error) throw error
   return data
+}
+
+function getOAuthRedirectUrl() {
+  const appUrl = import.meta.env.VITE_APP_URL?.trim()
+
+  if (appUrl) {
+    return `${appUrl.replace(/\/+$/, '')}/`
+  }
+
+  return `${window.location.origin}${window.location.pathname}`
 }
 
 export async function completeGoogleProfile({ userId, name, tennisStartDate }, authUser) {
