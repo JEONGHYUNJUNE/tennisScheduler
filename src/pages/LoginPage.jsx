@@ -13,7 +13,7 @@ export default function LoginPage() {
 
   if (!loading && session) {
     const isGoogleUser = session.user?.app_metadata?.provider === 'google'
-    return <Navigate to={profile || !isGoogleUser ? '/events' : '/complete-profile'} replace />
+    return <Navigate to={profile || !isGoogleUser ? '/' : '/complete-profile'} replace />
   }
 
   const handleSubmit = async (event) => {
@@ -22,7 +22,7 @@ export default function LoginPage() {
     setError('')
     try {
       await signIn(form.userId, form.password)
-      navigate('/events')
+      navigate('/')
     } catch (err) {
       setError(err.message === 'Invalid login credentials' ? '아이디 또는 비밀번호가 올바르지 않습니다.' : err.message)
     } finally {

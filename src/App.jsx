@@ -5,6 +5,8 @@ import { isSupabaseConfigured } from './lib/supabase'
 import EventDetailPage from './pages/EventDetailPage'
 import EventFormPage from './pages/EventFormPage'
 import EventsPage from './pages/EventsPage'
+import FreeOpinionPage from './pages/FreeOpinionPage'
+import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import MembersPage from './pages/MembersPage'
 import SignupPage from './pages/SignupPage'
@@ -38,12 +40,14 @@ export default function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/:eventId" element={<EventDetailPage />} />
           <Route path="/events/new" element={<EventFormPage />} />
           <Route path="/events/:eventId/edit" element={<EventFormPage />} />
           <Route path="/members" element={<MemberListPage />} />
           <Route path="/ranking" element={<RankingPage />} />
+          <Route path="/free-opinions" element={<FreeOpinionPage />} />
 
           <Route element={<ProtectedRoute adminOnly />}>
             <Route path="/admin/members" element={<MembersPage />} />
@@ -51,7 +55,7 @@ export default function App() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/events" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
