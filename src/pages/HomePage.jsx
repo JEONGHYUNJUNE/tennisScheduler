@@ -121,12 +121,12 @@ export default function HomePage() {
 
           <article className="dashboard-card">
             <div className="dashboard-card-head">
-              <h2><span className="dashboard-icon trophy-icon" />이번 달 참석왕 랭킹</h2>
+              <h2><span className="dashboard-icon trophy-icon" />참석 현황</h2>
               <Link to="/ranking">전체 보기</Link>
             </div>
 
             <div className="dashboard-ranking-list">
-              {dashboard.ranking.length === 0 && <p className="dashboard-empty">이번 달에 지난 일정이 아직 없습니다.</p>}
+              {dashboard.ranking.length === 0 && <p className="dashboard-empty">최근 3개월 일정이 아직 없습니다.</p>}
               {dashboard.ranking.map((item) => (
                 <Link className="dashboard-ranking-item" to="/ranking" key={item.member_id}>
                   <span className={`rank-badge rank-${item.rank}`}>{item.rank}</span>

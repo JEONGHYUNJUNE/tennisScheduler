@@ -50,7 +50,7 @@ export async function getMyUpcomingEvents(memberId) {
 }
 
 export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
-  const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+  const rangeStart = new Date(targetDate.getFullYear(), targetDate.getMonth() - 2, 1)
   const nextMonthStart = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1)
 
   const withPosition = await supabase
@@ -62,7 +62,7 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, club_position, is_active)
       )
     `)
-    .gte('event_date', formatLocalDate(monthStart))
+    .gte('event_date', formatLocalDate(rangeStart))
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
     .order('event_date', { ascending: false })
@@ -79,7 +79,7 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, is_active)
       )
     `)
-    .gte('event_date', formatLocalDate(monthStart))
+    .gte('event_date', formatLocalDate(rangeStart))
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
     .order('event_date', { ascending: false })
