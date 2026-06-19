@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { addFreeOpinion, getFreeOpinions } from '../services/freeOpinionService'
+import { addFreeOpinion, getFreeOpinions, markFreeOpinionsRead } from '../services/freeOpinionService'
 
 const formatOpinionTime = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   month: 'numeric',
@@ -17,14 +17,17 @@ export default function FreeOpinionPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const load = () => getFreeOpinions()
+  const load = useCallback(() => getFreeOpinions()
     .then(setOpinions)
     .catch((err) => setError(err.message))
-    .finally(() => setLoading(false))
+    .finally(() => setLoading(false)), [])
 
   useEffect(() => {
     load()
-  }, [])
+    if (profile?.id) {
+      markFreeOpinionsRead(profile.id).catch(() => {})
+    }
+  }, [load, profile?.id])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -38,6 +41,7 @@ export default function FreeOpinionPage() {
       await addFreeOpinion(profile.id, trimmedMessage)
       setMessage('')
       await load()
+      await markFreeOpinionsRead(profile.id)
     } catch (err) {
       setError(err.message)
     } finally {

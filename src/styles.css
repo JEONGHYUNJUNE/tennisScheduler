@@ -31,6 +31,7 @@ button { cursor: pointer; }
 .header-nav a { border-radius: 999px; padding: 10px 14px; text-decoration: none; font-weight: 900; transition: background .16s, color .16s, transform .16s; }
 .header-nav a:hover { background: rgba(255, 255, 255, .14); transform: translateY(-1px); }
 .header-nav a.active { color: var(--green-800); background: rgba(255, 253, 248, .96); box-shadow: 0 8px 20px rgba(49, 95, 59, .16); }
+.nav-new-badge { margin-left: 7px; padding: 3px 7px; border-radius: 999px; color: white; background: var(--warm); font-size: .68rem; font-weight: 950; letter-spacing: -.02em; }
 .text-button { padding: 0; border: 0; color: inherit; background: none; }
 .user-menu-wrap { position: relative; }
 .user-menu-button { border: 0; padding: 0; color: white; background: none; font-weight: 900; }
