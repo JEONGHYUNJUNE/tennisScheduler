@@ -62,6 +62,7 @@ export default function Layout() {
           <NavLink to="/events" end>일정</NavLink>
           <NavLink to="/members">멤버</NavLink>
           <NavLink to="/ranking">랭킹</NavLink>
+          <NavLink to="/tennis-news">테니스TV</NavLink>
           {isAdmin && <NavLink to="/admin/members">멤버관리</NavLink>}
           <NavLink to="/free-opinions">
             <span>소통</span>
