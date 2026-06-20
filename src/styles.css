@@ -367,14 +367,17 @@ dd { margin: 0; white-space: pre-wrap; }
   .calendar-nav-today { min-width: 72px; padding-inline: 18px; font-size: .94rem; }
   .month-calendar-weekdays { gap: 4px; font-size: .72rem; }
   .month-calendar-grid { gap: 5px; }
-  .month-day { min-height: 104px; padding: 7px; border-radius: 12px; gap: 5px; }
+  .month-day { min-height: 92px; padding: 7px 5px; border-radius: 12px; gap: 5px; }
   .month-day-head strong { font-size: .82rem; }
   .month-day-head span { display: none; }
   .month-day-events { gap: 4px; }
-  .month-day-events a { padding: 5px 6px; border-radius: 8px; }
-  .month-day-events a span { font-size: .62rem; }
-  .month-day-events a strong { font-size: .7rem; }
-  .month-day-create { padding: 6px 4px; font-size: .66rem; }
+  .month-day-events a { min-width: 0; padding: 4px 5px; border-radius: 8px; display: block; overflow: hidden; }
+  .month-day-events a span,
+  .month-day-events a strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .month-day-events a span { font-size: .58rem; line-height: 1.1; }
+  .month-day-events a strong { margin-top: 2px; font-size: .64rem; line-height: 1.15; }
+  .month-day-create { width: 30px; height: 30px; margin: auto auto 0; border-radius: 50%; padding: 0; display: grid; place-items: center; font-size: 0; line-height: 1; }
+  .month-day-create::before { content: "+"; font-size: 1.05rem; font-weight: 950; line-height: 1; }
   .news-link-grid { grid-template-columns: 1fr; }
   .page-heading, .form-row { align-items: stretch; grid-template-columns: 1fr; }
   .page-heading { flex-direction: column; }
