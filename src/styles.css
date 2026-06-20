@@ -87,6 +87,26 @@ h2 { margin: 0; }
 .home-hero h1 { margin: 0; color: #1f2b22; font-size: clamp(2rem, 4.3vw, 3.35rem); line-height: 1.14; letter-spacing: -.055em; }
 .home-hero p:last-child { margin: 18px 0 0; color: var(--muted); font-size: 1rem; font-weight: 800; line-height: 1.6; }
 .home-court-art { min-height: 165px; }
+.dashboard-edit-button { position: absolute; top: 22px; right: 22px; z-index: 2; border: 1px solid rgba(63, 116, 75, .22); border-radius: 999px; padding: 10px 15px; color: var(--green-800); background: rgba(255, 253, 248, .88); box-shadow: 0 10px 24px rgba(49, 95, 59, .1); font-size: .88rem; font-weight: 950; backdrop-filter: blur(8px); }
+.dashboard-edit-button:hover { background: white; transform: translateY(-1px); }
+.dashboard-edit-panel { margin: 0 0 18px; padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: rgba(255, 253, 248, .88); box-shadow: 0 14px 32px rgba(49, 95, 59, .08); }
+.dashboard-edit-panel strong { color: var(--green-900); font-size: 1.05rem; }
+.dashboard-edit-panel p { margin: 6px 0 0; color: var(--muted); font-weight: 800; }
+.dashboard-edit-actions { display: flex; align-items: center; gap: 8px; }
+.home-widget-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.05fr; gap: 18px; align-items: stretch; }
+.home-widget { min-width: 0; display: flex; flex-direction: column; }
+.home-widget-calendar { grid-column: 1 / -1; }
+.home-widget > .dashboard-card,
+.home-widget > .month-calendar-card { height: 100%; margin-top: 0; }
+.home-widget.editing { position: relative; }
+.home-widget.dragging { z-index: 10; opacity: .86; }
+.home-widget.editing > .dashboard-card,
+.home-widget.editing > .month-calendar-card { pointer-events: none; }
+.home-widget-grid.editing .dashboard-card,
+.home-widget-grid.editing .month-calendar-card { outline: 2px dashed rgba(63, 116, 75, .16); outline-offset: 5px; }
+.widget-edit-bar { margin: 0 0 10px; padding: 9px 12px; border: 1px dashed rgba(63, 116, 75, .28); border-radius: 14px; display: flex; align-items: center; gap: 10px; color: var(--green-800); background: rgba(255, 253, 248, .9); font-weight: 950; box-shadow: 0 8px 20px rgba(49, 95, 59, .08); }
+.widget-edit-bar button { width: 34px; height: 34px; border: 0; border-radius: 10px; display: grid; place-items: center; color: white; background: var(--green-700); font-size: 1.2rem; line-height: 1; cursor: grab; }
+.widget-edit-bar button:active { cursor: grabbing; }
 .dashboard-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.05fr; gap: 18px; }
 .dashboard-card { min-height: 300px; padding: 25px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 22px; background: rgba(255, 253, 248, .92); box-shadow: 0 16px 38px rgba(49, 95, 59, .1); backdrop-filter: blur(8px); }
 .dashboard-card-head { margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
@@ -293,7 +313,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .inactive-card { width: min(560px, 100%); padding: 46px; border-radius: 22px; border: 1px solid var(--line); background: var(--cream); box-shadow: 10px 10px 0 #b9d6ae; text-align: center; }
 .inactive-card p:not(.eyebrow) { color: var(--muted); line-height: 1.7; }
 .inactive-card button { margin-top: 20px; }
-@media (max-width: 980px) { .home-hero { grid-template-columns: 1fr; } .home-court-art { min-height: 130px; } .dashboard-grid { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .home-hero { grid-template-columns: 1fr; } .home-court-art { min-height: 130px; } .dashboard-grid, .home-widget-grid { grid-template-columns: 1fr; } .home-widget-calendar { grid-column: auto; } }
 @media (max-width: 760px) {
   .auth-layout { grid-template-columns: 1fr; }
   .auth-copy { min-height: 36vh; padding: 45px 28px; }
@@ -326,6 +346,12 @@ dd { margin: 0; white-space: pre-wrap; }
   .home-kicker span { width: 22px; height: 22px; }
   .home-hero h1 { font-size: 2.15rem; }
   .home-court-art { display: none; }
+  .dashboard-edit-button { top: 14px; right: 14px; padding: 8px 11px; font-size: .76rem; }
+  .dashboard-edit-panel { padding: 16px; align-items: stretch; flex-direction: column; }
+  .dashboard-edit-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .home-widget-grid { gap: 14px; }
+  .widget-edit-bar { padding: 8px 10px; font-size: .88rem; }
+  .widget-edit-bar button { width: 32px; height: 32px; }
   .dashboard-card { min-height: 0; padding: 22px; border-radius: 20px; }
   .dashboard-card-head { margin-bottom: 18px; }
   .dashboard-card-head h2 { font-size: 1.1rem; }

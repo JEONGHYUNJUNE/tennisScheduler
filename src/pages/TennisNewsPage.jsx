@@ -136,7 +136,7 @@ export default function TennisNewsPage() {
         )}
 
         <div className="news-link-grid">
-          <a href="https://www.flashscore.com/tennis/" target="_blank" rel="noreferrer">
+          <a href="https://www.flashscore.co.kr/tennis/" target="_blank" rel="noreferrer">
             <strong>오늘의 경기/결과</strong>
             <span>전세계 ATP/WTA 주요 경기 확인</span>
           </a>
