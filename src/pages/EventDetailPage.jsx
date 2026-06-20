@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { addGuestAttendance, attendEvent, cancelAttendance, getEvent, getTodayDateText, isCancellationBlocked, removeGuestAttendance } from '../services/eventService'
+import { addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, getEvent, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventLike } from '../services/eventService'
 
 const emptyGuestForm = {
   guest_name: '',
@@ -11,15 +11,23 @@ const emptyGuestForm = {
 export default function EventDetailPage() {
   const { eventId } = useParams()
   const { profile, isAdmin } = useAuth()
+  const navigate = useNavigate()
   const [event, setEvent] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [guestForm, setGuestForm] = useState(emptyGuestForm)
   const [guestSubmitting, setGuestSubmitting] = useState(false)
+  const [likeSummary, setLikeSummary] = useState({ count: 0, likedByMe: false })
 
   useEffect(() => {
-    getEvent(eventId).then(setEvent).catch((err) => setError(err.message))
-  }, [eventId])
+    getEvent(eventId)
+      .then(async (data) => {
+        setEvent(data)
+        const summaries = await getEventLikeSummaries([data.id], profile.id)
+        setLikeSummary(summaries[data.id] ?? { count: 0, likedByMe: false })
+      })
+      .catch((err) => setError(err.message))
+  }, [eventId, profile.id])
 
   const reload = () => getEvent(eventId).then(setEvent).catch((err) => setError(err.message))
 
@@ -76,11 +84,45 @@ export default function EventDetailPage() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm(`${event.title} 일정을 삭제할까요?`)) return
+
+    setError('')
+    try {
+      await deleteEvent(event.id)
+      navigate('/events')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const handleLike = async () => {
+    const currentLike = likeSummary
+
+    setLikeSummary({
+      count: Math.max(currentLike.count + (currentLike.likedByMe ? -1 : 1), 0),
+      likedByMe: !currentLike.likedByMe,
+    })
+
+    try {
+      await toggleEventLike(event.id, profile.id, currentLike.likedByMe)
+    } catch (err) {
+      setError(`${err.message} SQL 015번을 실행했는지 확인해 주세요.`)
+      const summaries = await getEventLikeSummaries([event.id], profile.id)
+      setLikeSummary(summaries[event.id] ?? { count: 0, likedByMe: false })
+    }
+  }
+
   return (
     <>
       <div className="page-heading">
         <div><p className="eyebrow">MATCH DETAIL</p><h1>{event.title}</h1></div>
-        {canManageEvent && !isPastEvent && <Link className="secondary-button" to={`/events/${event.id}/edit`}>일정 수정</Link>}
+        {canManageEvent && !isPastEvent && (
+          <div className="detail-heading-actions">
+            <Link className="secondary-button" to={`/events/${event.id}/edit`}>일정 수정</Link>
+            <button className="danger-button" type="button" onClick={handleDelete}>삭제</button>
+          </div>
+        )}
       </div>
       <section className="detail-card">
         <dl>
@@ -90,6 +132,15 @@ export default function EventDetailPage() {
           <div><dt>정원</dt><dd>{event.max_players ? `${attending.length} / ${event.max_players}명` : `${attending.length}명`}</dd></div>
           {event.memo && <div><dt>메모</dt><dd>{event.memo}</dd></div>}
         </dl>
+        <button
+          className={`heart-button detail-heart ${likeSummary.likedByMe ? 'liked' : ''}`}
+          type="button"
+          onClick={handleLike}
+          aria-label={likeSummary.likedByMe ? '좋아요 취소' : '좋아요'}
+        >
+          <span>♥</span>
+          <strong>{likeSummary.count}</strong>
+        </button>
         {error && <p className="error">{error}</p>}
         {isPastEvent ? (
           <p className="past-event-notice">지난 일정은 조회만 가능합니다.</p>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { addFreeOpinion, getFreeOpinions, markFreeOpinionsRead } from '../services/freeOpinionService'
+import { addFreeOpinion, getFreeOpinionLikeSummaries, getFreeOpinions, markFreeOpinionsRead, toggleFreeOpinionLike } from '../services/freeOpinionService'
 
 const formatOpinionTime = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   month: 'numeric',
@@ -12,15 +12,24 @@ const formatOpinionTime = (dateText) => new Intl.DateTimeFormat('ko-KR', {
 export default function FreeOpinionPage() {
   const { profile } = useAuth()
   const [opinions, setOpinions] = useState([])
+  const [opinionLikes, setOpinionLikes] = useState({})
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const load = useCallback(() => getFreeOpinions()
-    .then(setOpinions)
-    .catch((err) => setError(err.message))
-    .finally(() => setLoading(false)), [])
+  const load = useCallback(async () => {
+    try {
+      setError('')
+      const nextOpinions = await getFreeOpinions()
+      setOpinions(nextOpinions)
+      setOpinionLikes(await getFreeOpinionLikeSummaries(nextOpinions.map((opinion) => opinion.id), profile.id))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [profile.id])
 
   useEffect(() => {
     load()
@@ -46,6 +55,25 @@ export default function FreeOpinionPage() {
       setError(err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleLike = async (opinion) => {
+    const currentLike = opinionLikes[opinion.id] ?? { count: 0, likedByMe: false }
+
+    setOpinionLikes((current) => ({
+      ...current,
+      [opinion.id]: {
+        count: Math.max((current[opinion.id]?.count || 0) + (currentLike.likedByMe ? -1 : 1), 0),
+        likedByMe: !currentLike.likedByMe,
+      },
+    }))
+
+    try {
+      await toggleFreeOpinionLike(opinion.id, profile.id, currentLike.likedByMe)
+    } catch (err) {
+      setError(`${err.message} SQL 015번을 실행했는지 확인해 주세요.`)
+      await load()
     }
   }
 
@@ -92,6 +120,15 @@ export default function FreeOpinionPage() {
                   <time>{formatOpinionTime(opinion.created_at)}</time>
                 </div>
                 <p>{opinion.message}</p>
+                <button
+                  className={`heart-button opinion-heart ${opinionLikes[opinion.id]?.likedByMe ? 'liked' : ''}`}
+                  type="button"
+                  onClick={() => handleLike(opinion)}
+                  aria-label={opinionLikes[opinion.id]?.likedByMe ? '좋아요 취소' : '좋아요'}
+                >
+                  <span>♥</span>
+                  <strong>{opinionLikes[opinion.id]?.count || 0}</strong>
+                </button>
               </article>
             ))}
           </div>

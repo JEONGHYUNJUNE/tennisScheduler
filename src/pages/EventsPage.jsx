@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { attendEvent, cancelAttendance, deleteEvent, getUpcomingEvents, isCancellationBlocked } from '../services/eventService'
+import { attendEvent, cancelAttendance, deleteEvent, getEventLikeSummaries, getUpcomingEvents, isCancellationBlocked, toggleEventLike } from '../services/eventService'
 
 const formatDate = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   month: 'long', day: 'numeric', weekday: 'short',
@@ -14,11 +14,24 @@ const formatTime = (start, end) => end
 export default function EventsPage() {
   const { profile, isAdmin } = useAuth()
   const [events, setEvents] = useState([])
+  const [eventLikes, setEventLikes] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const load = () => getUpcomingEvents().then(setEvents).catch((err) => setError(err.message)).finally(() => setLoading(false))
-  useEffect(() => { load() }, [])
+  const load = useCallback(async () => {
+    try {
+      setError('')
+      const nextEvents = await getUpcomingEvents()
+      setEvents(nextEvents)
+      setEventLikes(await getEventLikeSummaries(nextEvents.map((event) => event.id), profile.id))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [profile.id])
+
+  useEffect(() => { load() }, [load])
 
   const handleAttendance = async (eventItem, mine) => {
     if (mine && isCancellationBlocked(eventItem.event_date)) {
@@ -45,6 +58,25 @@ export default function EventsPage() {
     }
   }
 
+  const handleLike = async (eventItem) => {
+    const currentLike = eventLikes[eventItem.id] ?? { count: 0, likedByMe: false }
+
+    setEventLikes((current) => ({
+      ...current,
+      [eventItem.id]: {
+        count: Math.max((current[eventItem.id]?.count || 0) + (currentLike.likedByMe ? -1 : 1), 0),
+        likedByMe: !currentLike.likedByMe,
+      },
+    }))
+
+    try {
+      await toggleEventLike(eventItem.id, profile.id, currentLike.likedByMe)
+    } catch (err) {
+      setError(`${err.message} SQL 015번을 실행했는지 확인해 주세요.`)
+      await load()
+    }
+  }
+
   return (
     <>
       <div className="page-heading main-heading">
@@ -61,6 +93,7 @@ export default function EventsPage() {
           const mine = event.tennis_attendances?.find((item) => item.member_id === profile.id)
           const canManageEvent = isAdmin || event.created_by === profile.id
           const isFull = event.max_players && attending.length >= event.max_players
+          const likeSummary = eventLikes[event.id] ?? { count: 0, likedByMe: false }
           const nextActionLabel = mine
             ? mine.status === 'waiting' ? '대기 취소' : '참석 취소'
             : isFull ? '대기 신청' : '참석하기'
@@ -74,6 +107,15 @@ export default function EventsPage() {
                 {event.memo && <p className="event-memo">{event.memo}</p>}
               </div>
               <div className="event-side">
+                <button
+                  className={`heart-button ${likeSummary.likedByMe ? 'liked' : ''}`}
+                  type="button"
+                  onClick={() => handleLike(event)}
+                  aria-label={likeSummary.likedByMe ? '좋아요 취소' : '좋아요'}
+                >
+                  <span>♥</span>
+                  <strong>{likeSummary.count}</strong>
+                </button>
                 <div className="capacity"><strong>{attending.length}{event.max_players ? ` / ${event.max_players}` : ''}</strong><span>참석</span></div>
                 <button className={mine ? 'secondary-button' : 'primary-button'} onClick={() => handleAttendance(event, mine)}>
                   {nextActionLabel}

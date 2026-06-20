@@ -199,6 +199,14 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .event-card p { margin: 3px 0; color: var(--muted); }
 .event-memo { margin-top: 15px !important; color: var(--text) !important; white-space: pre-wrap; }
 .event-side { display: flex; flex-direction: column; gap: 10px; }
+.heart-button { width: fit-content; min-height: 36px; border: 1px solid rgba(208, 97, 56, .2); border-radius: 999px; padding: 7px 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: rgba(104, 117, 106, .78); background: rgba(255, 253, 248, .78); font-weight: 950; transition: color .15s, background .15s, border-color .15s, transform .15s; }
+.heart-button span { color: rgba(208, 97, 56, .42); font-size: 1.05rem; line-height: 1; }
+.heart-button strong { min-width: 1ch; font-size: .86rem; }
+.heart-button:hover { transform: translateY(-1px); border-color: rgba(208, 97, 56, .34); background: rgba(255, 245, 239, .86); }
+.heart-button.liked { color: var(--warm); border-color: rgba(208, 97, 56, .34); background: rgba(208, 97, 56, .09); }
+.heart-button.liked span { color: var(--warm); }
+.event-side .heart-button { align-self: flex-end; }
+.detail-heart { margin: -10px 0 26px auto; display: flex; }
 .capacity { margin-bottom: 6px; display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; }
 .capacity strong { font-size: 1.8rem; }
 .capacity span { color: var(--muted); font-size: .82rem; }
@@ -208,6 +216,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .waiting-list { color: var(--green-800) !important; font-weight: 800; }
 .detail-card, .form-card { padding: clamp(25px, 5vw, 45px); border-radius: 20px; background: rgba(255, 253, 248, .92); backdrop-filter: blur(6px); }
 .detail-card dl { margin: 0 0 30px; }
+.detail-heading-actions { display: flex; align-items: center; gap: 8px; }
 .detail-card dl div { display: grid; grid-template-columns: 90px 1fr; padding: 14px 0; border-bottom: 1px solid var(--line); }
 dt { color: var(--muted); font-weight: 700; }
 dd { margin: 0; white-space: pre-wrap; }
@@ -273,6 +282,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .opinion-item strong { color: var(--green-900); }
 .opinion-item time { color: var(--muted); font-size: .78rem; font-weight: 800; white-space: nowrap; }
 .opinion-item p { margin: 0; color: #2b362d; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.opinion-heart { margin-top: 14px; }
 .notice { margin: 0; padding: 14px 16px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 14px; color: var(--green-800); background: rgba(255, 253, 248, .86); font-weight: 900; }
 .error { color: #a13b31; font-weight: 700; }
 .empty-state, .center-message { padding: 60px 20px; text-align: center; }
@@ -342,6 +352,7 @@ dd { margin: 0; white-space: pre-wrap; }
   .news-link-grid { grid-template-columns: 1fr; }
   .page-heading, .form-row { align-items: stretch; grid-template-columns: 1fr; }
   .page-heading { flex-direction: column; }
+  .detail-heading-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .event-card { grid-template-columns: 1fr; }
   .event-side { display: grid; grid-template-columns: 1fr 1fr; }
   .capacity { grid-column: 1 / -1; justify-content: flex-start; }

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase'
 
 const missingGuestColumnCodes = new Set(['42703', 'PGRST204'])
+const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
 const relationshipAmbiguousCodes = new Set(['PGRST201'])
 
 const localDate = () => {
@@ -141,6 +142,47 @@ function buildRanking(events) {
   return [...rankingMap.values()]
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko-KR'))
     .map((item, index) => ({ ...item, rank: index + 1 }))
+}
+
+export async function getEventLikeSummaries(eventIds, memberId) {
+  if (!eventIds.length) return {}
+
+  const { data, error } = await supabase
+    .from('tennis_event_likes')
+    .select('event_id, member_id')
+    .in('event_id', eventIds)
+
+  if (error) {
+    if (isMissingLikeTableError(error)) return {}
+    throw error
+  }
+
+  return data.reduce((summaries, like) => {
+    const summary = summaries[like.event_id] ?? { count: 0, likedByMe: false }
+    summary.count += 1
+    summary.likedByMe = summary.likedByMe || like.member_id === memberId
+    summaries[like.event_id] = summary
+    return summaries
+  }, {})
+}
+
+export async function toggleEventLike(eventId, memberId, likedByMe) {
+  if (likedByMe) {
+    const { error } = await supabase
+      .from('tennis_event_likes')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('member_id', memberId)
+
+    if (error) throw error
+    return
+  }
+
+  const { error } = await supabase
+    .from('tennis_event_likes')
+    .insert({ event_id: eventId, member_id: memberId })
+
+  if (error) throw error
 }
 
 export async function getEvent(eventId) {
@@ -314,4 +356,8 @@ function isMissingGuestColumnError(error) {
 
 function isRecoverableAttendanceEmbedError(error) {
   return isMissingGuestColumnError(error) || relationshipAmbiguousCodes.has(error.code)
+}
+
+function isMissingLikeTableError(error) {
+  return missingLikeTableCodes.has(error.code) || /tennis_event_likes/.test(error.message || '')
 }
