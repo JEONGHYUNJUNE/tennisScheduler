@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getEvent, getTodayDateText, saveEvent } from '../services/eventService'
 
@@ -8,6 +8,7 @@ const emptyForm = { title: '', event_date: '', start_time: '', end_time: '', loc
 export default function EventFormPage() {
   const { eventId } = useParams()
   const { profile, isAdmin } = useAuth()
+  const location = useLocation()
   const navigate = useNavigate()
   const [form, setForm] = useState(emptyForm)
   const [eventOwnerId, setEventOwnerId] = useState(null)
@@ -34,6 +35,15 @@ export default function EventFormPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }, [eventId])
+
+  useEffect(() => {
+    if (eventId) return
+
+    const dateParam = new URLSearchParams(location.search).get('date')
+    if (!dateParam || dateParam < getTodayDateText()) return
+
+    setForm((current) => ({ ...current, event_date: dateParam }))
+  }, [eventId, location.search])
 
   if (loading) return <p>일정 정보를 불러오는 중입니다.</p>
 

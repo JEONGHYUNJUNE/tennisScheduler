@@ -35,6 +35,33 @@ export async function getUpcomingEvents() {
   return data.map((event) => normalizeEvent(event, false))
 }
 
+export async function getMonthEvents(targetDate = new Date()) {
+  const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
+  const nextMonthStart = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1)
+
+  const withGuestColumns = await supabase
+    .from('tennis_events')
+    .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .gte('event_date', formatLocalDate(monthStart))
+    .lt('event_date', formatLocalDate(nextMonthStart))
+    .order('event_date')
+    .order('start_time')
+
+  if (!withGuestColumns.error) return withGuestColumns.data.map((event) => normalizeEvent(event, true))
+  if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
+
+  const { data, error } = await supabase
+    .from('tennis_events')
+    .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .gte('event_date', formatLocalDate(monthStart))
+    .lt('event_date', formatLocalDate(nextMonthStart))
+    .order('event_date')
+    .order('start_time')
+
+  if (error) throw error
+  return data.map((event) => normalizeEvent(event, false))
+}
+
 export async function getMyUpcomingEvents(memberId) {
   const { data, error } = await supabase
     .from('tennis_events')
@@ -183,6 +210,10 @@ export async function saveEvent(event, memberId) {
 }
 
 export async function attendEvent(event, memberId) {
+  if (event.event_date < localDate()) {
+    throw new Error('지난 일정은 참석 신청할 수 없습니다.')
+  }
+
   const attendingCount = event.tennis_attendances?.filter((item) => item.status === 'attending').length || 0
   const isFull = event.max_players && attendingCount >= event.max_players
   const status = isFull ? 'waiting' : 'attending'
@@ -197,6 +228,10 @@ export async function attendEvent(event, memberId) {
 }
 
 export async function addGuestAttendance(event, guest, actorId) {
+  if (event.event_date < localDate()) {
+    throw new Error('지난 일정에는 게스트를 추가할 수 없습니다.')
+  }
+
   const guestName = guest.guest_name?.trim()
   const guestMemo = guest.guest_memo?.trim()
 

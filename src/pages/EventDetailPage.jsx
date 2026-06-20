@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { addGuestAttendance, attendEvent, cancelAttendance, getEvent, isCancellationBlocked, removeGuestAttendance } from '../services/eventService'
+import { addGuestAttendance, attendEvent, cancelAttendance, getEvent, getTodayDateText, isCancellationBlocked, removeGuestAttendance } from '../services/eventService'
 
 const emptyGuestForm = {
   guest_name: '',
@@ -30,6 +30,7 @@ export default function EventDetailPage() {
   const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []
   const myAttendance = event.tennis_attendances?.find((item) => item.member_id === profile.id)
   const canManageEvent = isAdmin || event.created_by === profile.id
+  const isPastEvent = event.event_date < getTodayDateText()
   const isFull = event.max_players && attending.length >= event.max_players
 
   const handleAttendance = async () => {
@@ -79,7 +80,7 @@ export default function EventDetailPage() {
     <>
       <div className="page-heading">
         <div><p className="eyebrow">MATCH DETAIL</p><h1>{event.title}</h1></div>
-        {canManageEvent && <Link className="secondary-button" to={`/events/${event.id}/edit`}>일정 수정</Link>}
+        {canManageEvent && !isPastEvent && <Link className="secondary-button" to={`/events/${event.id}/edit`}>일정 수정</Link>}
       </div>
       <section className="detail-card">
         <dl>
@@ -90,15 +91,19 @@ export default function EventDetailPage() {
           {event.memo && <div><dt>메모</dt><dd>{event.memo}</dd></div>}
         </dl>
         {error && <p className="error">{error}</p>}
-        <button className={myAttendance ? 'danger-button' : 'primary-button'} disabled={submitting} onClick={handleAttendance}>
-          {submitting
-            ? '처리 중...'
-            : myAttendance
-              ? myAttendance.status === 'waiting' ? '대기 취소' : '참석 취소'
-              : isFull ? '대기 신청' : '참석 신청'}
-        </button>
+        {isPastEvent ? (
+          <p className="past-event-notice">지난 일정은 조회만 가능합니다.</p>
+        ) : (
+          <button className={myAttendance ? 'danger-button' : 'primary-button'} disabled={submitting} onClick={handleAttendance}>
+            {submitting
+              ? '처리 중...'
+              : myAttendance
+                ? myAttendance.status === 'waiting' ? '대기 취소' : '참석 취소'
+                : isFull ? '대기 신청' : '참석 신청'}
+          </button>
+        )}
       </section>
-      {isAdmin && event.supports_guest_attendance && (
+      {isAdmin && event.supports_guest_attendance && !isPastEvent && (
         <section className="detail-card guest-card">
           <div className="guest-card-head">
             <div>
@@ -128,7 +133,7 @@ export default function EventDetailPage() {
                 <strong>{item.display_name}</strong>
                 <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
               </div>
-              {isAdmin && item.is_guest && <button className="text-button attendee-remove" onClick={() => handleGuestRemove(item.id)}>삭제</button>}
+              {isAdmin && item.is_guest && !isPastEvent && <button className="text-button attendee-remove" onClick={() => handleGuestRemove(item.id)}>삭제</button>}
             </li>
           ))}
         </ul>
@@ -143,7 +148,7 @@ export default function EventDetailPage() {
                 <strong>{index + 1}. {item.display_name}</strong>
                 <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
               </div>
-              {isAdmin && item.is_guest && <button className="text-button attendee-remove" onClick={() => handleGuestRemove(item.id)}>삭제</button>}
+              {isAdmin && item.is_guest && !isPastEvent && <button className="text-button attendee-remove" onClick={() => handleGuestRemove(item.id)}>삭제</button>}
             </li>
           ))}
         </ul>
