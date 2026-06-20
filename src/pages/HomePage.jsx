@@ -453,7 +453,7 @@ export default function HomePage() {
             <section className="widget-edit-panel">
               <div>
                 <strong>위젯 편집 중</strong>
-                <p>왼쪽 손잡이를 드래그해서 위젯 순서를 바꿔보세요.</p>
+                <p>제목 바를 드래그해서 위젯 순서를 바꿔보세요.</p>
               </div>
               <div className="widget-edit-actions">
                 <button className="secondary-button" type="button" onClick={handleCancelEdit} disabled={savingLayout}>취소</button>

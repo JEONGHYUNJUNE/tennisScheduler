@@ -105,7 +105,7 @@ h2 { margin: 0; }
 .home-widget-grid.editing .widget-card,
 .home-widget-grid.editing .month-calendar-card { outline: 2px dashed rgba(63, 116, 75, .16); outline-offset: 5px; }
 .widget-edit-bar { margin: 0 0 10px; padding: 9px 12px; border: 1px dashed rgba(63, 116, 75, .28); border-radius: 14px; display: flex; align-items: center; gap: 10px; color: var(--green-800); background: rgba(255, 253, 248, .9); font-weight: 950; box-shadow: 0 8px 20px rgba(49, 95, 59, .08); }
-.widget-edit-bar button { width: 34px; height: 34px; border: 0; border-radius: 10px; display: grid; place-items: center; color: white; background: var(--green-700); font-size: 1.2rem; line-height: 1; cursor: grab; }
+.widget-edit-bar button { width: 34px; height: 34px; border: 0; border-radius: 10px; display: grid; place-items: center; color: white; background: var(--green-700); font-size: 1.2rem; line-height: 1; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; touch-action: none; }
 .widget-edit-bar button:active { cursor: grabbing; }
 .widget-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.05fr; gap: 18px; }
 .widget-card { min-height: 300px; padding: 25px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 22px; background: rgba(255, 253, 248, .92); box-shadow: 0 16px 38px rgba(49, 95, 59, .1); backdrop-filter: blur(8px); }
