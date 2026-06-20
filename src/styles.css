@@ -93,7 +93,7 @@ h2 { margin: 0; }
 .widget-edit-panel strong { color: var(--green-900); font-size: 1.05rem; }
 .widget-edit-panel p { margin: 6px 0 0; color: var(--muted); font-weight: 800; }
 .widget-edit-actions { display: flex; align-items: center; gap: 8px; }
-.home-widget-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.05fr; gap: 18px; align-items: stretch; }
+.home-widget-grid { display: grid; grid-template-columns: 1.05fr 1fr 1.05fr; gap: 18px; align-items: stretch; user-select: none; -webkit-user-select: none; }
 .home-widget { min-width: 0; display: flex; flex-direction: column; }
 .home-widget-calendar { grid-column: 1 / -1; }
 .home-widget > .widget-card,
