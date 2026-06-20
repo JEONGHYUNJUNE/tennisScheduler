@@ -1,17 +1,17 @@
 import { supabase } from '../lib/supabase'
 
-const STORAGE_KEY_PREFIX = 'ons-tennis-dashboard-order'
+const STORAGE_KEY_PREFIX = 'ons-tennis-widget-order'
 const missingSettingsTableCodes = new Set(['42P01', 'PGRST205'])
 
-export const defaultDashboardWidgetOrder = ['upcomingEvents', 'members', 'ranking', 'calendar']
+export const defaultHomeWidgetOrder = ['upcomingEvents', 'members', 'ranking', 'calendar']
 
 const getStorageKey = (memberId) => `${STORAGE_KEY_PREFIX}:${memberId}`
 
-export async function getDashboardWidgetOrder(memberId) {
+export async function getHomeWidgetOrder(memberId) {
   const storedOrder = getLocalWidgetOrder(memberId)
 
   const { data, error } = await supabase
-    .from('home_dashboard_settings')
+    .from('home_widget_settings')
     .select('widget_order')
     .eq('member_id', memberId)
     .maybeSingle()
@@ -24,12 +24,12 @@ export async function getDashboardWidgetOrder(memberId) {
   return mergeWidgetOrder(data?.widget_order || storedOrder)
 }
 
-export async function saveDashboardWidgetOrder(memberId, widgetOrder) {
+export async function saveHomeWidgetOrder(memberId, widgetOrder) {
   const mergedOrder = mergeWidgetOrder(widgetOrder)
   localStorage.setItem(getStorageKey(memberId), JSON.stringify(mergedOrder))
 
   const { error } = await supabase
-    .from('home_dashboard_settings')
+    .from('home_widget_settings')
     .upsert(
       {
         member_id: memberId,
@@ -54,13 +54,13 @@ function getLocalWidgetOrder(memberId) {
 }
 
 function mergeWidgetOrder(widgetOrder) {
-  if (!Array.isArray(widgetOrder)) return defaultDashboardWidgetOrder
+  if (!Array.isArray(widgetOrder)) return defaultHomeWidgetOrder
 
-  const knownWidgets = widgetOrder.filter((widgetId) => defaultDashboardWidgetOrder.includes(widgetId))
-  const missingWidgets = defaultDashboardWidgetOrder.filter((widgetId) => !knownWidgets.includes(widgetId))
+  const knownWidgets = widgetOrder.filter((widgetId) => defaultHomeWidgetOrder.includes(widgetId))
+  const missingWidgets = defaultHomeWidgetOrder.filter((widgetId) => !knownWidgets.includes(widgetId))
   return [...knownWidgets, ...missingWidgets]
 }
 
 function isMissingSettingsTableError(error) {
-  return missingSettingsTableCodes.has(error.code) || /home_dashboard_settings/.test(error.message || '')
+  return missingSettingsTableCodes.has(error.code) || /home_widget_settings/.test(error.message || '')
 }

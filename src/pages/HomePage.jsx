@@ -18,7 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getMonthEvents, getMonthlyAttendanceRanking, getTodayDateText, getUpcomingEvents } from '../services/eventService'
-import { defaultDashboardWidgetOrder, getDashboardWidgetOrder, saveDashboardWidgetOrder } from '../services/homeDashboardService'
+import { defaultHomeWidgetOrder, getHomeWidgetOrder, saveHomeWidgetOrder } from '../services/homeWidgetService'
 import { getMembers } from '../services/memberService'
 
 const formatEventDate = (dateText) => {
@@ -118,13 +118,13 @@ function SortableHomeWidget({ id, isEditing, children }) {
 export default function HomePage() {
   const { profile } = useAuth()
   const [calendarMonth, setCalendarMonth] = useState(() => new Date())
-  const [widgetOrder, setWidgetOrder] = useState(defaultDashboardWidgetOrder)
-  const [savedWidgetOrder, setSavedWidgetOrder] = useState(defaultDashboardWidgetOrder)
-  const [isEditingDashboard, setIsEditingDashboard] = useState(false)
+  const [widgetOrder, setWidgetOrder] = useState(defaultHomeWidgetOrder)
+  const [savedWidgetOrder, setSavedWidgetOrder] = useState(defaultHomeWidgetOrder)
+  const [isEditingWidgets, setIsEditingWidgets] = useState(false)
   const [savingLayout, setSavingLayout] = useState(false)
   const [layoutMessage, setLayoutMessage] = useState('')
   const layoutMessageTimerRef = useRef(null)
-  const [dashboard, setDashboard] = useState({
+  const [homeWidgetData, setHomeWidgetData] = useState({
     events: [],
     monthEvents: [],
     members: [],
@@ -143,7 +143,7 @@ export default function HomePage() {
   useEffect(() => {
     Promise.all([getUpcomingEvents(), getMembers(), getMonthlyAttendanceRanking()])
       .then(([events, members, ranking]) => {
-        setDashboard((current) => ({
+        setHomeWidgetData((current) => ({
           events: events.slice(0, 2),
           monthEvents: current.monthEvents,
           members: members.filter((member) => member.is_active !== false),
@@ -157,14 +157,14 @@ export default function HomePage() {
   useEffect(() => {
     if (!profile?.id) return
 
-    getDashboardWidgetOrder(profile.id)
+    getHomeWidgetOrder(profile.id)
       .then((order) => {
         setWidgetOrder(order)
         setSavedWidgetOrder(order)
       })
       .catch(() => {
-        setWidgetOrder(defaultDashboardWidgetOrder)
-        setSavedWidgetOrder(defaultDashboardWidgetOrder)
+        setWidgetOrder(defaultHomeWidgetOrder)
+        setSavedWidgetOrder(defaultHomeWidgetOrder)
       })
   }, [profile?.id])
 
@@ -176,7 +176,7 @@ export default function HomePage() {
 
     getMonthEvents(calendarMonth)
       .then((monthEvents) => {
-        if (!ignore) setDashboard((current) => ({ ...current, monthEvents }))
+        if (!ignore) setHomeWidgetData((current) => ({ ...current, monthEvents }))
       })
       .catch((err) => {
         if (!ignore) setCalendarError(err.message)
@@ -236,14 +236,14 @@ export default function HomePage() {
     }
   }
 
-  const handleEditDashboard = () => {
+  const handleEditWidgets = () => {
     showLayoutMessage('')
-    setIsEditingDashboard(true)
+    setIsEditingWidgets(true)
   }
 
   const handleCancelEdit = () => {
     setWidgetOrder(savedWidgetOrder)
-    setIsEditingDashboard(false)
+    setIsEditingWidgets(false)
     showLayoutMessage('')
   }
 
@@ -252,11 +252,11 @@ export default function HomePage() {
     showLayoutMessage('')
 
     try {
-      const savedOrder = await saveDashboardWidgetOrder(profile.id, widgetOrder)
+      const savedOrder = await saveHomeWidgetOrder(profile.id, widgetOrder)
       setWidgetOrder(savedOrder)
       setSavedWidgetOrder(savedOrder)
-      setIsEditingDashboard(false)
-      showLayoutMessage('대시보드 순서가 저장됐습니다.', { autoHide: true })
+      setIsEditingWidgets(false)
+      showLayoutMessage('위젯 순서가 저장됐습니다.', { autoHide: true })
     } catch (err) {
       showLayoutMessage(`${err.message} SQL 016번을 실행했는지 확인해 주세요.`)
     } finally {
@@ -264,33 +264,33 @@ export default function HomePage() {
     }
   }
 
-  const recentMembers = dashboard.members.slice(0, 4)
+  const recentMembers = homeWidgetData.members.slice(0, 4)
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth])
-  const eventsByDate = useMemo(() => dashboard.monthEvents.reduce((groups, event) => {
+  const eventsByDate = useMemo(() => homeWidgetData.monthEvents.reduce((groups, event) => {
     const list = groups[event.event_date] ?? []
     list.push(event)
     groups[event.event_date] = list
     return groups
-  }, {}), [dashboard.monthEvents])
+  }, {}), [homeWidgetData.monthEvents])
 
   const renderWidget = (widgetId) => {
     if (widgetId === 'upcomingEvents') {
       return (
-        <article className="dashboard-card">
-          <div className="dashboard-card-head">
-            <h2><span className="dashboard-icon calendar-icon" />다가오는 일정</h2>
+        <article className="widget-card">
+          <div className="widget-card-head">
+            <h2><span className="widget-icon calendar-icon" />다가오는 일정</h2>
             <Link to="/events">전체 보기</Link>
           </div>
 
-          <div className="dashboard-event-list">
-            {dashboard.events.length === 0 && <p className="dashboard-empty">예정된 일정이 없습니다.</p>}
-            {dashboard.events.map((event) => {
+          <div className="widget-event-list">
+            {homeWidgetData.events.length === 0 && <p className="widget-empty">예정된 일정이 없습니다.</p>}
+            {homeWidgetData.events.map((event) => {
               const date = formatEventDate(event.event_date)
               const attendingCount = event.tennis_attendances?.filter((item) => item.status === 'attending').length || 0
 
               return (
-                <Link className="dashboard-event-item" to={`/events/${event.id}`} key={event.id}>
-                  <div className="dashboard-date-chip">
+                <Link className="widget-event-item" to={`/events/${event.id}`} key={event.id}>
+                  <div className="widget-date-chip">
                     <strong>{date.day}</strong>
                     <span>{date.weekday}</span>
                   </div>
@@ -313,22 +313,22 @@ export default function HomePage() {
 
     if (widgetId === 'members') {
       return (
-        <article className="dashboard-card">
-          <div className="dashboard-card-head">
-            <h2><span className="dashboard-icon member-icon" />멤버 현황</h2>
+        <article className="widget-card">
+          <div className="widget-card-head">
+            <h2><span className="widget-icon member-icon" />멤버 현황</h2>
             <Link to="/members">전체 보기</Link>
           </div>
 
-          <div className="dashboard-member-count">
-            <strong>{dashboard.members.length}</strong>
+          <div className="widget-member-count">
+            <strong>{homeWidgetData.members.length}</strong>
             <span>명</span>
           </div>
-          <p className="dashboard-subcopy">활동 중인 멤버</p>
+          <p className="widget-subcopy">활동 중인 멤버</p>
 
           <div className="recent-member-list">
             <p>최근 가입 멤버</p>
             <div>
-              {recentMembers.length === 0 && <span className="dashboard-empty">멤버가 없습니다.</span>}
+              {recentMembers.length === 0 && <span className="widget-empty">멤버가 없습니다.</span>}
               {recentMembers.map((member) => (
                 <span className="member-chip" key={member.id}>
                   <b>{getInitial(member.name)}</b>
@@ -343,16 +343,16 @@ export default function HomePage() {
 
     if (widgetId === 'ranking') {
       return (
-        <article className="dashboard-card">
-          <div className="dashboard-card-head">
-            <h2><span className="dashboard-icon trophy-icon" />참석 현황</h2>
+        <article className="widget-card">
+          <div className="widget-card-head">
+            <h2><span className="widget-icon trophy-icon" />참석 현황</h2>
             <Link to="/ranking">전체 보기</Link>
           </div>
 
-          <div className="dashboard-ranking-list">
-            {dashboard.ranking.length === 0 && <p className="dashboard-empty">최근 3개월 일정이 아직 없습니다.</p>}
-            {dashboard.ranking.map((item) => (
-              <Link className="dashboard-ranking-item" to="/ranking" key={item.member_id}>
+          <div className="widget-ranking-list">
+            {homeWidgetData.ranking.length === 0 && <p className="widget-empty">최근 3개월 일정이 아직 없습니다.</p>}
+            {homeWidgetData.ranking.map((item) => (
+              <Link className="widget-ranking-item" to="/ranking" key={item.member_id}>
                 <span className={`rank-badge rank-${item.rank}`}>{item.rank}</span>
                 <b>{getInitial(item.name)}</b>
                 <div>
@@ -373,8 +373,8 @@ export default function HomePage() {
     if (widgetId === 'calendar') {
       return (
         <section className="month-calendar-card">
-          <div className="dashboard-card-head">
-            <h2><span className="dashboard-icon calendar-icon" />{getMonthLabel(calendarMonth)} 일정</h2>
+          <div className="widget-card-head">
+            <h2><span className="widget-icon calendar-icon" />{getMonthLabel(calendarMonth)} 일정</h2>
             <div className="month-calendar-actions">
               <button className="calendar-nav-arrow" type="button" aria-label="이전달" onClick={() => moveCalendarMonth(-1)}>‹</button>
               <button className="calendar-nav-today" type="button" onClick={resetCalendarMonth}>오늘</button>
@@ -382,7 +382,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {calendarLoading && <p className="dashboard-empty">월간 일정을 불러오는 중입니다.</p>}
+          {calendarLoading && <p className="widget-empty">월간 일정을 불러오는 중입니다.</p>}
           {calendarError && <p className="error">{calendarError}</p>}
 
           <div className="month-calendar-weekdays">
@@ -438,24 +438,24 @@ export default function HomePage() {
           {/*<h1>일정, 멤버, 랭킹을<br /></h1>
           <p>함께하는 모든 순간이 특별한 플레이가 됩니다.</p>
        */} </div>
-        <button className="dashboard-edit-button" type="button" onClick={handleEditDashboard}>
-          대시보드 편집
+        <button className="widget-edit-button" type="button" onClick={handleEditWidgets}>
+          위젯 편집
         </button>
         <div className="home-court-art" aria-hidden="true" />
       </section>
 
-      {loading && <p>대시보드를 불러오는 중입니다.</p>}
+      {loading && <p>위젯을 불러오는 중입니다.</p>}
       {error && <p className="error">{error}</p>}
 
       {!loading && !error && (
         <>
-          {isEditingDashboard && (
-            <section className="dashboard-edit-panel">
+          {isEditingWidgets && (
+            <section className="widget-edit-panel">
               <div>
-                <strong>대시보드 편집 중</strong>
+                <strong>위젯 편집 중</strong>
                 <p>왼쪽 손잡이를 드래그해서 위젯 순서를 바꿔보세요.</p>
               </div>
-              <div className="dashboard-edit-actions">
+              <div className="widget-edit-actions">
                 <button className="secondary-button" type="button" onClick={handleCancelEdit} disabled={savingLayout}>취소</button>
                 <button className="primary-button" type="button" onClick={handleSaveLayout} disabled={savingLayout}>
                   {savingLayout ? '저장 중...' : '저장'}
@@ -467,9 +467,9 @@ export default function HomePage() {
 
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
-              <section className={`home-widget-grid ${isEditingDashboard ? 'editing' : ''}`}>
+              <section className={`home-widget-grid ${isEditingWidgets ? 'editing' : ''}`}>
                 {widgetOrder.map((widgetId) => (
-                  <SortableHomeWidget id={widgetId} isEditing={isEditingDashboard} key={widgetId}>
+                  <SortableHomeWidget id={widgetId} isEditing={isEditingWidgets} key={widgetId}>
                     {renderWidget(widgetId)}
                   </SortableHomeWidget>
                 ))}
