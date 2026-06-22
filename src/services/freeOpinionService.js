@@ -36,6 +36,27 @@ export async function addFreeOpinion(memberId, message) {
   return normalizeOpinion(data)
 }
 
+export async function updateFreeOpinion(opinionId, message) {
+  const { data, error } = await supabase
+    .from('ot_free_opinions')
+    .update({ message: message.trim() })
+    .eq('id', opinionId)
+    .select(selectColumns)
+    .single()
+
+  if (error) throw error
+  return normalizeOpinion(data)
+}
+
+export async function deleteFreeOpinion(opinionId) {
+  const { error } = await supabase
+    .from('ot_free_opinions')
+    .delete()
+    .eq('id', opinionId)
+
+  if (error) throw error
+}
+
 export async function getFreeOpinionLikeSummaries(opinionIds, memberId) {
   if (!opinionIds.length) return {}
 
