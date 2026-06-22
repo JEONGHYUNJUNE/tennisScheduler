@@ -306,10 +306,22 @@ dd { margin: 0; white-space: pre-wrap; }
 .opinion-edit-form textarea { min-height: 90px; border-radius: 14px; line-height: 1.6; resize: vertical; }
 .opinion-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .opinion-edit-actions span { margin-right: auto; color: var(--muted); font-size: .82rem; font-weight: 800; }
-.opinion-edit-actions button,
-.opinion-manage-actions button { padding: 8px 12px; border-radius: 999px; font-size: .82rem; }
+.opinion-edit-actions button { padding: 8px 12px; border-radius: 999px; font-size: .82rem; }
 .opinion-item-actions { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .opinion-manage-actions { display: flex; align-items: center; gap: 6px; }
+.opinion-icon-button { width: 34px; height: 34px; border: 1px solid rgba(63, 116, 75, .18); border-radius: 50%; display: grid; place-items: center; background: rgba(255, 253, 248, .84); transition: background .15s, border-color .15s, transform .15s; }
+.opinion-icon-button:hover:not(:disabled) { transform: translateY(-1px); }
+.opinion-icon-button.edit { color: var(--green-800); }
+.opinion-icon-button.edit:hover:not(:disabled) { border-color: rgba(63, 116, 75, .32); background: rgba(237, 246, 234, .9); }
+.opinion-icon-button.edit svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.opinion-icon-button.delete { color: #c3483e; border-color: rgba(195, 72, 62, .18); }
+.opinion-icon-button.delete:hover:not(:disabled) { border-color: rgba(195, 72, 62, .36); background: rgba(208, 97, 56, .08); }
+.opinion-icon-button.delete span { position: relative; width: 15px; height: 15px; }
+.opinion-icon-button.delete span::before,
+.opinion-icon-button.delete span::after { content: ""; position: absolute; left: 6px; top: 0; width: 3px; height: 15px; border-radius: 999px; background: currentColor; }
+.opinion-icon-button.delete span::before { transform: rotate(45deg); }
+.opinion-icon-button.delete span::after { transform: rotate(-45deg); }
+.opinion-icon-button:disabled { opacity: .45; cursor: not-allowed; }
 .opinion-heart { margin-top: 0; }
 .notice { margin: 0; padding: 14px 16px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 14px; color: var(--green-800); background: rgba(255, 253, 248, .86); font-weight: 900; }
 .error { color: #a13b31; font-weight: 700; }

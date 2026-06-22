@@ -218,16 +218,28 @@ export default function FreeOpinionPage() {
 
                     {canManageOpinion && !isEditing && (
                       <div className="opinion-manage-actions">
-                        <button className="secondary-button" type="button" onClick={() => startEdit(opinion)}>
-                          수정
+                        <button
+                          className="opinion-icon-button edit"
+                          type="button"
+                          onClick={() => startEdit(opinion)}
+                          aria-label="의견 수정"
+                          title="수정"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path d="M13.8 5.2 18.8 10.2" />
+                            <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                            <path d="M4 20h16" />
+                          </svg>
                         </button>
                         <button
-                          className="danger-button"
+                          className="opinion-icon-button delete"
                           type="button"
                           onClick={() => handleDelete(opinion)}
                           disabled={deletingOpinionId === opinion.id}
+                          aria-label="의견 삭제"
+                          title="삭제"
                         >
-                          {deletingOpinionId === opinion.id ? '삭제 중...' : '삭제'}
+                          <span aria-hidden="true" />
                         </button>
                       </div>
                     )}
