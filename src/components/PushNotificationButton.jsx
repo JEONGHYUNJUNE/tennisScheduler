@@ -16,10 +16,46 @@ const statusLabels = {
   'missing-key': '푸시준비',
 }
 
+function isStandaloneApp() {
+  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
+}
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+}
+
+function isAndroidDevice() {
+  return /android/i.test(window.navigator.userAgent)
+}
+
 export default function PushNotificationButton({ profile }) {
   const [status, setStatus] = useState('unsupported')
   const [isBusy, setIsBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp())
+  const isIos = isIosDevice()
+  const isAndroid = isAndroidDevice()
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event) => {
+      event.preventDefault()
+      setInstallPrompt(event)
+    }
+
+    const handleAppInstalled = () => {
+      setInstallPrompt(null)
+      setIsStandalone(true)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [])
 
   useEffect(() => {
     let ignore = false
@@ -47,6 +83,38 @@ export default function PushNotificationButton({ profile }) {
       ignore = true
     }
   }, [profile?.id])
+
+  const shouldShowInstallGuide = !isStandalone && (isIos || isAndroid)
+
+  const handleInstall = async () => {
+    if (isIos) {
+      setMessage('Safari 공유 버튼 → 홈 화면에 추가 후 앱 아이콘으로 실행해주세요.')
+      return
+    }
+
+    if (!installPrompt) {
+      setMessage('브라우저 메뉴에서 앱 설치 또는 홈 화면에 추가를 선택해주세요.')
+      return
+    }
+
+    installPrompt.prompt()
+    await installPrompt.userChoice.catch(() => null)
+    setInstallPrompt(null)
+    setIsStandalone(isStandaloneApp())
+  }
+
+  if (shouldShowInstallGuide) {
+    return (
+      <button
+        className="push-toggle install-toggle"
+        type="button"
+        onClick={handleInstall}
+        title={message || (isIos ? '공유 버튼 → 홈 화면에 추가 후 푸시 알림을 사용할 수 있습니다.' : '앱 설치 후 푸시 알림을 켤 수 있습니다.')}
+      >
+        {isIos ? '앱추가' : '앱설치'}
+      </button>
+    )
+  }
 
   if (status === 'unsupported') return null
 
