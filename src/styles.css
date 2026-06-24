@@ -54,11 +54,17 @@ button { cursor: pointer; }
 .user-menu-footer button { width: 100%; min-height: 42px; border: 1px solid rgba(208, 97, 56, .26); border-radius: 12px; color: var(--warm); background: rgba(208, 97, 56, .08); font-weight: 950; }
 .user-menu-footer button:hover { background: rgba(208, 97, 56, .13); }
 .notification-wrap { position: relative; }
+.install-guide-wrap { position: relative; }
 .push-toggle { min-height: 34px; border: 1px solid rgba(255, 255, 255, .38); border-radius: 999px; padding: 0 12px; color: white; background: rgba(255, 255, 255, .14); font-size: .78rem; font-weight: 950; white-space: nowrap; }
 .push-toggle:hover:not(:disabled) { background: rgba(255, 255, 255, .2); transform: translateY(-1px); }
 .push-toggle.enabled { color: var(--green-800); background: rgba(255, 253, 248, .94); }
 .push-toggle.install-toggle { color: var(--green-800); background: rgba(255, 253, 248, .92); }
 .push-toggle:disabled { opacity: .58; cursor: not-allowed; }
+.install-guide-panel { position: fixed; right: 16px; top: 84px; z-index: 10002; width: min(320px, calc(100vw - 32px)); padding: 18px 18px 16px; border: 1px solid #bfd3b8; border-radius: 18px; color: var(--text); background: #fffdf8; box-shadow: 0 24px 70px rgba(37, 48, 38, .34); }
+.install-guide-panel button { position: absolute; top: 10px; right: 12px; border: 0; color: var(--muted); background: transparent; font-size: 1.35rem; line-height: 1; }
+.install-guide-panel strong { display: block; padding-right: 24px; color: var(--green-900); font-size: 1rem; }
+.install-guide-panel p { margin: 10px 0 0; color: #1f2b22; font-size: .9rem; font-weight: 850; line-height: 1.5; }
+.install-guide-panel small { display: block; margin-top: 10px; color: var(--muted); font-size: .78rem; font-weight: 800; line-height: 1.45; }
 .notification-button { position: relative; width: 34px; height: 34px; border: 1px solid rgba(255, 255, 255, .46); border-radius: 999px; display: grid; place-items: center; color: white; background: rgba(255, 255, 255, .14); }
 .notification-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .notification-button span { position: absolute; top: -8px; right: -9px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; color: white; background: #d06138; font-size: .72rem; font-weight: 900; }
@@ -361,7 +367,7 @@ dd { margin: 0; white-space: pre-wrap; }
   .notification-wrap { flex: 0 0 auto; }
   .push-toggle { min-height: 38px; padding: 0 11px; background: rgba(255, 255, 255, .12); font-size: .78rem; }
   .notification-button { width: 38px; height: 38px; background: rgba(255, 255, 255, .12); }
-  .notification-panel, .user-menu-panel { top: 98px !important; right: 12px !important; left: 12px !important; width: auto !important; max-width: none; }
+  .notification-panel, .user-menu-panel, .install-guide-panel { top: 98px !important; right: 12px !important; left: 12px !important; width: auto !important; max-width: none; }
   .page { width: min(100% - 32px, 1200px); padding: 28px 0 56px; }
   .site-footer { width: min(100% - 32px, 1200px); margin-top: -24px; padding-bottom: 28px; flex-wrap: wrap; gap: 4px 10px; font-size: .74rem; text-align: center; }
   .notification-panel { max-height: calc(100vh - 128px); }

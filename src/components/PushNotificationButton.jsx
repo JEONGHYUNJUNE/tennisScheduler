@@ -32,6 +32,7 @@ export default function PushNotificationButton({ profile }) {
   const [status, setStatus] = useState('unsupported')
   const [isBusy, setIsBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [installPrompt, setInstallPrompt] = useState(null)
   const [isStandalone, setIsStandalone] = useState(() => isStandaloneApp())
   const isIos = isIosDevice()
@@ -89,11 +90,13 @@ export default function PushNotificationButton({ profile }) {
   const handleInstall = async () => {
     if (isIos) {
       setMessage('Safari 공유 버튼 → 홈 화면에 추가 후 앱 아이콘으로 실행해주세요.')
+      setShowInstallGuide(true)
       return
     }
 
     if (!installPrompt) {
       setMessage('브라우저 메뉴에서 앱 설치 또는 홈 화면에 추가를 선택해주세요.')
+      setShowInstallGuide(true)
       return
     }
 
@@ -105,14 +108,24 @@ export default function PushNotificationButton({ profile }) {
 
   if (shouldShowInstallGuide) {
     return (
-      <button
-        className="push-toggle install-toggle"
-        type="button"
-        onClick={handleInstall}
-        title={message || (isIos ? '공유 버튼 → 홈 화면에 추가 후 푸시 알림을 사용할 수 있습니다.' : '앱 설치 후 푸시 알림을 켤 수 있습니다.')}
-      >
-        {isIos ? '앱추가' : '앱설치'}
-      </button>
+      <div className="install-guide-wrap">
+        <button
+          className="push-toggle install-toggle"
+          type="button"
+          onClick={handleInstall}
+          title={message || (isIos ? '공유 버튼 → 홈 화면에 추가 후 푸시 알림을 사용할 수 있습니다.' : '앱 설치 후 푸시 알림을 켤 수 있습니다.')}
+        >
+          {isIos ? '앱추가' : '앱설치'}
+        </button>
+        {showInstallGuide && (
+          <div className="install-guide-panel" role="status">
+            <button type="button" aria-label="설치 안내 닫기" onClick={() => setShowInstallGuide(false)}>×</button>
+            <strong>{isIos ? 'iPhone 알림 사용 방법' : '앱 설치 안내'}</strong>
+            <p>{message}</p>
+            {isIos && <small>공유 아이콘은 Safari 하단 또는 상단 주소창 근처에 있어요.</small>}
+          </div>
+        )}
+      </div>
     )
   }
 
