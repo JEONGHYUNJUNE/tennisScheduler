@@ -3,6 +3,7 @@ import {
   getPushSubscriptionStatus,
   isPushSupported,
   subscribeToPushNotifications,
+  syncExistingPushSubscription,
   unsubscribeFromPushNotifications,
 } from '../services/pushService'
 
@@ -30,7 +31,13 @@ export default function PushNotificationButton({ profile }) {
 
     getPushSubscriptionStatus()
       .then((nextStatus) => {
-        if (!ignore) setStatus(nextStatus)
+        if (ignore) return
+        setStatus(nextStatus)
+        if (nextStatus === 'subscribed') {
+          syncExistingPushSubscription(profile.id).catch((err) => {
+            if (!ignore) setMessage(err.message)
+          })
+        }
       })
       .catch(() => {
         if (!ignore) setStatus('unsupported')
@@ -44,7 +51,7 @@ export default function PushNotificationButton({ profile }) {
   if (status === 'unsupported') return null
 
   const handleClick = async () => {
-    if (status === 'missing-key' || status === 'denied') return
+    if (status === 'unsupported' || status === 'missing-key' || status === 'denied') return
 
     setIsBusy(true)
     setMessage('')
@@ -69,6 +76,7 @@ export default function PushNotificationButton({ profile }) {
 
   const title = message || {
     subscribed: '클릭하면 이 기기의 푸시 알림을 끕니다.',
+    unsupported: '이 브라우저 또는 현재 실행 환경에서는 웹 푸시를 지원하지 않습니다.',
     denied: '브라우저 설정에서 알림 권한을 다시 허용해야 합니다.',
     'missing-key': 'VITE_VAPID_PUBLIC_KEY 설정이 필요합니다.',
   }[status] || '이 기기에서 푸시 알림을 켭니다.'
@@ -78,7 +86,7 @@ export default function PushNotificationButton({ profile }) {
       className={`push-toggle ${status === 'subscribed' ? 'enabled' : ''}`}
       type="button"
       onClick={handleClick}
-      disabled={isBusy || status === 'missing-key' || status === 'denied'}
+      disabled={isBusy || status === 'unsupported' || status === 'missing-key' || status === 'denied'}
       title={title}
     >
       {isBusy ? '처리중' : statusLabels[status]}

@@ -27,6 +27,18 @@ export async function getPushSubscriptionStatus() {
   return Notification.permission === 'granted' ? 'unsubscribed' : 'default'
 }
 
+export async function syncExistingPushSubscription(memberId) {
+  if (!isPushSupported() || !hasVapidPublicKey()) return null
+
+  const registration = await navigator.serviceWorker.getRegistration('/')
+  const subscription = await registration?.pushManager.getSubscription()
+
+  if (!subscription) return null
+
+  await savePushSubscription(memberId, subscription)
+  return subscription
+}
+
 export async function subscribeToPushNotifications(memberId) {
   if (!isPushSupported()) throw new Error('이 브라우저는 푸시 알림을 지원하지 않습니다.')
   if (!hasVapidPublicKey()) throw new Error('VITE_VAPID_PUBLIC_KEY가 설정되지 않았습니다.')
