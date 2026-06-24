@@ -19,6 +19,7 @@ cp .env.example .env
 VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_ANON_KEY
 VITE_APP_URL=
+VITE_VAPID_PUBLIC_KEY=
 ```
 
 `VITE_APP_URL`은 배포 환경에서 Google OAuth가 돌아올 주소를 고정하고 싶을 때만 입력합니다. 로컬 개발에서는 비워두면 현재 실행 중인 주소를 자동으로 사용합니다.
@@ -45,6 +46,8 @@ VITE_APP_URL=
    `supabase/migrations/20260620_015_likes.sql`
    `supabase/migrations/20260620_016_home_widget_settings.sql`
    `supabase/migrations/20260622_017_free_opinion_manage_policy.sql`
+   `supabase/migrations/20260624_018_web_push_subscriptions.sql`
+   `supabase/migrations/20260624_019_free_opinion_notifications.sql`
 2. Authentication > Providers > Email에서 **Confirm email**을 끕니다. 이 앱은 실제 이메일 대신 `아이디@ot-tennis.app`을 사용합니다.
 3. Google 로그인도 사용할 예정이면 Authentication > Providers > Google을 활성화합니다. Google Cloud의 Authorized redirect URI에는 Supabase 콜백 주소(`https://YOUR_PROJECT.supabase.co/auth/v1/callback`)를 등록합니다.
 4. Authentication > URL Configuration에서 **Site URL**을 실제 서비스 주소로 설정하고, **Redirect URLs**에 아래 주소를 추가합니다.
@@ -77,6 +80,7 @@ Vercel 프로젝트의 Environment Variables에 아래 값을 등록합니다.
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_APP_URL`
+- `VITE_VAPID_PUBLIC_KEY`
 
 `VITE_APP_URL`에는 실제 접속 주소를 넣습니다.
 
@@ -92,6 +96,61 @@ VITE_APP_URL=https://tennis-chung.app/
 
 환경변수를 바꾼 뒤에는 Vercel에서 Redeploy 해야 적용됩니다.
 
+## Web Push 알림 설정
+
+푸시 알림은 앱 안 알림과 달리 Service Worker, VAPID 키, Supabase Edge Function 설정이 필요합니다.
+
+1. VAPID 키를 생성합니다.
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+2. 프론트 환경변수에 public key를 등록합니다.
+
+```env
+VITE_VAPID_PUBLIC_KEY=생성된_PUBLIC_KEY
+```
+
+3. Supabase SQL Editor에서 푸시 관련 마이그레이션을 실행합니다.
+
+```sql
+-- supabase/migrations/20260624_018_web_push_subscriptions.sql
+-- supabase/migrations/20260624_019_free_opinion_notifications.sql
+```
+
+4. Supabase Edge Function을 배포합니다.
+
+```bash
+supabase functions deploy send-push-notification
+```
+
+5. Edge Function Secrets를 설정합니다.
+
+```bash
+supabase secrets set \
+  VAPID_PUBLIC_KEY=생성된_PUBLIC_KEY \
+  VAPID_PRIVATE_KEY=생성된_PRIVATE_KEY \
+  VAPID_SUBJECT=mailto:your-email@example.com \
+  APP_URL=https://tennis-chung.app \
+  SERVICE_ROLE_KEY=서비스_ROLE_KEY
+```
+
+`SUPABASE_URL`은 Supabase Edge Function 기본 환경변수로 제공됩니다. 없다고 나오면 같이 설정하세요.
+
+6. Supabase Dashboard에서 Database Webhook을 추가합니다.
+
+- Table: `ot_notifications`
+- Events: `Insert`
+- Type: HTTP Request
+- Method: `POST`
+- URL: `https://YOUR_PROJECT_REF.functions.supabase.co/send-push-notification`
+- Headers:
+  - `Content-Type: application/json`
+  - `Authorization: Bearer YOUR_SUPABASE_ANON_OR_SERVICE_KEY`
+
+이후 사용자가 헤더의 `푸시켜기` 버튼을 누르고 브라우저 권한을 허용하면, `ot_notifications`에 새 알림이 생길 때 실제 Web Push가 발송됩니다.
+
 ## GitHub Pages 배포
 
 GitHub 저장소를 만든 뒤 아래 순서로 진행합니다.
@@ -99,6 +158,7 @@ GitHub 저장소를 만든 뒤 아래 순서로 진행합니다.
 1. GitHub 저장소 Settings > Secrets and variables > Actions > Repository secrets에 값을 추가합니다.
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `VITE_VAPID_PUBLIC_KEY`
 2. GitHub 저장소 Settings > Pages에서 Source를 **GitHub Actions**로 선택합니다.
 3. 로컬에서 커밋 후 `main` 브랜치로 push하면 `.github/workflows/deploy.yml`이 자동 배포합니다.
 

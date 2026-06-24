@@ -9,7 +9,13 @@ const formatNotificationTime = (dateText) => {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(dateText))
+}).format(new Date(dateText))
+}
+
+const getNotificationLink = (notification) => {
+  if (notification.event_id) return `/events/${notification.event_id}`
+  if (notification.type === 'free_opinion_created') return '/free-opinions'
+  return '/events'
 }
 
 export default function NotificationMenu({ profile }) {
@@ -99,7 +105,7 @@ export default function NotificationMenu({ profile }) {
           <ul className="notification-list">
             {notifications.map((notification) => (
               <li key={notification.id}>
-                <Link to={notification.event_id ? `/events/${notification.event_id}` : '/events'} onClick={() => setIsOpen(false)}>
+                <Link to={getNotificationLink(notification)} onClick={() => setIsOpen(false)}>
                   <strong>{notification.title}</strong>
                   <p>{notification.message}</p>
                   <time>{formatNotificationTime(notification.created_at)}</time>

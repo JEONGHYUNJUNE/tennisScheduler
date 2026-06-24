@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NotificationMenu from './NotificationMenu'
+import PushNotificationButton from './PushNotificationButton'
 import UserMenu from './UserMenu'
 import { useAuth } from '../contexts/AuthContext'
 import { getUnreadFreeOpinionCount, markFreeOpinionsRead } from '../services/freeOpinionService'
@@ -73,6 +74,7 @@ export default function Layout() {
         </nav>
         <div className="header-actions">
           <UserMenu profile={profile} onLogout={handleLogout} />
+          <PushNotificationButton profile={profile} />
           <NotificationMenu profile={profile} />
         </div>
       </header>

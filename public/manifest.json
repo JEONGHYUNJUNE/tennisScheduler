@@ -1,0 +1,18 @@
+{
+  "name": "ONS Tennis",
+  "short_name": "ONS Tennis",
+  "description": "ONS Tennis 일정 및 참석 관리",
+  "start_url": "/#/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#edf6ea",
+  "theme_color": "#315f3b",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -54,6 +54,10 @@ button { cursor: pointer; }
 .user-menu-footer button { width: 100%; min-height: 42px; border: 1px solid rgba(208, 97, 56, .26); border-radius: 12px; color: var(--warm); background: rgba(208, 97, 56, .08); font-weight: 950; }
 .user-menu-footer button:hover { background: rgba(208, 97, 56, .13); }
 .notification-wrap { position: relative; }
+.push-toggle { min-height: 34px; border: 1px solid rgba(255, 255, 255, .38); border-radius: 999px; padding: 0 12px; color: white; background: rgba(255, 255, 255, .14); font-size: .78rem; font-weight: 950; white-space: nowrap; }
+.push-toggle:hover:not(:disabled) { background: rgba(255, 255, 255, .2); transform: translateY(-1px); }
+.push-toggle.enabled { color: var(--green-800); background: rgba(255, 253, 248, .94); }
+.push-toggle:disabled { opacity: .58; cursor: not-allowed; }
 .notification-button { position: relative; width: 34px; height: 34px; border: 1px solid rgba(255, 255, 255, .46); border-radius: 999px; display: grid; place-items: center; color: white; background: rgba(255, 255, 255, .14); }
 .notification-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .notification-button span { position: absolute; top: -8px; right: -9px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; color: white; background: #d06138; font-size: .72rem; font-weight: 900; }
@@ -354,6 +358,7 @@ dd { margin: 0; white-space: pre-wrap; }
   .user-menu-button { flex: 0 0 auto; min-height: 38px; border-radius: 999px; padding: 9px 13px; display: inline-flex; align-items: center; justify-content: center; color: white; background: rgba(255, 255, 255, .12); font-size: .9rem; font-weight: 900; white-space: nowrap; }
   .header-nav a.active { color: var(--green-800); background: rgba(255, 253, 248, .96); }
   .notification-wrap { flex: 0 0 auto; }
+  .push-toggle { min-height: 38px; padding: 0 11px; background: rgba(255, 255, 255, .12); font-size: .78rem; }
   .notification-button { width: 38px; height: 38px; background: rgba(255, 255, 255, .12); }
   .notification-panel, .user-menu-panel { top: 98px !important; right: 12px !important; left: 12px !important; width: auto !important; max-width: none; }
   .page { width: min(100% - 32px, 1200px); padding: 28px 0 56px; }
