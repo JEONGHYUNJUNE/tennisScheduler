@@ -95,7 +95,9 @@ export default function NotificationMenu({ profile }) {
       {isOpen && (
         <div className="notification-panel">
           <div className="notification-head">
-            <strong>알림</strong>
+            <div>
+              <strong>알림</strong>
+            </div>
             <button className="text-button" onClick={() => setIsOpen(false)}>닫기</button>
           </div>
 

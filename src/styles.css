@@ -70,6 +70,8 @@ button { cursor: pointer; }
 .notification-button span { position: absolute; top: -8px; right: -9px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; color: white; background: #d06138; font-size: .72rem; font-weight: 900; }
 .notification-panel { position: fixed !important; right: 16px !important; left: auto !important; top: 84px !important; z-index: 10001; width: 390px !important; max-width: calc(100vw - 32px); max-height: 520px; overflow: auto; border: 1px solid #bfd3b8; border-radius: 18px; color: var(--text); background: #fffdf8; box-shadow: 0 24px 70px rgba(37, 48, 38, .34); opacity: 1; }
 .notification-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; color: white; background: rgba(79, 143, 93, .98); }
+.notification-head div { display: grid; gap: 3px; }
+.notification-head small { color: rgba(255, 255, 255, .76); font-size: .72rem; font-weight: 800; }
 .notification-list { margin: 0; padding: 0; list-style: none; }
 .notification-list li { border-bottom: 1px solid var(--line); }
 .notification-list li:last-child { border-bottom: 0; }

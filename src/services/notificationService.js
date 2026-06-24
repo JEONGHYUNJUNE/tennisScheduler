@@ -3,22 +3,33 @@ import { supabase } from '../lib/supabase'
 const missingNotificationTableCodes = new Set(['42P01', '42703'])
 
 const selfActionNotificationTypes = new Set(['attendance_created', 'attendance_cancelled'])
+const readNotificationVisibleDays = 30
+const maxVisibleNotifications = 20
 
 export async function getNotifications(currentMemberId) {
+  const readVisibleSince = new Date()
+  readVisibleSince.setDate(readVisibleSince.getDate() - readNotificationVisibleDays)
+
   const { data, error } = await supabase
     .from('ot_notifications')
     .select('id, type, title, message, event_id, actor_member_id, is_read, created_at')
     .order('created_at', { ascending: false })
-    .limit(30)
+    .limit(80)
 
   if (error) {
     if (missingNotificationTableCodes.has(error.code)) return []
     throw error
   }
 
-  return (data || []).filter((notification) => {
-    return !(notification.actor_member_id === currentMemberId && selfActionNotificationTypes.has(notification.type))
-  })
+  return (data || [])
+    .filter((notification) => {
+      return !(notification.actor_member_id === currentMemberId && selfActionNotificationTypes.has(notification.type))
+    })
+    .filter((notification) => {
+      if (!notification.is_read) return true
+      return new Date(notification.created_at) >= readVisibleSince
+    })
+    .slice(0, maxVisibleNotifications)
 }
 
 export async function markNotificationsRead(notificationIds) {
