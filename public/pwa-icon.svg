@@ -31,17 +31,17 @@
   <circle cx="256" cy="256" r="214" fill="url(#ball)" filter="url(#texture)" opacity=".9"/>
 
   <g clip-path="url(#ballClip)">
-    <path d="M40 124c82 28 178 18 262-2 62-15 118-22 170-8" fill="none" stroke="#fffdf8" stroke-width="17" stroke-linecap="round" opacity=".92"/>
-    <path d="M38 376c83-27 181-18 264 2 63 15 118 22 172 7" fill="none" stroke="#fffdf8" stroke-width="17" stroke-linecap="round" opacity=".92"/>
-    <path d="M44 134c81 24 176 15 257-4 61-15 117-20 166-6" fill="none" stroke="#7b9430" stroke-width="4" stroke-linecap="round" opacity=".34"/>
-    <path d="M43 386c82-24 178-15 259 4 62 14 117 20 168 6" fill="none" stroke="#7b9430" stroke-width="4" stroke-linecap="round" opacity=".34"/>
+    <path d="M42 128 A350 104 0 0 0 470 128" fill="none" stroke="#fffdf8" stroke-width="17" stroke-linecap="round" opacity=".92"/>
+    <path d="M42 384 A350 104 0 0 1 470 384" fill="none" stroke="#fffdf8" stroke-width="17" stroke-linecap="round" opacity=".92"/>
+    <path d="M48 138 A340 92 0 0 0 464 138" fill="none" stroke="#7b9430" stroke-width="4" stroke-linecap="round" opacity=".34"/>
+    <path d="M48 394 A340 92 0 0 1 464 394" fill="none" stroke="#7b9430" stroke-width="4" stroke-linecap="round" opacity=".34"/>
   </g>
 
-  <text x="235" y="250" text-anchor="middle"
+  <text x="235" y="275" text-anchor="middle"
         font-family="Arial Black, Impact, system-ui, sans-serif"
         font-size="112" font-weight="900" font-style="italic"
         letter-spacing="-7" fill="#172219">ONS</text>
-  <text x="256" y="320" text-anchor="middle"
+  <text x="256" y="329" text-anchor="middle"
         font-family="Arial Black, Impact, system-ui, sans-serif"
         font-size="42" font-weight="900"
         letter-spacing="4" fill="#172219">TENNIS</text>
