@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 
 const missingReadTableCodes = new Set(['42P01', 'PGRST205'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
+const missingCommentTableCodes = new Set(['42P01', 'PGRST200', 'PGRST205'])
 
 const selectColumns = `
   id,
@@ -11,7 +12,43 @@ const selectColumns = `
   otmember!ot_free_opinions_member_id_fkey(id, username, display_name)
 `
 
+const selectColumnsWithComments = `
+  id,
+  member_id,
+  message,
+  created_at,
+  otmember!ot_free_opinions_member_id_fkey(id, username, display_name),
+  ot_free_opinion_comments(
+    id,
+    opinion_id,
+    member_id,
+    message,
+    created_at,
+    updated_at,
+    otmember!ot_free_opinion_comments_member_id_fkey(id, username, display_name)
+  )
+`
+
+const commentSelectColumns = `
+  id,
+  opinion_id,
+  member_id,
+  message,
+  created_at,
+  updated_at,
+  otmember!ot_free_opinion_comments_member_id_fkey(id, username, display_name)
+`
+
 export async function getFreeOpinions() {
+  const withComments = await supabase
+    .from('ot_free_opinions')
+    .select(selectColumnsWithComments)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  if (!withComments.error) return withComments.data.map(normalizeOpinion)
+  if (!isMissingCommentTableError(withComments.error)) throw withComments.error
+
   const { data, error } = await supabase
     .from('ot_free_opinions')
     .select(selectColumns)
@@ -53,6 +90,42 @@ export async function deleteFreeOpinion(opinionId) {
     .from('ot_free_opinions')
     .delete()
     .eq('id', opinionId)
+
+  if (error) throw error
+}
+
+export async function addFreeOpinionComment(opinionId, memberId, message) {
+  const { data, error } = await supabase
+    .from('ot_free_opinion_comments')
+    .insert({
+      opinion_id: opinionId,
+      member_id: memberId,
+      message: message.trim(),
+    })
+    .select(commentSelectColumns)
+    .single()
+
+  if (error) throw error
+  return normalizeComment(data)
+}
+
+export async function updateFreeOpinionComment(commentId, message) {
+  const { data, error } = await supabase
+    .from('ot_free_opinion_comments')
+    .update({ message: message.trim() })
+    .eq('id', commentId)
+    .select(commentSelectColumns)
+    .single()
+
+  if (error) throw error
+  return normalizeComment(data)
+}
+
+export async function deleteFreeOpinionComment(commentId) {
+  const { error } = await supabase
+    .from('ot_free_opinion_comments')
+    .delete()
+    .eq('id', commentId)
 
   if (error) throw error
 }
@@ -141,6 +214,16 @@ function normalizeOpinion(opinion) {
   return {
     ...opinion,
     member_name: opinion.otmember?.display_name || opinion.otmember?.username || '회원',
+    comments: (opinion.ot_free_opinion_comments || [])
+      .map(normalizeComment)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+  }
+}
+
+function normalizeComment(comment) {
+  return {
+    ...comment,
+    member_name: comment.otmember?.display_name || comment.otmember?.username || '회원',
   }
 }
 
@@ -150,4 +233,8 @@ function isMissingReadTableError(error) {
 
 function isMissingLikeTableError(error) {
   return missingLikeTableCodes.has(error.code) || /ot_free_opinion_likes/.test(error.message || '')
+}
+
+function isMissingCommentTableError(error) {
+  return missingCommentTableCodes.has(error.code) || /ot_free_opinion_comments/.test(error.message || '')
 }

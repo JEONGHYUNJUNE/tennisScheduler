@@ -125,7 +125,9 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
 
 function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
   if (notification.event_id) return `${appUrl}/#/events/${notification.event_id}`
-  if (notification.type === 'free_opinion_created') return `${appUrl}/#/free-opinions`
+  if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') {
+    return `${appUrl}/#/free-opinions`
+  }
   return `${appUrl}/#/`
 }
 

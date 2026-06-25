@@ -48,6 +48,7 @@ VITE_VAPID_PUBLIC_KEY=
    `supabase/migrations/20260622_017_free_opinion_manage_policy.sql`
    `supabase/migrations/20260624_018_web_push_subscriptions.sql`
    `supabase/migrations/20260624_019_free_opinion_notifications.sql`
+   `supabase/migrations/20260625_021_free_opinion_comments.sql`
 2. Authentication > Providers > Email에서 **Confirm email**을 끕니다. 이 앱은 실제 이메일 대신 `아이디@ot-tennis.app`을 사용합니다.
 3. Google 로그인도 사용할 예정이면 Authentication > Providers > Google을 활성화합니다. Google Cloud의 Authorized redirect URI에는 Supabase 콜백 주소(`https://YOUR_PROJECT.supabase.co/auth/v1/callback`)를 등록합니다.
 4. Authentication > URL Configuration에서 **Site URL**을 실제 서비스 주소로 설정하고, **Redirect URLs**에 아래 주소를 추가합니다.
@@ -117,12 +118,13 @@ VITE_VAPID_PUBLIC_KEY=생성된_PUBLIC_KEY
 ```sql
 -- supabase/migrations/20260624_018_web_push_subscriptions.sql
 -- supabase/migrations/20260624_019_free_opinion_notifications.sql
+-- supabase/migrations/20260625_020_event_reminders.sql
 ```
 
 4. Supabase Edge Function을 배포합니다.
 
 ```bash
-supabase functions deploy send-push-notification
+supabase functions deploy send-push-notification --no-verify-jwt
 ```
 
 5. Edge Function Secrets를 설정합니다.

@@ -2,7 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import {
   addFreeOpinion,
+  addFreeOpinionComment,
+  deleteFreeOpinionComment,
   deleteFreeOpinion,
+  updateFreeOpinionComment,
   getFreeOpinionLikeSummaries,
   getFreeOpinions,
   markFreeOpinionsRead,
@@ -17,6 +20,8 @@ const formatOpinionTime = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   minute: '2-digit',
 }).format(new Date(dateText))
 
+const visibleCommentCount = 3
+
 export default function FreeOpinionPage() {
   const { profile, isAdmin } = useAuth()
   const [opinions, setOpinions] = useState([])
@@ -24,10 +29,17 @@ export default function FreeOpinionPage() {
   const [message, setMessage] = useState('')
   const [editingOpinionId, setEditingOpinionId] = useState(null)
   const [editMessage, setEditMessage] = useState('')
+  const [commentInputs, setCommentInputs] = useState({})
+  const [expandedCommentOpinionIds, setExpandedCommentOpinionIds] = useState({})
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editCommentMessage, setEditCommentMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [savingOpinionId, setSavingOpinionId] = useState(null)
   const [deletingOpinionId, setDeletingOpinionId] = useState(null)
+  const [submittingCommentOpinionId, setSubmittingCommentOpinionId] = useState(null)
+  const [savingCommentId, setSavingCommentId] = useState(null)
+  const [deletingCommentId, setDeletingCommentId] = useState(null)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
@@ -136,6 +148,81 @@ export default function FreeOpinionPage() {
     }
   }
 
+  const handleCommentInputChange = (opinionId, value) => {
+    setCommentInputs((current) => ({ ...current, [opinionId]: value }))
+  }
+
+  const handleCommentSubmit = async (event, opinion) => {
+    event.preventDefault()
+    const trimmedMessage = (commentInputs[opinion.id] || '').trim()
+    if (!trimmedMessage) return
+
+    setSubmittingCommentOpinionId(opinion.id)
+    setError('')
+
+    try {
+      await addFreeOpinionComment(opinion.id, profile.id, trimmedMessage)
+      setCommentInputs((current) => ({ ...current, [opinion.id]: '' }))
+      setExpandedCommentOpinionIds((current) => ({ ...current, [opinion.id]: true }))
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 021번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmittingCommentOpinionId(null)
+    }
+  }
+
+  const startCommentEdit = (comment) => {
+    setEditingCommentId(comment.id)
+    setEditCommentMessage(comment.message)
+    setError('')
+  }
+
+  const cancelCommentEdit = () => {
+    setEditingCommentId(null)
+    setEditCommentMessage('')
+  }
+
+  const handleCommentUpdate = async (event, comment) => {
+    event.preventDefault()
+    const trimmedMessage = editCommentMessage.trim()
+    if (!trimmedMessage) return
+
+    setSavingCommentId(comment.id)
+    setError('')
+
+    try {
+      await updateFreeOpinionComment(comment.id, trimmedMessage)
+      cancelCommentEdit()
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 021번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSavingCommentId(null)
+    }
+  }
+
+  const handleCommentDelete = async (comment) => {
+    if (!window.confirm('이 댓글을 삭제할까요?')) return
+
+    setDeletingCommentId(comment.id)
+    setError('')
+
+    try {
+      await deleteFreeOpinionComment(comment.id)
+      if (editingCommentId === comment.id) cancelCommentEdit()
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 021번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setDeletingCommentId(null)
+    }
+  }
+
+  const toggleComments = (opinionId) => {
+    setExpandedCommentOpinionIds((current) => ({ ...current, [opinionId]: !current[opinionId] }))
+  }
+
   return (
     <>
       <div className="page-heading main-heading">
@@ -175,6 +262,10 @@ export default function FreeOpinionPage() {
             {opinions.map((opinion) => {
               const canManageOpinion = isAdmin || opinion.member_id === profile.id
               const isEditing = editingOpinionId === opinion.id
+              const comments = opinion.comments || []
+              const isCommentsExpanded = Boolean(expandedCommentOpinionIds[opinion.id])
+              const visibleComments = isCommentsExpanded ? comments : comments.slice(-visibleCommentCount)
+              const hiddenCommentCount = Math.max(comments.length - visibleComments.length, 0)
 
               return (
                 <article className="opinion-item" key={opinion.id}>
@@ -244,6 +335,100 @@ export default function FreeOpinionPage() {
                       </div>
                     )}
                   </div>
+
+                  <section className="opinion-comments">
+                    <div className="opinion-comments-head">
+                      <strong>댓글 {comments.length}</strong>
+                      {comments.length > visibleCommentCount && (
+                        <button type="button" onClick={() => toggleComments(opinion.id)}>
+                          {isCommentsExpanded ? '접기' : `댓글 ${hiddenCommentCount}개 더보기`}
+                        </button>
+                      )}
+                    </div>
+
+                    {comments.length > 0 && (
+                      <div className="opinion-comment-list">
+                        {visibleComments.map((comment) => {
+                          const canManageComment = isAdmin || comment.member_id === profile.id
+                          const isCommentEditing = editingCommentId === comment.id
+
+                          return (
+                            <article className="opinion-comment" key={comment.id}>
+                              <div className="opinion-comment-meta">
+                                <strong>{comment.member_name}</strong>
+                                <time>{formatOpinionTime(comment.created_at)}</time>
+                              </div>
+
+                              {isCommentEditing ? (
+                                <form className="opinion-comment-edit-form" onSubmit={(event) => handleCommentUpdate(event, comment)}>
+                                  <textarea
+                                    maxLength={300}
+                                    rows="2"
+                                    value={editCommentMessage}
+                                    onChange={(event) => setEditCommentMessage(event.target.value)}
+                                  />
+                                  <div className="opinion-edit-actions">
+                                    <span>{editCommentMessage.length} / 300</span>
+                                    <button className="secondary-button" type="button" onClick={cancelCommentEdit}>
+                                      취소
+                                    </button>
+                                    <button className="primary-button" disabled={savingCommentId === comment.id || !editCommentMessage.trim()}>
+                                      {savingCommentId === comment.id ? '저장 중...' : '저장'}
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <p>{comment.message}</p>
+                              )}
+
+                              {canManageComment && !isCommentEditing && (
+                                <div className="opinion-comment-actions">
+                                  <button
+                                    className="opinion-icon-button edit"
+                                    type="button"
+                                    onClick={() => startCommentEdit(comment)}
+                                    aria-label="댓글 수정"
+                                    title="수정"
+                                  >
+                                    <svg aria-hidden="true" viewBox="0 0 24 24">
+                                      <path d="M13.8 5.2 18.8 10.2" />
+                                      <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                                      <path d="M4 20h16" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    className="opinion-icon-button delete"
+                                    type="button"
+                                    onClick={() => handleCommentDelete(comment)}
+                                    disabled={deletingCommentId === comment.id}
+                                    aria-label="댓글 삭제"
+                                    title="삭제"
+                                  >
+                                    <span aria-hidden="true" />
+                                  </button>
+                                </div>
+                              )}
+                            </article>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    <form className="opinion-comment-form" onSubmit={(event) => handleCommentSubmit(event, opinion)}>
+                      <input
+                        maxLength={300}
+                        placeholder="댓글을 입력하세요."
+                        value={commentInputs[opinion.id] || ''}
+                        onChange={(event) => handleCommentInputChange(opinion.id, event.target.value)}
+                      />
+                      <button
+                        className="secondary-button"
+                        disabled={submittingCommentOpinionId === opinion.id || !(commentInputs[opinion.id] || '').trim()}
+                      >
+                        {submittingCommentOpinionId === opinion.id ? '등록 중...' : '저장'}
+                      </button>
+                    </form>
+                  </section>
                 </article>
               )
             })}

@@ -14,7 +14,7 @@ const formatNotificationTime = (dateText) => {
 
 const getNotificationLink = (notification) => {
   if (notification.event_id) return `/events/${notification.event_id}`
-  if (notification.type === 'free_opinion_created') return '/free-opinions'
+  if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') return '/free-opinions'
   return '/events'
 }
 

@@ -95,7 +95,7 @@ export default function PushNotificationButton({ profile }) {
     }
 
     if (!installPrompt) {
-      setMessage('브라우저 메뉴에서 앱 설치 또는 홈 화면에 추가를 선택해주세요.')
+      setMessage('안드로이드 기기는 Chrome에서 접속한 후 앱 설치를 진행해주세요.')
       setShowInstallGuide(true)
       return
     }
