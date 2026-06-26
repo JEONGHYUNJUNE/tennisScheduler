@@ -95,7 +95,7 @@ export default function PushNotificationButton({ profile }) {
     }
 
     if (!installPrompt) {
-      setMessage('안드로이드 기기는 Chrome에서 접속한 후 앱 설치를 진행해주세요.')
+      setMessage('안드로이드 기기는 Chrome에서 실행하거나 Chrome 메뉴의 홈 화면에 추가를 진행해주세요.')
       setShowInstallGuide(true)
       return
     }
@@ -123,6 +123,7 @@ export default function PushNotificationButton({ profile }) {
             <strong>{isIos ? 'iPhone 알림 사용 방법' : '앱 설치 안내'}</strong>
             <p>{message}</p>
             {isIos && <small>공유 아이콘은 Safari 하단 또는 상단 주소창 근처에 있어요.</small>}
+            {isAndroid && <small>Chrome 우측 상단 메뉴에서 홈 화면에 추가 또는 앱 설치를 선택할 수 있어요.</small>}
           </div>
         )}
       </div>

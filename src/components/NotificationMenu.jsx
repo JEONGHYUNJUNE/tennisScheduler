@@ -14,7 +14,13 @@ const formatNotificationTime = (dateText) => {
 
 const getNotificationLink = (notification) => {
   if (notification.event_id) return `/events/${notification.event_id}`
-  if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') return '/free-opinions'
+  if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') {
+    const params = new URLSearchParams()
+    if (notification.free_opinion_id) params.set('opinion', notification.free_opinion_id)
+    if (notification.free_opinion_comment_id) params.set('comment', notification.free_opinion_comment_id)
+    const query = params.toString()
+    return query ? `/free-opinions?${query}` : '/free-opinions'
+  }
   return '/events'
 }
 

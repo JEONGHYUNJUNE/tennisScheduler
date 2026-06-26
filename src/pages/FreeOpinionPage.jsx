@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import {
   addFreeOpinion,
@@ -24,6 +25,8 @@ const visibleCommentCount = 3
 
 export default function FreeOpinionPage() {
   const { profile, isAdmin } = useAuth()
+  const [searchParams] = useSearchParams()
+  const linkedScrollKeyRef = useRef('')
   const [opinions, setOpinions] = useState([])
   const [opinionLikes, setOpinionLikes] = useState({})
   const [message, setMessage] = useState('')
@@ -41,6 +44,8 @@ export default function FreeOpinionPage() {
   const [savingCommentId, setSavingCommentId] = useState(null)
   const [deletingCommentId, setDeletingCommentId] = useState(null)
   const [error, setError] = useState('')
+  const linkedOpinionId = searchParams.get('opinion')
+  const linkedCommentId = searchParams.get('comment')
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +66,44 @@ export default function FreeOpinionPage() {
       markFreeOpinionsRead(profile.id).catch(() => {})
     }
   }, [load, profile?.id])
+
+  useEffect(() => {
+    if (!linkedOpinionId) return
+    setExpandedCommentOpinionIds((current) => ({ ...current, [linkedOpinionId]: true }))
+  }, [linkedOpinionId])
+
+  useEffect(() => {
+    if (loading || !linkedOpinionId) return undefined
+
+    const scrollKey = `${linkedOpinionId}:${linkedCommentId || ''}:${opinions.length}`
+    if (linkedScrollKeyRef.current === scrollKey) return undefined
+
+    let retryTimer = null
+    let attempts = 0
+
+    const scrollToLinkedTarget = () => {
+      const commentTarget = linkedCommentId ? document.getElementById(`opinion-comment-${linkedCommentId}`) : null
+      const opinionTarget = document.getElementById(`opinion-${linkedOpinionId}`)
+      const target = commentTarget || opinionTarget
+
+      if (target) {
+        linkedScrollKeyRef.current = scrollKey
+        target.scrollIntoView({ behavior: 'smooth', block: commentTarget ? 'center' : 'start' })
+        return
+      }
+
+      attempts += 1
+      if (attempts < 12) {
+        retryTimer = window.setTimeout(scrollToLinkedTarget, 120)
+      }
+    }
+
+    retryTimer = window.setTimeout(scrollToLinkedTarget, 120)
+
+    return () => {
+      if (retryTimer) window.clearTimeout(retryTimer)
+    }
+  }, [expandedCommentOpinionIds, linkedCommentId, linkedOpinionId, loading, opinions])
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -268,7 +311,11 @@ export default function FreeOpinionPage() {
               const hiddenCommentCount = Math.max(comments.length - visibleComments.length, 0)
 
               return (
-                <article className="opinion-item" key={opinion.id}>
+                <article
+                  className={`opinion-item ${linkedOpinionId === opinion.id ? 'linked-opinion' : ''}`}
+                  id={`opinion-${opinion.id}`}
+                  key={opinion.id}
+                >
                   <div className="opinion-meta">
                     <strong>{opinion.member_name}</strong>
                     <time>{formatOpinionTime(opinion.created_at)}</time>
@@ -353,7 +400,11 @@ export default function FreeOpinionPage() {
                           const isCommentEditing = editingCommentId === comment.id
 
                           return (
-                            <article className="opinion-comment" key={comment.id}>
+                            <article
+                              className={`opinion-comment ${linkedCommentId === comment.id ? 'linked-opinion-comment' : ''}`}
+                              id={`opinion-comment-${comment.id}`}
+                              key={comment.id}
+                            >
                               <div className="opinion-comment-meta">
                                 <strong>{comment.member_name}</strong>
                                 <time>{formatOpinionTime(comment.created_at)}</time>

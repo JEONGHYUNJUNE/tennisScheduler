@@ -1,3 +1,6 @@
+const appIconUrl = '/pwa-icon.svg'
+const notificationBadgeUrl = '/notification-badge.svg'
+
 self.addEventListener('push', (event) => {
   let payload = {}
 
@@ -13,8 +16,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'ONS Tennis'
   const options = {
     body: payload.body || payload.message || '새 알림이 있습니다.',
-    badge: '/pwa-icon.svg',
-    icon: '/pwa-icon.svg',
+    badge: payload.badge || notificationBadgeUrl,
+    icon: payload.icon || appIconUrl,
     data: {
       url: payload.url || '/#/',
       notificationId: payload.notificationId || null,

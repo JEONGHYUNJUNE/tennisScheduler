@@ -99,13 +99,13 @@ export default function EventsPage() {
             : isFull ? '대기 신청' : '참석하기'
           return (
             <article className="event-card" key={event.id}>
-              <div className="event-main">
+              <Link className="event-main" to={`/events/${event.id}`}>
                 <time>{formatDate(event.event_date)}</time>
-                <Link to={`/events/${event.id}`}><h2>{event.title}</h2></Link>
+                <h2>{event.title}</h2>
                 <p>{formatTime(event.start_time, event.end_time)}</p>
                 <p>{event.location || '장소 미정'}</p>
                 {event.memo && <p className="event-memo">{event.memo}</p>}
-              </div>
+              </Link>
               <div className="event-side">
                 <button
                   className={`heart-button ${likeSummary.likedByMe ? 'liked' : ''}`}

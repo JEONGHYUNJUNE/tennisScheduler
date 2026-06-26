@@ -6,6 +6,8 @@ type NotificationRecord = {
   recipient_member_id: string
   actor_member_id: string | null
   event_id: string | null
+  free_opinion_id?: string | null
+  free_opinion_comment_id?: string | null
   type: string
   title: string
   message: string
@@ -74,11 +76,19 @@ async function resolveNotification(payload: Record<string, unknown>) {
   const notificationId = payload.notification_id || payload.id
   if (!notificationId || typeof notificationId !== 'string') return null
 
-  const { data, error } = await getSupabase()
+  const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
+
+  const { data, error } = result.error?.code === '42703'
+    ? await getSupabase()
+      .from('ot_notifications')
+      .select('id, recipient_member_id, actor_member_id, event_id, type, title, message, created_at')
+      .eq('id', notificationId)
+      .single()
+    : result
 
   if (error) throw error
   return data as NotificationRecord
@@ -104,6 +114,7 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
 
   const appUrl = (Deno.env.get('APP_URL') || '').replace(/\/$/, '')
   const url = getNotificationUrl(appUrl, notification)
+  const body = getNotificationBody(notification)
 
   return webpush.sendNotification(
     {
@@ -115,7 +126,7 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
     },
     JSON.stringify({
       title: notification.title,
-      body: notification.message,
+      body,
       url,
       notificationId: notification.id,
       tag: `ot-${notification.id}`,
@@ -126,9 +137,29 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
 function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
   if (notification.event_id) return `${appUrl}/#/events/${notification.event_id}`
   if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') {
-    return `${appUrl}/#/free-opinions`
+    const params = new URLSearchParams()
+    if (notification.free_opinion_id) params.set('opinion', notification.free_opinion_id)
+    if (notification.free_opinion_comment_id) params.set('comment', notification.free_opinion_comment_id)
+    const query = params.toString()
+    return `${appUrl}/#/free-opinions${query ? `?${query}` : ''}`
   }
   return `${appUrl}/#/`
+}
+
+function getNotificationBody(notification: NotificationRecord) {
+  if (notification.type !== 'free_opinion_comment_created') return notification.message
+
+  const match = notification.message.match(/^(.*?:\s*)(.*)$/s)
+  if (!match) return notification.message
+
+  const preview = getPreviewText(match[2])
+  return `${match[1]}${preview}`
+}
+
+function getPreviewText(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= 10) return normalized
+  return `${normalized.slice(0, 10)}…`
 }
 
 async function deactivateExpiredSubscriptions(
