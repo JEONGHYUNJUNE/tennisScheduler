@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NotificationMenu from './NotificationMenu'
 import PushNotificationButton from './PushNotificationButton'
@@ -97,6 +97,7 @@ export default function Layout() {
   const { profile, isAdmin } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const shellRef = useRef(null)
   const [freeOpinionUnreadCount, setFreeOpinionUnreadCount] = useState(0)
 
   const handleLogout = async () => {
@@ -138,8 +139,25 @@ export default function Layout() {
     }
   }, [location.pathname, profile?.id])
 
+  useLayoutEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual'
+    }
+
+    const resetScroll = () => {
+      window.scrollTo(0, 0)
+      if (shellRef.current) {
+        shellRef.current.scrollTop = 0
+      }
+    }
+
+    resetScroll()
+    const frameId = window.requestAnimationFrame(resetScroll)
+    return () => window.cancelAnimationFrame(frameId)
+  }, [location.pathname, location.search])
+
   return (
-    <div className="app-shell">
+    <div className="app-shell" ref={shellRef}>
       <header className="site-header">
         <div className="header-main">
           <Link className="brand" to="/">ONS TENNIS</Link>
