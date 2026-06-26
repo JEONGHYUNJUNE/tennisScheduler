@@ -341,20 +341,24 @@ dd { margin: 0; white-space: pre-wrap; }
 .event-form-card { padding: clamp(24px, 5vw, 48px); border: 1px solid rgba(217, 228, 213, .88); border-radius: 28px; display: grid; gap: 24px; background: rgba(255,253,248,.94); box-shadow: 0 20px 54px rgba(49,95,59,.1); backdrop-filter: blur(8px); }
 .event-form-field { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 22px; align-items: end; }
 .event-form-field-textarea { align-items: start; }
-.event-form-icon { width: 50px; height: 50px; border: 0; border-radius: 16px; display: inline-grid; place-items: center; color: var(--green-800); background: rgba(237,246,234,.78); }
+.event-form-icon { position: relative; width: 50px; height: 50px; border: 0; border-radius: 16px; display: inline-grid; place-items: center; color: var(--green-800); background: rgba(237,246,234,.78); }
 .event-form-icon.calendar-icon { border: 0; }
 .event-form-icon.calendar-icon::before { width: 19px; height: 15px; border: 2.4px solid currentColor; border-top-width: 5px; border-radius: 4px; }
 .event-form-member-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
-.event-form-icon.clock-icon { border-width: 2.4px; }
-.event-form-icon.clock-icon::before { width: 6px; height: 7px; border-left-width: 2.4px; border-bottom-width: 2.4px; }
+.event-form-icon.clock-icon { border: 0; }
+.event-form-icon.clock-icon::after { content: ""; position: absolute; width: 21px; height: 21px; border: 2.4px solid currentColor; border-radius: 50%; }
+.event-form-icon.clock-icon::before { position: absolute; z-index: 1; width: 6px; height: 7px; border-left-width: 2.4px; border-bottom-width: 2.4px; }
 .event-form-icon.pin-icon::before { width: 15px; height: 15px; border-width: 2.4px; }
-.event-form-icon.pin-icon::after { width: 4px; height: 4px; }
+.event-form-icon.pin-icon::after { left: 50%; top: 50%; width: 4px; height: 4px; transform: translate(-50%, -50%); }
 .event-form-icon.memo-icon { border-width: 2.4px; }
 .event-form-icon.memo-icon::before { width: 9px; height: 2.4px; box-shadow: 0 5px 0 currentColor; }
 .event-form-control { min-width: 0; position: relative; display: grid; gap: 11px; color: #172019; font-size: 1.08rem; font-weight: 950; }
 .event-form-control strong { color: #172019; font-size: 1.08rem; }
 .event-form-control input,
-.event-form-control textarea { min-height: 58px; border: 1px solid rgba(132, 162, 132, .34); border-radius: 17px; padding: 0 22px; color: #1f2b22; background: rgba(255,255,255,.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,.54); font-size: 1rem; font-weight: 800; }
+.event-form-control textarea { min-width: 0; max-width: 100%; min-height: 58px; border: 1px solid rgba(132, 162, 132, .34); border-radius: 17px; padding: 0 22px; display: block; color: #1f2b22; background: rgba(255,255,255,.78); box-shadow: inset 0 0 0 1px rgba(255,255,255,.54); font-size: 1rem; font-weight: 800; }
+.event-form-control input { -webkit-appearance: none; appearance: none; }
+.event-form-control input[type="date"],
+.event-form-control input[type="time"] { min-width: 0; width: 100%; }
 .event-form-control input::placeholder,
 .event-form-control textarea::placeholder { color: rgba(104,117,106,.72); }
 .event-form-control textarea { min-height: 156px; padding: 20px 22px 40px; line-height: 1.6; resize: vertical; }
@@ -605,6 +609,8 @@ dd { margin: 0; white-space: pre-wrap; }
   .event-form-icon { width: 44px; height: 44px; border-radius: 15px; }
   .event-form-icon.calendar-icon::before { width: 17px; height: 13px; border-width: 2.2px; border-top-width: 5px; }
   .event-form-member-icon svg { width: 21px; height: 21px; stroke-width: 2; }
+  .event-form-icon.clock-icon::after { width: 19px; height: 19px; border-width: 2.2px; }
+  .event-form-icon.clock-icon::before { width: 5px; height: 6px; border-left-width: 2.2px; border-bottom-width: 2.2px; }
   .event-form-control { gap: 9px; }
   .event-form-control strong { font-size: .98rem; }
   .event-form-control input,
