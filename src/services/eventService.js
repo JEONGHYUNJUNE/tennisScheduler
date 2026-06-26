@@ -2,7 +2,18 @@ import { supabase } from '../lib/supabase'
 
 const missingGuestColumnCodes = new Set(['42703', 'PGRST204'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
+const missingCommentTableCodes = new Set(['42P01', 'PGRST200', 'PGRST205'])
 const relationshipAmbiguousCodes = new Set(['PGRST201'])
+
+const eventCommentSelectColumns = `
+  id,
+  event_id,
+  member_id,
+  message,
+  created_at,
+  updated_at,
+  otmember!tennis_event_comments_member_id_fkey(id, username, display_name)
+`
 
 const localDate = () => {
   const now = new Date()
@@ -186,6 +197,32 @@ export async function toggleEventLike(eventId, memberId, likedByMe) {
 }
 
 export async function getEvent(eventId) {
+  const withComments = await supabase
+    .from('tennis_events')
+    .select(`
+      *,
+      tennis_attendances(
+        id, member_id, guest_name, guest_memo, created_by, status, created_at,
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date)
+      ),
+      tennis_event_comments(
+        id,
+        event_id,
+        member_id,
+        message,
+        created_at,
+        updated_at,
+        otmember!tennis_event_comments_member_id_fkey(id, username, display_name)
+      )
+    `)
+    .eq('id', eventId)
+    .single()
+
+  if (!withComments.error) return normalizeEvent(withComments.data, true)
+  if (!isRecoverableAttendanceEmbedError(withComments.error) && !isMissingCommentTableError(withComments.error)) {
+    throw withComments.error
+  }
+
   const withGuestColumns = await supabase
     .from('tennis_events')
     .select(`
@@ -315,6 +352,42 @@ export async function deleteEvent(eventId) {
   if (error) throw error
 }
 
+export async function addEventComment(eventId, memberId, message) {
+  const { data, error } = await supabase
+    .from('tennis_event_comments')
+    .insert({
+      event_id: eventId,
+      member_id: memberId,
+      message: message.trim(),
+    })
+    .select(eventCommentSelectColumns)
+    .single()
+
+  if (error) throw error
+  return normalizeEventComment(data)
+}
+
+export async function updateEventComment(commentId, message) {
+  const { data, error } = await supabase
+    .from('tennis_event_comments')
+    .update({ message: message.trim() })
+    .eq('id', commentId)
+    .select(eventCommentSelectColumns)
+    .single()
+
+  if (error) throw error
+  return normalizeEventComment(data)
+}
+
+export async function deleteEventComment(commentId) {
+  const { error } = await supabase
+    .from('tennis_event_comments')
+    .delete()
+    .eq('id', commentId)
+
+  if (error) throw error
+}
+
 export function isCancellationBlocked(eventDate) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -347,6 +420,16 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
     max_players: event.max_participants,
     supports_guest_attendance: supportsGuestAttendance,
     tennis_attendances: attendances.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)),
+    comments: (event.tennis_event_comments || [])
+      .map(normalizeEventComment)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+  }
+}
+
+function normalizeEventComment(comment) {
+  return {
+    ...comment,
+    member_name: comment.otmember?.display_name || comment.otmember?.username || '회원',
   }
 }
 
@@ -360,4 +443,8 @@ function isRecoverableAttendanceEmbedError(error) {
 
 function isMissingLikeTableError(error) {
   return missingLikeTableCodes.has(error.code) || /tennis_event_likes/.test(error.message || '')
+}
+
+function isMissingCommentTableError(error) {
+  return missingCommentTableCodes.has(error.code) || /tennis_event_comments/.test(error.message || '')
 }

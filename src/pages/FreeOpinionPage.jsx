@@ -318,7 +318,36 @@ export default function FreeOpinionPage() {
                 >
                   <div className="opinion-meta">
                     <strong>{opinion.member_name}</strong>
-                    <time>{formatOpinionTime(opinion.created_at)}</time>
+                    <div className="opinion-meta-side">
+                      <time>{formatOpinionTime(opinion.created_at)}</time>
+                      {canManageOpinion && !isEditing && (
+                        <div className="opinion-manage-actions">
+                          <button
+                            className="opinion-icon-button edit"
+                            type="button"
+                            onClick={() => startEdit(opinion)}
+                            aria-label="의견 수정"
+                            title="수정"
+                          >
+                            <svg aria-hidden="true" viewBox="0 0 24 24">
+                              <path d="M13.8 5.2 18.8 10.2" />
+                              <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                              <path d="M4 20h16" />
+                            </svg>
+                          </button>
+                          <button
+                            className="opinion-icon-button delete"
+                            type="button"
+                            onClick={() => handleDelete(opinion)}
+                            disabled={deletingOpinionId === opinion.id}
+                            aria-label="의견 삭제"
+                            title="삭제"
+                          >
+                            <span aria-hidden="true" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {isEditing ? (
@@ -354,33 +383,6 @@ export default function FreeOpinionPage() {
                       <strong>{opinionLikes[opinion.id]?.count || 0}</strong>
                     </button>
 
-                    {canManageOpinion && !isEditing && (
-                      <div className="opinion-manage-actions">
-                        <button
-                          className="opinion-icon-button edit"
-                          type="button"
-                          onClick={() => startEdit(opinion)}
-                          aria-label="의견 수정"
-                          title="수정"
-                        >
-                          <svg aria-hidden="true" viewBox="0 0 24 24">
-                            <path d="M13.8 5.2 18.8 10.2" />
-                            <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
-                            <path d="M4 20h16" />
-                          </svg>
-                        </button>
-                        <button
-                          className="opinion-icon-button delete"
-                          type="button"
-                          onClick={() => handleDelete(opinion)}
-                          disabled={deletingOpinionId === opinion.id}
-                          aria-label="의견 삭제"
-                          title="삭제"
-                        >
-                          <span aria-hidden="true" />
-                        </button>
-                      </div>
-                    )}
                   </div>
 
                   <section className="opinion-comments">
@@ -401,7 +403,7 @@ export default function FreeOpinionPage() {
 
                           return (
                             <article
-                              className={`opinion-comment ${linkedCommentId === comment.id ? 'linked-opinion-comment' : ''}`}
+                              className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''} ${linkedCommentId === comment.id ? 'linked-opinion-comment' : ''}`}
                               id={`opinion-comment-${comment.id}`}
                               key={comment.id}
                             >

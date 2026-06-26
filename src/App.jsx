@@ -12,6 +12,7 @@ import MembersPage from './pages/MembersPage'
 import SignupPage from './pages/SignupPage'
 import CompleteProfilePage from './pages/CompleteProfilePage'
 import MemberListPage from './pages/MemberListPage'
+import MyPage from './pages/MyPage'
 import RankingPage from './pages/RankingPage'
 import TennisNewsPage from './pages/TennisNewsPage'
 
@@ -47,6 +48,7 @@ export default function App() {
           <Route path="/events/new" element={<EventFormPage />} />
           <Route path="/events/:eventId/edit" element={<EventFormPage />} />
           <Route path="/members" element={<MemberListPage />} />
+          <Route path="/mypage" element={<MyPage />} />
           <Route path="/ranking" element={<RankingPage />} />
           <Route path="/tennis-news" element={<TennisNewsPage />} />
           <Route path="/free-opinions" element={<FreeOpinionPage />} />

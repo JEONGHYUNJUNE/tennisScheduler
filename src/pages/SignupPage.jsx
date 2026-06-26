@@ -46,7 +46,7 @@ export default function SignupPage() {
         <p className="eyebrow">ONS TENNIS</p>
         <h1>ONS Tennis</h1>
         <p>가입 후 다가오는 일정에 참석 해주세요</p>
-        <small>v1.0.0</small>
+        <small>v1.0.1</small>
       </section>
       <section className="auth-panel">
         <div className="mode-tabs">
