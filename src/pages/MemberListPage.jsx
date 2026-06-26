@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import LoadingState from '../components/LoadingState'
 import { getMembers } from '../services/memberService'
 import { formatTennisExperience } from '../utils/tennisExperience'
 
@@ -24,7 +25,7 @@ export default function MemberListPage() {
         </div>
       </div>
 
-      {loading && <p>멤버를 불러오는 중입니다.</p>}
+      {loading && <LoadingState message="멤버를 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
 
       {!loading && !error && (

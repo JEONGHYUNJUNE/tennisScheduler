@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import LoadingState from '../components/LoadingState'
 import { getMonthlyAttendanceRanking } from '../services/eventService'
 
 export default function RankingPage() {
@@ -23,7 +24,7 @@ export default function RankingPage() {
         </div>
       </div>
 
-      {loading && <p>랭킹을 불러오는 중입니다.</p>}
+      {loading && <LoadingState message="랭킹을 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
 
       {!loading && !error && (

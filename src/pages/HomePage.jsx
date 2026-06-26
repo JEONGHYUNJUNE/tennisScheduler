@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { getMonthEvents, getMonthlyAttendanceRanking, getTodayDateText, getUpcomingEvents } from '../services/eventService'
 import { defaultHomeWidgetOrder, getHomeWidgetOrder, saveHomeWidgetOrder } from '../services/homeWidgetService'
@@ -382,7 +383,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {calendarLoading && <p className="widget-empty">월간 일정을 불러오는 중입니다.</p>}
+          {calendarLoading && <LoadingState message="월간 일정을 불러오는 중입니다." variant="inline" />}
           {calendarError && <p className="error">{calendarError}</p>}
 
           <div className="month-calendar-weekdays">
@@ -444,7 +445,7 @@ export default function HomePage() {
         <div className="home-court-art" aria-hidden="true" />
       </section>
 
-      {loading && <p>위젯을 불러오는 중입니다.</p>}
+      {loading && <LoadingState message="위젯을 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
 
       {!loading && !error && (

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { getEvent, getTodayDateText, saveEvent } from '../services/eventService'
 
@@ -45,7 +46,7 @@ export default function EventFormPage() {
     setForm((current) => ({ ...current, event_date: dateParam }))
   }, [eventId, location.search])
 
-  if (loading) return <p>일정 정보를 불러오는 중입니다.</p>
+  if (loading) return <LoadingState message="일정 정보를 불러오는 중입니다." />
 
   if (eventId && eventOwnerId && !isAdmin && eventOwnerId !== profile.id) {
     return <Navigate to={`/events/${eventId}`} replace />

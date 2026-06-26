@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import {
   addFreeOpinion,
@@ -296,7 +297,7 @@ export default function FreeOpinionPage() {
           </div>
         </form>
 
-        {loading && <p className="notification-empty">의견을 불러오는 중입니다.</p>}
+        {loading && <LoadingState message="의견을 불러오는 중입니다." />}
         {error && <p className="error">{error}</p>}
 
         {!loading && !error && (

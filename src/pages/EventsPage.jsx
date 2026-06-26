@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { attendEvent, cancelAttendance, deleteEvent, getEventLikeSummaries, getUpcomingEvents, isCancellationBlocked, toggleEventLike } from '../services/eventService'
 
@@ -83,7 +84,7 @@ export default function EventsPage() {
         <div><p className="eyebrow">ONS TENNIS</p><h1>다가오는 일정</h1><p className="heading-copy">참석할 일정을 확인하고 신청해 주세요.</p></div>
         <Link className="primary-button" to="/events/new">새 일정 등록</Link>
       </div>
-      {loading && <p>일정을 불러오는 중입니다.</p>}
+      {loading && <LoadingState message="일정을 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
       {!loading && !events.length && <div className="empty-state">예정된 일정이 없습니다.</div>}
       <div className="event-list">

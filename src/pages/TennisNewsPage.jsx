@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { defaultRecommendedVideo, getRecommendedVideo, saveRecommendedVideo } from '../services/tennisVideoService'
 
@@ -73,7 +74,7 @@ export default function TennisNewsPage() {
       </div>
 
       <section className="tennis-news-shell">
-        {loading && <p className="notification-empty">추천 영상을 불러오는 중입니다.</p>}
+        {loading && <LoadingState message="추천 영상을 불러오는 중입니다." variant="inline" />}
         {message && <p className="notice">{message}</p>}
 
         <article className="video-pick-card">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventLike, updateEventComment } from '../services/eventService'
 
@@ -69,7 +70,7 @@ export default function EventDetailPage() {
   const reload = () => getEvent(eventId).then(setEvent).catch((err) => setError(err.message))
 
   if (error) return <p className="error">{error}</p>
-  if (!event) return <p>일정을 불러오는 중입니다.</p>
+  if (!event) return <LoadingState message="일정을 불러오는 중입니다." />
 
   const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
   const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []

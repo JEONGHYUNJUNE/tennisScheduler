@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import LoadingState from './LoadingState'
 import { getMyUpcomingEvents } from '../services/eventService'
 
 const formatDate = (dateText) => {
@@ -107,7 +108,7 @@ export default function UserMenu({ profile, onLogout }) {
 
           {activePanel === 'events' && (
             <div className="my-event-list">
-              {loadingEvents && <p className="notification-empty">참석 일정을 불러오는 중입니다.</p>}
+              {loadingEvents && <LoadingState message="참석 일정을 불러오는 중입니다." variant="inline" />}
               {error && <p className="notification-empty">{error}</p>}
               {!loadingEvents && !error && myEvents.length === 0 && <p className="notification-empty">참석 예정 일정이 없습니다.</p>}
               {myEvents.map((event) => {

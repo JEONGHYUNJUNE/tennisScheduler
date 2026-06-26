@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
 import { getMyUpcomingEvents } from '../services/eventService'
@@ -104,7 +105,7 @@ export default function MyPage() {
         </div>
 
         <div className="my-event-list my-page-event-list">
-          {loadingEvents && <p className="notification-empty">참석 일정을 불러오는 중입니다.</p>}
+          {loadingEvents && <LoadingState message="참석 일정을 불러오는 중입니다." variant="inline" />}
           {eventError && <p className="notification-empty">{eventError}</p>}
           {!loadingEvents && !eventError && myEvents.length === 0 && <p className="notification-empty">참석 예정 일정이 없습니다.</p>}
           {myEvents.map((event) => {

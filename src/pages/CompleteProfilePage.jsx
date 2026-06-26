@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { completeGoogleProfile, getGoogleProfileDefaults, linkGoogleToExistingProfile } from '../services/authService'
 
@@ -12,7 +13,7 @@ export default function CompleteProfilePage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  if (loading) return <div className="center-message">회원 정보를 준비하고 있습니다.</div>
+  if (loading) return <LoadingState message="회원 정보를 준비하고 있습니다." variant="screen" />
   if (!session) return <Navigate to="/login" replace />
   if (profile) return <Navigate to="/events" replace />
   if (session.user?.app_metadata?.provider !== 'google') return <Navigate to="/events" replace />

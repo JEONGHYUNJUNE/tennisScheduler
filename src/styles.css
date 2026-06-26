@@ -467,6 +467,28 @@ dd { margin: 0; white-space: pre-wrap; }
 .notice { margin: 0; padding: 14px 16px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 14px; color: var(--green-800); background: rgba(255, 253, 248, .86); font-weight: 900; }
 .error { color: #a13b31; font-weight: 700; }
 .empty-state, .center-message { padding: 60px 20px; text-align: center; }
+.loading-state { display: grid; justify-items: center; gap: 14px; color: var(--green-900); font-weight: 950; text-align: center; }
+.loading-state-screen { min-height: 100vh; padding: 28px; place-items: center; background: linear-gradient(rgba(237,246,234,.72), rgba(247,251,244,.94)), url('./assets/tennis-court-bg.svg') center / 1200px auto no-repeat; }
+.loading-state-page { min-height: 320px; padding: 54px 20px; place-items: center; }
+.loading-state-inline { min-height: 110px; padding: 24px 16px; place-items: center; }
+.loading-state-screen { position: relative; align-content: center; grid-template-rows: auto; }
+.loading-state-card { min-width: min(320px, 100%); padding: 34px 32px 30px; border: 1px solid rgba(217,228,213,.88); border-radius: 28px; display: grid; justify-items: center; gap: 18px; background: rgba(255,253,248,.9); box-shadow: 0 24px 70px rgba(49,95,59,.16); backdrop-filter: blur(12px); }
+.loading-state p { margin: 0; font-size: .96rem; }
+.loading-state-screen p { font-size: 1rem; }
+.loading-state-ball { position: relative; width: 48px; height: 48px; border-radius: 50%; background: #d8ef48; box-shadow: inset -11px 0 0 rgba(255,255,255,.45), 0 12px 24px rgba(53,129,70,.22); animation: tennis-loading-bounce 1.05s ease-in-out infinite; }
+.loading-state-screen .loading-state-ball { width: 58px; height: 58px; box-shadow: inset -13px 0 0 rgba(255,255,255,.45), 0 14px 28px rgba(53,129,70,.24); }
+.loading-state-ball::before,
+.loading-state-ball::after { content: ""; position: absolute; top: 6px; width: 20px; height: 36px; border: 3px solid rgba(255,255,255,.86); border-left: 0; border-radius: 50%; }
+.loading-state-screen .loading-state-ball::before,
+.loading-state-screen .loading-state-ball::after { top: 7px; width: 24px; height: 44px; }
+.loading-state-ball::before { left: 7px; transform: rotate(13deg); }
+.loading-state-ball::after { right: 7px; transform: rotate(193deg); }
+.loading-state-screen .loading-state-ball::before { left: 8px; }
+.loading-state-screen .loading-state-ball::after { right: 8px; }
+@keyframes tennis-loading-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  45% { transform: translateY(-10px) rotate(28deg); }
+}
 .setup-shell { min-height: 100vh; display: grid; place-items: center; padding: 30px; background: var(--green-700); }
 .setup-panel { width: min(620px, 100%); padding: 45px; background: var(--cream); box-shadow: 10px 10px 0 var(--accent); }
 .setup-panel p { line-height: 1.7; }

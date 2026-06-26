@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
+import LoadingState from './LoadingState'
 
 export default function ProtectedRoute({ adminOnly = false, allowIncompleteProfile = false }) {
   const { session, profile, loading, isAdmin } = useAuth()
@@ -18,11 +19,11 @@ export default function ProtectedRoute({ adminOnly = false, allowIncompleteProfi
     return () => clearTimeout(timer)
   }, [loading, profile, session])
 
-  if (loading) return <div className="center-message">사용자 정보를 확인하고 있습니다.</div>
+  if (loading) return <LoadingState message="사용자 정보를 확인하고 있습니다." variant="screen" />
   if (!session) return <Navigate to="/login" replace />
   if (!profile && allowIncompleteProfile && isGoogleUser) return <Outlet />
   if (!profile) {
-    if (!showMissingProfile) return <div className="center-message">회원 정보를 불러오는 중입니다.</div>
+    if (!showMissingProfile) return <LoadingState message="회원 정보를 불러오는 중입니다." variant="screen" />
     if (isGoogleUser) return <Navigate to="/complete-profile" replace />
     return <div className="center-message error">회원 프로필을 찾을 수 없습니다. 관리자에게 문의해 주세요.</div>
   }
