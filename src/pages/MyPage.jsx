@@ -1,6 +1,17 @@
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
+import { getMyUpcomingEvents } from '../services/eventService'
+
+const formatDate = (dateText) => {
+  if (!dateText) return ''
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'long',
+    day: 'numeric',
+    weekday: 'short',
+  }).format(new Date(`${dateText}T00:00:00`))
+}
 
 function formatTennisExperience(startDate) {
   if (!startDate) return '-'
@@ -25,6 +36,33 @@ function formatTennisExperience(startDate) {
 export default function MyPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
+  const [myEvents, setMyEvents] = useState([])
+  const [loadingEvents, setLoadingEvents] = useState(true)
+  const [eventError, setEventError] = useState('')
+
+  useEffect(() => {
+    if (!profile?.id) return undefined
+
+    let ignore = false
+
+    setLoadingEvents(true)
+    setEventError('')
+
+    getMyUpcomingEvents(profile.id)
+      .then((events) => {
+        if (!ignore) setMyEvents(events)
+      })
+      .catch((err) => {
+        if (!ignore) setEventError(err.message)
+      })
+      .finally(() => {
+        if (!ignore) setLoadingEvents(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [profile?.id])
 
   const handleLogout = async () => {
     await signOut()
@@ -54,6 +92,32 @@ export default function MyPage() {
         <button className="danger-button my-page-logout" type="button" onClick={handleLogout}>
           로그아웃
         </button>
+      </div>
+
+      <div className="my-page-card my-page-events-card">
+        <div className="my-page-section-head">
+          <div>
+            <p className="eyebrow">MY SCHEDULE</p>
+            <h2>참석 예정 일정</h2>
+          </div>
+          <Link to="/events">모든 일정 보기</Link>
+        </div>
+
+        <div className="my-event-list my-page-event-list">
+          {loadingEvents && <p className="notification-empty">참석 일정을 불러오는 중입니다.</p>}
+          {eventError && <p className="notification-empty">{eventError}</p>}
+          {!loadingEvents && !eventError && myEvents.length === 0 && <p className="notification-empty">참석 예정 일정이 없습니다.</p>}
+          {myEvents.map((event) => {
+            const mine = event.tennis_attendances?.find((attendance) => attendance.member_id === profile.id)
+            return (
+              <Link key={event.id} to={`/events/${event.id}`}>
+                <strong>{event.title}</strong>
+                <span>{formatDate(event.event_date)} {event.start_time?.slice(0, 5)}</span>
+                <em>{mine?.status === 'waiting' ? '대기' : '참석'}</em>
+              </Link>
+            )
+          })}
+        </div>
       </div>
     </section>
   )
