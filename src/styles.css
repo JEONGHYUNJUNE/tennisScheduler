@@ -219,8 +219,8 @@ h2 { margin: 0; }
 .widget-event-item div:nth-child(2) span { overflow: hidden; color: var(--muted); font-size: .9rem; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .widget-event-item em { min-width: 58px; border-radius: 10px; padding: 8px 10px; color: var(--green-800); background: rgba(237,246,234,.96); font-style: normal; font-weight: 950; text-align: center; }
 .widget-member-count { display: flex; align-items: baseline; gap: 10px; color: var(--green-700); }
-.widget-member-count strong { font-size: clamp(3.4rem, 8vw, 5.2rem); line-height: .9; letter-spacing: -.08em; }
-.widget-member-count span { font-size: 1.55rem; font-weight: 950; }
+.widget-member-count strong { color: #172019; font-size: clamp(3.4rem, 8vw, 5.2rem); line-height: .9; letter-spacing: -.08em; }
+.widget-member-count span { color: #172019; font-size: 1.55rem; font-weight: 950; }
 .widget-subcopy { margin: 8px 0 28px; color: var(--muted); font-weight: 900; }
 .recent-member-list { padding-top: 22px; border-top: 1px solid var(--line); }
 .recent-member-list > p { margin: 0 0 14px; color: var(--muted); font-weight: 900; }
