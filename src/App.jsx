@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import AppUpdatePrompt from './components/AppUpdatePrompt'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { isSupabaseConfigured } from './lib/supabase'
@@ -33,33 +34,36 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route element={<ProtectedRoute allowIncompleteProfile />}>
-        <Route path="/complete-profile" element={<CompleteProfilePage />} />
-      </Route>
+    <>
+      <AppUpdatePrompt />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route element={<ProtectedRoute allowIncompleteProfile />}>
+          <Route path="/complete-profile" element={<CompleteProfilePage />} />
+        </Route>
 
-      <Route element={<ProtectedRoute />}>
-        <Route element={<Layout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/events" element={<EventsPage />} />
-          <Route path="/events/:eventId" element={<EventDetailPage />} />
-          <Route path="/events/new" element={<EventFormPage />} />
-          <Route path="/events/:eventId/edit" element={<EventFormPage />} />
-          <Route path="/members" element={<MemberListPage />} />
-          <Route path="/mypage" element={<MyPage />} />
-          <Route path="/ranking" element={<RankingPage />} />
-          <Route path="/tennis-news" element={<TennisNewsPage />} />
-          <Route path="/free-opinions" element={<FreeOpinionPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<Layout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/events/:eventId" element={<EventDetailPage />} />
+            <Route path="/events/new" element={<EventFormPage />} />
+            <Route path="/events/:eventId/edit" element={<EventFormPage />} />
+            <Route path="/members" element={<MemberListPage />} />
+            <Route path="/mypage" element={<MyPage />} />
+            <Route path="/ranking" element={<RankingPage />} />
+            <Route path="/tennis-news" element={<TennisNewsPage />} />
+            <Route path="/free-opinions" element={<FreeOpinionPage />} />
 
-          <Route element={<ProtectedRoute adminOnly />}>
-            <Route path="/admin/members" element={<MembersPage />} />
+            <Route element={<ProtectedRoute adminOnly />}>
+              <Route path="/admin/members" element={<MembersPage />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }

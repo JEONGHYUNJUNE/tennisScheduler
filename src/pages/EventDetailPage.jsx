@@ -242,7 +242,7 @@ export default function EventDetailPage() {
 
         <div className="event-detail-hero-copy">
           <span className="event-status-pill">{isPastEvent ? '지난 일정' : '정기 모임'}</span>
-          <h1>{event.title}</h1>
+          <h3>{event.title}</h3>
         </div>
 
         {canManageEvent && !isPastEvent && (
@@ -279,7 +279,19 @@ export default function EventDetailPage() {
           <div><dt><span className="detail-mini-icon calendar-icon" /></dt><dd><strong>날짜</strong><span>{formatDetailDate(event.event_date)}</span></dd></div>
           <div><dt><span className="detail-mini-icon clock-icon" /></dt><dd><strong>시간</strong><span>{formatEventTime(event.start_time, event.end_time)}</span></dd></div>
           <div><dt><span className="detail-mini-icon pin-icon" /></dt><dd><strong>장소</strong><span>{event.location || '장소 미정'}</span></dd></div>
-          <div><dt><span className="detail-mini-icon member-icon" /></dt><dd><strong>정원</strong><span>{attendanceCountText}</span></dd></div>
+          <div>
+            <dt>
+              <span className="detail-mini-icon detail-member-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                  <path d="M15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                  <path d="M3.5 19c.6-3.2 2.4-5 5-5s4.4 1.8 5 5" />
+                  <path d="M13.5 14.5c2.7.2 4.5 1.8 5 4.5" />
+                </svg>
+              </span>
+            </dt>
+            <dd><strong>정원</strong><span>{attendanceCountText}</span></dd>
+          </div>
         </dl>
       </section>
 
@@ -300,7 +312,7 @@ export default function EventDetailPage() {
               <p className="eyebrow">GUEST</p>
               <h2>게스트 참석 추가</h2>
             </div>
-            <p>비회원 참석자를 바로 등록할 수 있습니다.</p>
+            <p>게스트 등록</p>
           </div>
           <form className="guest-form" onSubmit={handleGuestSubmit}>
             <div className="form-row">

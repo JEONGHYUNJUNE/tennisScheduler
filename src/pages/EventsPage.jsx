@@ -80,9 +80,14 @@ export default function EventsPage() {
 
   return (
     <>
-      <div className="page-heading main-heading">
+      <div className="page-heading main-heading events-heading">
         <div><p className="eyebrow">ONS TENNIS</p><h1>다가오는 일정</h1><p className="heading-copy">참석할 일정을 확인하고 신청해 주세요.</p></div>
-        <Link className="primary-button" to="/events/new">새 일정 등록</Link>
+        <Link className="primary-button event-create-button" to="/events/new">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span>새 일정 등록</span>
+        </Link>
       </div>
       {loading && <LoadingState message="일정을 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
@@ -118,10 +123,39 @@ export default function EventsPage() {
                   <strong>{likeSummary.count}</strong>
                 </button>
                 <div className="capacity"><strong>{attending.length}{event.max_players ? ` / ${event.max_players}` : ''}</strong><span>참석</span></div>
-                <button className={mine ? 'secondary-button' : 'primary-button'} onClick={() => handleAttendance(event, mine)}>
-                  {nextActionLabel}
+                <button className={`event-card-action attendance ${mine ? 'active' : ''}`} onClick={() => handleAttendance(event, mine)}>
+                  {mine ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 12h12" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                  )}
+                  <span>{nextActionLabel}</span>
                 </button>
-                {canManageEvent && <div className="admin-card-actions"><Link className="secondary-button" to={`/events/${event.id}/edit`}>수정</Link><button className="danger-button" onClick={() => handleDelete(event)}>삭제</button></div>}
+                {canManageEvent && (
+                  <div className="admin-card-actions">
+                    <Link className="event-card-action edit" to={`/events/${event.id}/edit`}>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M13.8 5.2 18.8 10.2" />
+                        <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                        <path d="M4 20h16" />
+                      </svg>
+                      <span>수정</span>
+                    </Link>
+                    <button className="event-card-action delete" onClick={() => handleDelete(event)}>
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 7h12" />
+                        <path d="M9 7V5h6v2" />
+                        <path d="M8 10v8M12 10v8M16 10v8" />
+                        <path d="M7 7l1 14h8l1-14" />
+                      </svg>
+                      <span>삭제</span>
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="card-attendees">
                 <strong>참석자</strong>
