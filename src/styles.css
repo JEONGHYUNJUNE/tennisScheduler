@@ -39,7 +39,7 @@ button { cursor: pointer; }
 .text-button { padding: 0; border: 0; color: inherit; background: none; }
 .user-menu-wrap { position: relative; }
 .user-menu-button { border: 0; padding: 0; color: white; background: none; font-weight: 900; }
-.user-menu-panel { position: fixed; right: 16px; top: 84px; z-index: 10001; width: min(390px, calc(100vw - 32px)); overflow: hidden; border: 1px solid #bfd3b8; border-radius: 18px; color: var(--text); background: #fffdf8; box-shadow: 0 24px 70px rgba(37, 48, 38, .34); }
+.user-menu-panel { position: fixed; right: 16px; top: 84px; z-index: 10001; width: min(390px, calc(100vw - 32px)); overflow: hidden; border: 1px solid #bfd3b8; border-radius: 18px; color: var(--text); background: #fffdf8; box-shadow: 0 24px 70px rgba(37, 48, 38, .34); animation: dropdown-panel-in .22s cubic-bezier(.2,.8,.22,1) both; transform-origin: 92% 0; }
 .user-menu-tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--green-700); }
 .user-menu-tabs button { border: 0; padding: 16px 12px; color: rgba(255,255,255,.72); background: transparent; font-weight: 900; }
 .user-menu-tabs button.active { color: white; background: rgba(255,255,255,.16); }
@@ -576,6 +576,10 @@ dd { margin: 0; white-space: pre-wrap; }
   to { opacity: 1; translate: 0 0; }
 }
 @keyframes notification-panel-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dropdown-panel-in {
   from { opacity: 0; transform: translateY(-8px) scale(.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
