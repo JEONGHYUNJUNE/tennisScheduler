@@ -73,9 +73,7 @@ Deno.serve(async (request) => {
 
 async function resolveNotification(payload: Record<string, unknown>) {
   const record = payload.record as NotificationRecord | undefined
-  if (record?.id) return record
-
-  const notificationId = payload.notification_id || payload.id
+  const notificationId = record?.id || payload.notification_id || payload.id
   if (!notificationId || typeof notificationId !== 'string') return null
 
   const result = await getSupabase()
