@@ -841,12 +841,8 @@ dd { margin: 0; white-space: pre-wrap; }
   .mobile-bottom-nav span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-bottom-nav .bottom-nav-add { width: 58px; height: 58px; min-height: 58px; margin: -20px auto 0; border-radius: 50%; color: white; background: linear-gradient(135deg, #16964c, #3f744b); box-shadow: 0 13px 28px rgba(22,150,76,.36); }
   .mobile-bottom-nav .bottom-nav-add svg { width: 30px; height: 30px; stroke-width: 2.5; }
-  .app-shell:has(input:focus),
-  .app-shell:has(textarea:focus),
-  .app-shell:has(select:focus) { padding-bottom: 20px; }
-  .app-shell:has(input:focus) .mobile-bottom-nav,
-  .app-shell:has(textarea:focus) .mobile-bottom-nav,
-  .app-shell:has(select:focus) .mobile-bottom-nav { opacity: 0; pointer-events: none; transform: translateY(calc(100% + env(safe-area-inset-bottom))); transition: opacity .14s ease, transform .18s ease; }
+  .app-shell.keyboard-open { padding-bottom: 20px; }
+  .app-shell.keyboard-open .mobile-bottom-nav { opacity: 0; pointer-events: none; transform: translateY(calc(100% + env(safe-area-inset-bottom))); transition: opacity .14s ease, transform .18s ease; }
   .my-page-card { border-radius: 26px; }
   .my-page-profile { align-items: flex-start; }
   .my-page-avatar { width: 58px; height: 58px; }

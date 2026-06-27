@@ -99,6 +99,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const shellRef = useRef(null)
   const [freeOpinionUnreadCount, setFreeOpinionUnreadCount] = useState(0)
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
 
   const handleLogout = async () => {
     await signOut()
@@ -156,8 +157,29 @@ export default function Layout() {
     return () => window.cancelAnimationFrame(frameId)
   }, [location.pathname, location.search])
 
+  useEffect(() => {
+    const visualViewport = window.visualViewport
+    if (!visualViewport) return undefined
+
+    const updateKeyboardState = () => {
+      const viewportGap = window.innerHeight - visualViewport.height - visualViewport.offsetTop
+      setIsKeyboardOpen(viewportGap > 120)
+    }
+
+    updateKeyboardState()
+    visualViewport.addEventListener('resize', updateKeyboardState)
+    visualViewport.addEventListener('scroll', updateKeyboardState)
+    window.addEventListener('orientationchange', updateKeyboardState)
+
+    return () => {
+      visualViewport.removeEventListener('resize', updateKeyboardState)
+      visualViewport.removeEventListener('scroll', updateKeyboardState)
+      window.removeEventListener('orientationchange', updateKeyboardState)
+    }
+  }, [])
+
   return (
-    <div className="app-shell" ref={shellRef}>
+    <div className={`app-shell ${isKeyboardOpen ? 'keyboard-open' : ''}`} ref={shellRef}>
       <header className="site-header">
         <div className="header-main">
           <Link className="brand" to="/">ONS TENNIS</Link>
