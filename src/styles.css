@@ -243,6 +243,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--green-700); box-
 .primary-button:hover:not(:disabled) { background: var(--green-800); transform: translateY(-1px); }
 .secondary-button { border-color: var(--green-700); color: var(--green-800); background: transparent; }
 .danger-button { color: white; background: #a13b31; }
+.primary-button.event-create-button { border-color: rgba(63,116,75,.18); color: var(--green-800); background: rgba(237,246,234,.82); box-shadow: 0 12px 26px rgba(49,95,59,.1); }
+.primary-button.event-create-button:hover:not(:disabled) { color: var(--green-800); background: rgba(255,255,255,.95); box-shadow: 0 14px 30px rgba(49,95,59,.14); }
 button:disabled { cursor: not-allowed; opacity: .5; }
 .heading-copy { margin: 14px 0 0; color: var(--muted); }
 .event-list { display: grid; gap: 18px; }
