@@ -161,19 +161,49 @@ export default function Layout() {
     const visualViewport = window.visualViewport
     if (!visualViewport) return undefined
 
+    const isEditableElement = (element) => {
+      if (!element) return false
+      const tagName = element.tagName?.toLowerCase()
+      return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || element.isContentEditable
+    }
+
+    const restoreViewportPosition = () => {
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+
     const updateKeyboardState = () => {
-      const viewportGap = window.innerHeight - visualViewport.height - visualViewport.offsetTop
-      setIsKeyboardOpen(viewportGap > 120)
+      const activeEditable = isEditableElement(document.activeElement)
+      const heightGap = window.innerHeight - visualViewport.height
+      const viewportShift = visualViewport.offsetTop
+      const nextKeyboardOpen = activeEditable && (heightGap > 120 || viewportShift > 80)
+
+      setIsKeyboardOpen((current) => {
+        if (current && !nextKeyboardOpen) {
+          window.setTimeout(restoreViewportPosition, 50)
+          window.setTimeout(restoreViewportPosition, 180)
+          window.setTimeout(restoreViewportPosition, 360)
+        }
+
+        return nextKeyboardOpen
+      })
     }
 
     updateKeyboardState()
     visualViewport.addEventListener('resize', updateKeyboardState)
     visualViewport.addEventListener('scroll', updateKeyboardState)
+    window.addEventListener('focusin', updateKeyboardState)
+    window.addEventListener('focusout', updateKeyboardState)
+    window.addEventListener('resize', updateKeyboardState)
     window.addEventListener('orientationchange', updateKeyboardState)
 
     return () => {
       visualViewport.removeEventListener('resize', updateKeyboardState)
       visualViewport.removeEventListener('scroll', updateKeyboardState)
+      window.removeEventListener('focusin', updateKeyboardState)
+      window.removeEventListener('focusout', updateKeyboardState)
+      window.removeEventListener('resize', updateKeyboardState)
       window.removeEventListener('orientationchange', updateKeyboardState)
     }
   }, [])
