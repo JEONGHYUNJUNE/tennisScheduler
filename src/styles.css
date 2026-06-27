@@ -75,7 +75,7 @@ button { cursor: pointer; }
 .notification-button { position: relative; width: 34px; height: 34px; border: 1px solid rgba(255, 255, 255, .46); border-radius: 999px; display: grid; place-items: center; color: white; background: rgba(255, 255, 255, .14); }
 .notification-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .notification-button span { position: absolute; top: -8px; right: -9px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; color: white; background: #d06138; font-size: .72rem; font-weight: 900; }
-.notification-panel { position: fixed !important; right: 16px !important; left: auto !important; top: 84px !important; z-index: 10001; width: 390px !important; max-width: calc(100vw - 32px); max-height: 520px; overflow: auto; border: 1px solid #bfd3b8; border-radius: 18px; color: var(--text); background: #fffdf8; box-shadow: 0 24px 70px rgba(37, 48, 38, .34); opacity: 1; }
+.notification-panel { position: fixed !important; right: 16px !important; left: auto !important; top: 84px !important; z-index: 10001; width: 390px !important; max-width: calc(100vw - 32px); max-height: 520px; overflow: auto; border: 1px solid #bfd3b8; border-radius: 18px; color: var(--text); background: #fffdf8; box-shadow: 0 24px 70px rgba(37, 48, 38, .34); opacity: 1; animation: notification-panel-in .22s cubic-bezier(.2,.8,.22,1) both; transform-origin: 92% 0; }
 .notification-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; color: white; background: rgba(79, 143, 93, .98); }
 .notification-head div { display: grid; gap: 3px; }
 .notification-head small { color: rgba(255, 255, 255, .76); font-size: .72rem; font-weight: 800; }
@@ -575,6 +575,10 @@ dd { margin: 0; white-space: pre-wrap; }
   from { opacity: 0; translate: 0 12px; }
   to { opacity: 1; translate: 0 0; }
 }
+@keyframes notification-panel-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -704,7 +708,11 @@ dd { margin: 0; white-space: pre-wrap; }
   .notification-panel, .user-menu-panel, .install-guide-panel { top: calc(112px + env(safe-area-inset-top)) !important; right: 12px !important; left: 12px !important; width: auto !important; max-width: none; border-radius: 22px; }
   .page { width: min(100% - 28px, 1200px); padding: 24px 0 30px; overflow: visible; }
   .site-footer { display: none; }
-  .notification-panel { max-height: calc(100dvh - 150px); }
+  .notification-panel {
+    max-height: calc(100dvh - 214px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding-bottom: 8px;
+    transform-origin: 50% 0;
+  }
   .home-hero { min-height: 64px; padding: 10px 12px 12px; border-radius: 16px; display: block; background-position: center; box-shadow: 0 20px 50px rgba(49, 95, 59, .12); }
   .home-hero-copy { padding-top: 0; }
   .home-hero::before { background-position: 78% center; background-size: auto 112%; opacity: .86; }
