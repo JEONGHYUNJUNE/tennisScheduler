@@ -98,7 +98,13 @@ export default function UserMenu({ profile, onLogout }) {
 
           {activePanel === 'profile' && (
             <dl className="profile-list">
-              <div><dt>이름</dt><dd>{profile.name || '-'}</dd></div>
+              <div className="profile-name-row">
+                <dt>이름</dt>
+                <dd>
+                  <span>{profile.name || '-'}</span>
+                  <Link className="user-menu-mypage-link" to="/mypage" onClick={() => setIsOpen(false)}>마이페이지</Link>
+                </dd>
+              </div>
               <div><dt>아이디</dt><dd>{profile.user_id || '-'}</dd></div>
               <div><dt>권한</dt><dd>{profile.role || 'member'}</dd></div>
               <div><dt>테니스 시작일</dt><dd>{profile.tennis_start_date || '-'}</dd></div>

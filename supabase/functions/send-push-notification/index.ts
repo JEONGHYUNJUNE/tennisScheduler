@@ -8,6 +8,8 @@ type NotificationRecord = {
   event_id: string | null
   free_opinion_id?: string | null
   free_opinion_comment_id?: string | null
+  inquiry_id?: string | null
+  inquiry_reply_id?: string | null
   type: string
   title: string
   message: string
@@ -78,7 +80,7 @@ async function resolveNotification(payload: Record<string, unknown>) {
 
   const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
 
@@ -143,11 +145,27 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     const query = params.toString()
     return `${appUrl}/#/free-opinions${query ? `?${query}` : ''}`
   }
+  if (
+    notification.type === 'member_inquiry_created' ||
+    notification.type === 'member_inquiry_replied' ||
+    notification.type === 'member_inquiry_followed_up'
+  ) {
+    const params = new URLSearchParams({ inquiryTab: 'inbox' })
+    if (notification.inquiry_id) params.set('inquiry', notification.inquiry_id)
+    return `${appUrl}/#/mypage?${params.toString()}`
+  }
   return `${appUrl}/#/`
 }
 
 function getNotificationBody(notification: NotificationRecord) {
-  if (notification.type !== 'free_opinion_comment_created') return notification.message
+  if (
+    notification.type !== 'free_opinion_comment_created' &&
+    notification.type !== 'member_inquiry_created' &&
+    notification.type !== 'member_inquiry_replied' &&
+    notification.type !== 'member_inquiry_followed_up'
+  ) {
+    return notification.message
+  }
 
   const match = notification.message.match(/^(.*?:\s*)(.*)$/s)
   if (!match) return notification.message

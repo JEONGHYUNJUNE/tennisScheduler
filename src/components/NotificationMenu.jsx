@@ -21,6 +21,15 @@ const getNotificationLink = (notification) => {
     const query = params.toString()
     return query ? `/free-opinions?${query}` : '/free-opinions'
   }
+  if (
+    notification.type === 'member_inquiry_created' ||
+    notification.type === 'member_inquiry_replied' ||
+    notification.type === 'member_inquiry_followed_up'
+  ) {
+    const params = new URLSearchParams({ inquiryTab: 'inbox' })
+    if (notification.inquiry_id) params.set('inquiry', notification.inquiry_id)
+    return `/mypage?${params.toString()}`
+  }
   return '/events'
 }
 
