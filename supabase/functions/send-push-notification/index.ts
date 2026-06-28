@@ -1,3 +1,5 @@
+// @ts-nocheck
+// Supabase Edge Function runs on Deno; IntelliJ's Node TypeScript checker does not resolve Deno npm: imports.
 import { createClient } from 'npm:@supabase/supabase-js@2.50.0'
 import webpush from 'npm:web-push@3.6.7'
 

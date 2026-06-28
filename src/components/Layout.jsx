@@ -159,7 +159,23 @@ export default function Layout() {
 
   useEffect(() => {
     const visualViewport = window.visualViewport
-    if (!visualViewport) return undefined
+    const root = document.documentElement
+    const shell = shellRef.current
+    if (!visualViewport || !shell) return undefined
+
+    const isStandalonePwa =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true
+    const isIOSWebKit =
+      /iP(ad|hone|od)/.test(window.navigator.userAgent) ||
+      (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1)
+    const needsSafariViewportPatch = isIOSWebKit && !isStandalonePwa
+
+    const syncViewportHeight = () => {
+      if (!needsSafariViewportPatch) return
+      const nextHeight = Math.round(visualViewport.height || window.innerHeight)
+      root.style.setProperty('--app-viewport-height', `${nextHeight}px`)
+    }
 
     const isEditableElement = (element) => {
       if (!element) return false
@@ -168,12 +184,20 @@ export default function Layout() {
     }
 
     const restoreViewportPosition = () => {
+      syncViewportHeight()
       window.scrollTo(0, 0)
       document.documentElement.scrollTop = 0
       document.body.scrollTop = 0
+      if (needsSafariViewportPatch) {
+        shell.style.transform = 'translateZ(0)'
+        window.requestAnimationFrame(() => {
+          shell.style.transform = ''
+        })
+      }
     }
 
     const updateKeyboardState = () => {
+      syncViewportHeight()
       const activeEditable = isEditableElement(document.activeElement)
       const heightGap = window.innerHeight - visualViewport.height
       const viewportShift = visualViewport.offsetTop
@@ -184,6 +208,9 @@ export default function Layout() {
           window.setTimeout(restoreViewportPosition, 50)
           window.setTimeout(restoreViewportPosition, 180)
           window.setTimeout(restoreViewportPosition, 360)
+          if (needsSafariViewportPatch) {
+            window.setTimeout(restoreViewportPosition, 720)
+          }
         }
 
         return nextKeyboardOpen
@@ -197,14 +224,17 @@ export default function Layout() {
     window.addEventListener('focusout', updateKeyboardState)
     window.addEventListener('resize', updateKeyboardState)
     window.addEventListener('orientationchange', updateKeyboardState)
+    document.addEventListener('visibilitychange', updateKeyboardState)
 
     return () => {
+      root.style.removeProperty('--app-viewport-height')
       visualViewport.removeEventListener('resize', updateKeyboardState)
       visualViewport.removeEventListener('scroll', updateKeyboardState)
       window.removeEventListener('focusin', updateKeyboardState)
       window.removeEventListener('focusout', updateKeyboardState)
       window.removeEventListener('resize', updateKeyboardState)
       window.removeEventListener('orientationchange', updateKeyboardState)
+      document.removeEventListener('visibilitychange', updateKeyboardState)
     }
   }, [])
 
