@@ -173,7 +173,7 @@ export default function Layout() {
 
     const syncViewportHeight = () => {
       if (!needsSafariViewportPatch) return
-      const nextHeight = Math.round(visualViewport.height || window.innerHeight)
+      const nextHeight = Math.round(window.innerHeight || visualViewport.height)
       root.style.setProperty('--app-viewport-height', `${nextHeight}px`)
     }
 
@@ -217,6 +217,11 @@ export default function Layout() {
       })
     }
 
+    if (needsSafariViewportPatch) {
+      root.classList.add('ios-safari-browser')
+    }
+
+    syncViewportHeight()
     updateKeyboardState()
     visualViewport.addEventListener('resize', updateKeyboardState)
     visualViewport.addEventListener('scroll', updateKeyboardState)
@@ -227,6 +232,7 @@ export default function Layout() {
     document.addEventListener('visibilitychange', updateKeyboardState)
 
     return () => {
+      root.classList.remove('ios-safari-browser')
       root.style.removeProperty('--app-viewport-height')
       visualViewport.removeEventListener('resize', updateKeyboardState)
       visualViewport.removeEventListener('scroll', updateKeyboardState)

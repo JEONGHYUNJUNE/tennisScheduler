@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import EmptyState from './EmptyState'
 import { getNotifications, markNotificationsRead } from '../services/notificationService'
 
 const formatNotificationTime = (dateText) => {
@@ -117,7 +118,13 @@ export default function NotificationMenu({ profile }) {
           </div>
 
           {error && <p className="notification-empty">{error}</p>}
-          {!error && notifications.length === 0 && <p className="notification-empty">새 알림이 없습니다.</p>}
+          {!error && notifications.length === 0 && (
+            <EmptyState
+              compact
+              title="새 알림이 없어요."
+              description="일정, 댓글, 문의 답변이 오면 여기에 모아둘게요."
+            />
+          )}
 
           <ul className="notification-list">
             {notifications.map((notification) => (

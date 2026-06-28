@@ -553,6 +553,21 @@ dd { margin: 0; white-space: pre-wrap; }
 .notice { margin: 0; padding: 14px 16px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 14px; color: var(--green-800); background: rgba(255, 253, 248, .86); font-weight: 900; }
 .error { color: #a13b31; font-weight: 700; }
 .empty-state, .center-message { padding: 60px 20px; text-align: center; }
+.empty-state-card { width: 100%; min-height: 260px; padding: 34px 22px 30px; border: 1px solid rgba(217, 228, 213, .88); border-radius: 24px; display: grid; justify-items: center; align-content: center; gap: 12px; color: var(--text); background: rgba(255,253,248,.76); box-shadow: inset 0 0 0 1px rgba(255,255,255,.54), 0 14px 36px rgba(49,95,59,.08); text-align: center; }
+.empty-state-card.compact { min-height: 150px; padding: 18px 14px; border-radius: 18px; gap: 7px; background: rgba(247,251,244,.66); box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); }
+.empty-state-illustration { width: min(240px, 72vw); height: auto; display: block; }
+.empty-state-card.compact .empty-state-illustration { width: 142px; border-radius: 14px; }
+.empty-state-copy { display: grid; gap: 6px; justify-items: center; }
+.empty-state-copy strong { color: #171d18; font-size: 1.08rem; font-weight: 950; letter-spacing: -.01em; }
+.empty-state-copy p { max-width: 360px; margin: 0; color: var(--muted); font-size: .9rem; font-weight: 850; line-height: 1.45; word-break: keep-all; overflow-wrap: normal; }
+.empty-state-card.compact .empty-state-copy strong { font-size: .92rem; }
+.empty-state-card.compact .empty-state-copy p { max-width: min(100%, 310px); font-size: .78rem; line-height: 1.38; }
+.empty-state-action { min-height: 40px; margin-top: 4px; border: 1px solid rgba(63,116,75,.16); border-radius: 999px; padding: 10px 16px; display: inline-flex; align-items: center; justify-content: center; color: var(--green-800); background: rgba(237,246,234,.92); font-size: .88rem; font-weight: 950; text-decoration: none; box-shadow: 0 10px 22px rgba(49,95,59,.08); }
+.empty-state-action:hover { background: white; transform: translateY(-1px); }
+.notification-panel .empty-state-card,
+.user-menu-panel .empty-state-card,
+.inquiry-modal .empty-state-card { border: 0; box-shadow: none; background: transparent; }
+.recent-member-list .empty-state-card { flex: 1 0 100%; }
 .loading-state { display: grid; justify-items: center; gap: 14px; color: var(--green-900); font-weight: 950; text-align: center; }
 .loading-state-screen { min-height: 100vh; padding: 28px; place-items: center; background: linear-gradient(rgba(237,246,234,.72), rgba(247,251,244,.94)), url('./assets/tennis-court-bg.svg') center / 1200px auto no-repeat; }
 .loading-state-page { min-height: 320px; padding: 54px 20px; place-items: center; }
@@ -843,6 +858,23 @@ dd { margin: 0; white-space: pre-wrap; }
   .mobile-bottom-nav .bottom-nav-add svg { width: 30px; height: 30px; stroke-width: 2.5; }
   .app-shell.keyboard-open { padding-bottom: 20px; }
   .app-shell.keyboard-open .mobile-bottom-nav { opacity: 0; pointer-events: none; transform: translateY(calc(100% + env(safe-area-inset-bottom))); transition: opacity .14s ease, transform .18s ease; }
+  html.ios-safari-browser,
+  html.ios-safari-browser body,
+  html.ios-safari-browser #root {
+    height: auto;
+    min-height: var(--app-viewport-height, 100dvh);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  html.ios-safari-browser .app-shell {
+    height: auto;
+    min-height: var(--app-viewport-height, 100dvh);
+    max-height: none;
+    overflow: visible;
+  }
+  html.ios-safari-browser .app-shell.keyboard-open {
+    padding-bottom: 20px;
+  }
   .my-page-card { border-radius: 26px; }
   .my-page-profile { align-items: flex-start; }
   .my-page-avatar { width: 58px; height: 58px; }

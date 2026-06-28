@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import EmptyState from './EmptyState'
 import LoadingState from './LoadingState'
 import { getMyUpcomingEvents } from '../services/eventService'
 
@@ -116,7 +117,13 @@ export default function UserMenu({ profile, onLogout }) {
             <div className="my-event-list">
               {loadingEvents && <LoadingState message="참석 일정을 불러오는 중입니다." variant="inline" />}
               {error && <p className="notification-empty">{error}</p>}
-              {!loadingEvents && !error && myEvents.length === 0 && <p className="notification-empty">참석 예정 일정이 없습니다.</p>}
+              {!loadingEvents && !error && myEvents.length === 0 && (
+                <EmptyState
+                  compact
+                  title="참석 예정 일정이 없어요."
+                  description="참가한 일정이 생기면 여기에 보여드릴게요."
+                />
+              )}
               {myEvents.map((event) => {
                 const mine = event.tennis_attendances?.find((attendance) => attendance.member_id === profile.id)
                 return (

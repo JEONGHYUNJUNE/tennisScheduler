@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventLike, updateEventComment } from '../services/eventService'
@@ -452,7 +453,11 @@ export default function EventDetailPage() {
             })}
           </div>
         ) : (
-          <p className="widget-empty">아직 댓글이 없습니다.</p>
+          <EmptyState
+            compact
+            title="아직 댓글이 없어요."
+            description="궁금한 점이나 참석 메모를 남겨보세요."
+          />
         )}
 
         <form className="opinion-comment-form event-comment-form" onSubmit={handleCommentSubmit}>

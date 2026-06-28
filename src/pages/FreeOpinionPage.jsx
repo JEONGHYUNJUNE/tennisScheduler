@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import {
@@ -302,7 +303,12 @@ export default function FreeOpinionPage() {
 
         {!loading && !error && (
           <div className="opinion-list">
-            {opinions.length === 0 && <p className="notification-empty">아직 남겨진 의견이 없습니다.</p>}
+            {opinions.length === 0 && (
+              <EmptyState
+                title="아직 소통 글이 없어요."
+                description="첫 의견을 남겨서 오늘의 이야기를 열어보세요."
+              />
+            )}
             {opinions.map((opinion) => {
               const canManageOpinion = isAdmin || opinion.member_id === profile.id
               const isEditing = editingOpinionId === opinion.id

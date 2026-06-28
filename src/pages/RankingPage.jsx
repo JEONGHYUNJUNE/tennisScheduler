@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { getMonthlyAttendanceRanking } from '../services/eventService'
 
@@ -29,7 +30,12 @@ export default function RankingPage() {
 
       {!loading && !error && (
         <section className="ranking-list">
-          {ranking.length === 0 && <div className="empty-state">최근 3개월에 지난 일정이 아직 없습니다.</div>}
+          {ranking.length === 0 && (
+            <EmptyState
+              title="아직 집계할 참석 기록이 없어요."
+              description="일정이 진행되고 참석 기록이 쌓이면 랭킹이 표시돼요."
+            />
+          )}
           {ranking.map((item) => (
             <article className={`ranking-item ${item.rank <= 3 ? 'ranking-item-top' : ''}`} key={item.member_id}>
               <div className="ranking-rank">{item.rank}</div>

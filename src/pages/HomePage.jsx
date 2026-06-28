@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { getMonthEvents, getMonthlyAttendanceRanking, getTodayDateText, getUpcomingEvents } from '../services/eventService'
@@ -284,7 +285,13 @@ export default function HomePage() {
           </div>
 
           <div className="widget-event-list">
-            {homeWidgetData.events.length === 0 && <p className="widget-empty">예정된 일정이 없습니다.</p>}
+            {homeWidgetData.events.length === 0 && (
+              <EmptyState
+                compact
+                title="다가오는 일정이 비어 있어요."
+                description="새 일정이 생기면 여기서 먼저 보여드릴게요."
+              />
+            )}
             {homeWidgetData.events.map((event) => {
               const date = formatEventDate(event.event_date)
               const attendingCount = event.tennis_attendances?.filter((item) => item.status === 'attending').length || 0
@@ -329,7 +336,13 @@ export default function HomePage() {
           <div className="recent-member-list">
             <p>최근 가입 멤버</p>
             <div>
-              {recentMembers.length === 0 && <span className="widget-empty">멤버가 없습니다.</span>}
+              {recentMembers.length === 0 && (
+                <EmptyState
+                  compact
+                  title="아직 멤버가 없어요."
+                  description="활동 멤버가 생기면 이곳에 표시돼요."
+                />
+              )}
               {recentMembers.map((member) => (
                 <span className="member-chip" key={member.id}>
                   <b>{getInitial(member.name)}</b>
@@ -351,7 +364,13 @@ export default function HomePage() {
           </div>
 
           <div className="widget-ranking-list">
-            {homeWidgetData.ranking.length === 0 && <p className="widget-empty">최근 3개월 일정이 아직 없습니다.</p>}
+            {homeWidgetData.ranking.length === 0 && (
+              <EmptyState
+                compact
+                title="참석 기록이 아직 없어요."
+                description="일정이 끝나면 참석 현황이 쌓여요."
+              />
+            )}
             {homeWidgetData.ranking.map((item) => (
               <Link className="widget-ranking-item" to="/ranking" key={item.member_id}>
                 <span className={`rank-badge rank-${item.rank}`}>{item.rank}</span>

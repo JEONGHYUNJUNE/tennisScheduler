@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
@@ -118,7 +119,13 @@ export default function MyPage() {
         <div className="my-event-list my-page-event-list">
           {loadingEvents && <LoadingState message="참석 일정을 불러오는 중입니다." variant="inline" />}
           {eventError && <p className="notification-empty">{eventError}</p>}
-          {!loadingEvents && !eventError && myEvents.length === 0 && <p className="notification-empty">참석 예정 일정이 없습니다.</p>}
+          {!loadingEvents && !eventError && myEvents.length === 0 && (
+            <EmptyState
+              compact
+              title="참석 예정 일정이 없어요."
+              description="참가 일정은 여기에 모아둘게요."
+            />
+          )}
           {myEvents.map((event) => {
             const mine = event.tennis_attendances?.find((attendance) => attendance.member_id === profile.id)
             return (
@@ -355,7 +362,13 @@ function InquiryModal({ highlightedInquiryId = '', initialTab = 'write', profile
         ) : (
           <div className="inquiry-inbox">
             {loading && <LoadingState message="문의 내역을 불러오는 중입니다." variant="inline" />}
-            {!loading && inquiries.length === 0 && <p className="notification-empty">아직 문의 내역이 없습니다.</p>}
+            {!loading && inquiries.length === 0 && (
+              <EmptyState
+                compact
+                title="아직 문의 내역이 없어요."
+                description="문의를 보내면 답변 상태와 댓글이 여기에 쌓여요."
+              />
+            )}
             {inquiries.map((inquiry) => (
               <article
                 className={`inquiry-thread ${inquiry.id === highlightedInquiryId ? 'highlighted' : ''}`}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { attendEvent, cancelAttendance, deleteEvent, getEventLikeSummaries, getUpcomingEvents, isCancellationBlocked, toggleEventLike } from '../services/eventService'
@@ -91,7 +92,14 @@ export default function EventsPage() {
       </div>
       {loading && <LoadingState message="일정을 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
-      {!loading && !events.length && <div className="empty-state">예정된 일정이 없습니다.</div>}
+      {!loading && !events.length && (
+        <EmptyState
+          title="아직 예정된 일정이 없어요."
+          description="새 모임이 등록되면 이곳에서 바로 확인하고 참석할 수 있어요."
+          actionLabel="새 일정 등록"
+          actionTo="/events/new"
+        />
+      )}
       <div className="event-list">
         {events.map((event) => {
           const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
