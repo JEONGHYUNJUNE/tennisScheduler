@@ -28,8 +28,11 @@ button { cursor: pointer; }
 .site-header { position: relative; z-index: 10000; min-height: 72px; padding: 0 5vw; display: flex; align-items: center; justify-content: space-between; gap: 30px; color: white; background: rgba(79, 143, 93, .96); backdrop-filter: blur(8px); box-shadow: 0 12px 30px rgba(49, 95, 59, .16); overflow: visible; }
 .header-main { display: flex; align-items: center; justify-content: flex-start; gap: 28px; min-width: 0; }
 .header-actions { margin-left: 10px; display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.brand { flex: 0 0 auto; font-size: clamp(1.2rem, 2.5vw, 1.85rem); font-weight: 950; letter-spacing: .08em; text-decoration: none; text-shadow: 0 2px 16px rgba(0,0,0,.14); }
+/*
 .brand { flex: 0 0 auto; width: clamp(150px, 18vw, 230px); height: 70px; display: inline-flex; align-items: center; text-decoration: none; }
 .brand img { width: 100%; display: block; object-fit: contain; object-position: left center; filter: drop-shadow(0 3px 10px rgba(0, 0, 0, .18)); }
+*/
 .header-nav { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-size: .92rem; }
 .header-nav a { border-radius: 999px; padding: 10px 14px; text-decoration: none; font-weight: 900; transition: background .16s, color .16s, transform .16s; }
 .header-nav a:hover { background: rgba(255, 255, 255, .14); transform: translateY(-1px); }

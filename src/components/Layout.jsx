@@ -249,9 +249,12 @@ export default function Layout() {
     <div className={`app-shell ${isKeyboardOpen ? 'keyboard-open' : ''}`} ref={shellRef}>
       <header className="site-header">
         <div className="header-main">
-          <Link className="brand" to="/" aria-label="ONS TENNIS 홈">
+          <Link className="brand" to="/">ONS TENNIS</Link>
+
+         {/* <Link className="brand" to="/" aria-label="ONS TENNIS 홈">
             <img src={onsTennisLogo} alt="ONS TENNIS" />
-          </Link>
+
+          </Link>*/}
         </div>
         <nav className="header-nav desktop-nav">
           <NavLink to="/" end>홈</NavLink>
