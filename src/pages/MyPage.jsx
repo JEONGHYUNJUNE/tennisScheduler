@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
@@ -185,8 +185,14 @@ export default function MyPage() {
 }
 
 function AvatarModal({ profile, onClose, onSaved }) {
+  const cropStageSize = 236
+  const outputSize = 512
+  const dragRef = useRef(null)
   const [imageFile, setImageFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [imageSize, setImageSize] = useState(null)
+  const [avatarScale, setAvatarScale] = useState(1)
+  const [avatarOffset, setAvatarOffset] = useState({ x: 0, y: 0 })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -198,8 +204,53 @@ function AvatarModal({ profile, onClose, onSaved }) {
 
     const url = URL.createObjectURL(imageFile)
     setPreviewUrl(url)
+    setImageSize(null)
+    setAvatarScale(1)
+    setAvatarOffset({ x: 0, y: 0 })
     return () => URL.revokeObjectURL(url)
   }, [imageFile])
+
+  useEffect(() => {
+    if (!previewUrl) return undefined
+
+    const image = new Image()
+    image.onload = () => {
+      setImageSize({ width: image.naturalWidth, height: image.naturalHeight })
+    }
+    image.onerror = () => {
+      setError('이미지를 불러오지 못했습니다.')
+    }
+    image.src = previewUrl
+
+    return () => {
+      image.onload = null
+      image.onerror = null
+    }
+  }, [previewUrl])
+
+  const getCoverSize = useCallback((scale = avatarScale) => {
+    if (!imageSize) return { width: cropStageSize, height: cropStageSize }
+
+    const aspectRatio = imageSize.width / imageSize.height
+    const baseWidth = aspectRatio >= 1 ? cropStageSize * aspectRatio : cropStageSize
+    const baseHeight = aspectRatio >= 1 ? cropStageSize : cropStageSize / aspectRatio
+
+    return {
+      width: baseWidth * scale,
+      height: baseHeight * scale,
+    }
+  }, [avatarScale, imageSize])
+
+  const clampAvatarOffset = useCallback((nextOffset, scale = avatarScale) => {
+    const displaySize = getCoverSize(scale)
+    const maxX = Math.max(0, (displaySize.width - cropStageSize) / 2)
+    const maxY = Math.max(0, (displaySize.height - cropStageSize) / 2)
+
+    return {
+      x: Math.min(maxX, Math.max(-maxX, nextOffset.x)),
+      y: Math.min(maxY, Math.max(-maxY, nextOffset.y)),
+    }
+  }, [avatarScale, getCoverSize])
 
   const handleFileChange = (event) => {
     const file = event.target.files?.[0] || null
@@ -221,6 +272,79 @@ function AvatarModal({ profile, onClose, onSaved }) {
     setImageFile(file)
   }
 
+  const handleCropPointerDown = (event) => {
+    if (!previewUrl) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: avatarOffset,
+    }
+  }
+
+  const handleCropPointerMove = (event) => {
+    const drag = dragRef.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+
+    setAvatarOffset(clampAvatarOffset({
+      x: drag.origin.x + event.clientX - drag.startX,
+      y: drag.origin.y + event.clientY - drag.startY,
+    }))
+  }
+
+  const handleCropPointerEnd = (event) => {
+    if (dragRef.current?.pointerId === event.pointerId) {
+      dragRef.current = null
+    }
+  }
+
+  const handleScaleChange = (event) => {
+    const nextScale = Number(event.target.value)
+    setAvatarScale(nextScale)
+    setAvatarOffset((current) => clampAvatarOffset(current, nextScale))
+  }
+
+  const createCroppedAvatarBlob = async () => {
+    if (!previewUrl || !imageSize) throw new Error('프로필 이미지를 다시 선택해 주세요.')
+
+    const image = new Image()
+
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'))
+      image.src = previewUrl
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = outputSize
+    canvas.height = outputSize
+    const context = canvas.getContext('2d')
+    const ratio = outputSize / cropStageSize
+    const aspectRatio = imageSize.width / imageSize.height
+    const baseWidth = aspectRatio >= 1 ? outputSize * aspectRatio : outputSize
+    const baseHeight = aspectRatio >= 1 ? outputSize : outputSize / aspectRatio
+    const drawWidth = baseWidth * avatarScale
+    const drawHeight = baseHeight * avatarScale
+    const drawX = (outputSize - drawWidth) / 2 + avatarOffset.x * ratio
+    const drawY = (outputSize - drawHeight) / 2 + avatarOffset.y * ratio
+
+    context.fillStyle = '#ffffff'
+    context.fillRect(0, 0, outputSize, outputSize)
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('프로필 이미지를 편집하지 못했습니다.'))
+          return
+        }
+        resolve(blob)
+      }, 'image/jpeg', 0.88)
+    })
+  }
+
   const handleSave = async (event) => {
     event.preventDefault()
     if (!imageFile) return
@@ -228,9 +352,11 @@ function AvatarModal({ profile, onClose, onSaved }) {
     setSaving(true)
     setError('')
     try {
+      const avatarBlob = await createCroppedAvatarBlob()
       await updateProfileAvatar({
         memberId: profile.id,
         imageFile,
+        avatarBlob,
         currentAvatarPath: profile.avatar_path,
       })
       await onSaved()
@@ -253,8 +379,46 @@ function AvatarModal({ profile, onClose, onSaved }) {
         </div>
 
         <div className="avatar-preview">
-          <MemberAvatar name={profile?.name} imageUrl={previewUrl || profile?.avatar_url} size="preview" />
-          <p>{previewUrl ? '선택한 이미지가 이렇게 보여요.' : '사진을 선택하면 미리볼 수 있어요.'}</p>
+          {previewUrl ? (
+            <>
+              <div
+                className="avatar-crop-stage"
+                onPointerDown={handleCropPointerDown}
+                onPointerMove={handleCropPointerMove}
+                onPointerUp={handleCropPointerEnd}
+                onPointerCancel={handleCropPointerEnd}
+              >
+                <img
+                  src={previewUrl}
+                  alt=""
+                  draggable="false"
+                  style={{
+                    width: `${getCoverSize().width}px`,
+                    height: `${getCoverSize().height}px`,
+                    transform: `translate(-50%, -50%) translate(${avatarOffset.x}px, ${avatarOffset.y}px)`,
+                  }}
+                />
+              </div>
+              <div className="avatar-editor-controls">
+                <span>크기</span>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  value={avatarScale}
+                  onChange={handleScaleChange}
+                  aria-label="프로필 사진 확대 축소"
+                />
+              </div>
+              <p>드래그해서 위치를 맞추고 크기를 조정해 주세요.</p>
+            </>
+          ) : (
+            <>
+              <MemberAvatar name={profile?.name} imageUrl={profile?.avatar_url} size="preview" />
+              <p>사진을 선택하면 원형 미리보기에서 편집할 수 있어요.</p>
+            </>
+          )}
         </div>
 
         <label className="avatar-file-field">
