@@ -18,6 +18,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
+import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
 import { getMonthEvents, getMonthlyAttendanceRanking, getTodayDateText, getUpcomingEvents } from '../services/eventService'
 import { defaultHomeWidgetOrder, getHomeWidgetOrder, saveHomeWidgetOrder } from '../services/homeWidgetService'
@@ -37,8 +38,6 @@ const formatTime = (startTime, endTime) => {
   if (!startTime) return '시간 미정'
   return endTime ? `${startTime.slice(0, 5)} - ${endTime.slice(0, 5)}` : startTime.slice(0, 5)
 }
-
-const getInitial = (name) => name?.trim()?.slice(0, 1) || '?'
 
 const todayDateText = getTodayDateText()
 
@@ -345,7 +344,7 @@ export default function HomePage() {
               )}
               {recentMembers.map((member) => (
                 <span className="member-chip" key={member.id}>
-                  <b>{getInitial(member.name)}</b>
+                  <MemberAvatar name={member.name} imageUrl={member.avatar_url} size="sm" previewable />
                   <span>{member.name || member.user_id}</span>
                 </span>
               ))}
@@ -374,7 +373,7 @@ export default function HomePage() {
             {homeWidgetData.ranking.map((item) => (
               <Link className="widget-ranking-item" to="/ranking" key={item.member_id}>
                 <span className={`rank-badge rank-${item.rank}`}>{item.rank}</span>
-                <b>{getInitial(item.name)}</b>
+                <MemberAvatar name={item.name} imageUrl={item.avatar_url} size="sm" previewable />
                 <div>
                   <strong>{item.name}</strong>
                   {item.club_position && <em>{item.club_position}</em>}

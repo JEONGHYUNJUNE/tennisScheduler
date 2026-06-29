@@ -326,7 +326,7 @@ export default function FreeOpinionPage() {
                 >
                   <div className="opinion-meta">
                     <div className="opinion-author">
-                      <MemberAvatar name={opinion.member_name} imageUrl={opinion.member_avatar_url} />
+                      <MemberAvatar name={opinion.member_name} imageUrl={opinion.member_avatar_url} previewable />
                       <strong>{opinion.member_name}</strong>
                     </div>
                     <div className="opinion-meta-side">
@@ -420,7 +420,7 @@ export default function FreeOpinionPage() {
                             >
                               <div className="opinion-comment-meta">
                                 <div className="opinion-comment-author">
-                                  <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" />
+                                  <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" previewable />
                                   <strong>{comment.member_name}</strong>
                                 </div>
                                 <time>{formatOpinionTime(comment.created_at)}</time>

@@ -10,6 +10,7 @@
   --line: #d9e4d5;
   --accent: #d7a847;
   --warm: #d06138;
+  --app-viewport-height: 100dvh;
   font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--green-100);
@@ -40,9 +41,11 @@ button { cursor: pointer; }
 .nav-new-badge { margin-left: 7px; padding: 3px 7px; border-radius: 999px; color: white; background: var(--warm); font-size: .68rem; font-weight: 950; letter-spacing: -.02em; }
 .mobile-quick-nav, .mobile-bottom-nav { display: none; }
 .mobile-quick-nav svg, .mobile-bottom-nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.member-avatar { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; display: inline-grid; place-items: center; overflow: hidden; color: white; background: linear-gradient(135deg, var(--green-700), var(--green-800)); box-shadow: 0 8px 18px rgba(49,95,59,.14); }
+.member-avatar { flex: 0 0 auto; width: 42px; height: 42px; border: 0; border-radius: 50%; padding: 0; display: inline-grid; place-items: center; overflow: hidden; color: white; background: linear-gradient(135deg, var(--green-700), var(--green-800)); box-shadow: 0 8px 18px rgba(49,95,59,.14); }
 .member-avatar img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .member-avatar b { font-size: .96rem; font-weight: 950; line-height: 1; }
+.member-avatar-clickable { cursor: pointer; transition: transform .16s, box-shadow .16s; }
+.member-avatar-clickable:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(49,95,59,.2); }
 .member-avatar-sm { width: 34px; height: 34px; }
 .member-avatar-sm b { font-size: .78rem; }
 .member-avatar-xl { width: 70px; height: 70px; }
@@ -239,7 +242,7 @@ h2 { margin: 0; }
 .recent-member-list > p { margin: 0 0 14px; color: var(--muted); font-weight: 900; }
 .recent-member-list > div { display: flex; flex-wrap: wrap; gap: 10px; }
 .member-chip { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-weight: 900; }
-.member-chip b, .widget-ranking-item b { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: var(--green-800); background: rgba(237,246,234,.95); font-size: 1rem; }
+.widget-ranking-item .member-avatar { width: 38px; height: 38px; }
 .widget-ranking-item { padding: 13px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 36px 44px minmax(0, 1fr) 72px; gap: 12px; align-items: center; color: inherit; text-decoration: none; }
 .widget-ranking-item:last-child { border-bottom: 0; }
 .rank-badge { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: white; background: #b8c1b6; font-weight: 950; }
@@ -456,6 +459,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .event-form-control input[type="time"] { min-width: 0; width: 100%; height: 58px; padding-block: 0; line-height: 58px; text-align: center; }
 .event-form-control input[type="date"]::-webkit-date-and-time-value,
 .event-form-control input[type="time"]::-webkit-date-and-time-value { min-height: 58px; display: flex; align-items: center; justify-content: center; text-align: center; }
+/*noinspection CssInvalidPseudoSelector*/
 .event-form-control input[type="date"]::-webkit-datetime-edit,
 .event-form-control input[type="time"]::-webkit-datetime-edit { min-height: 58px; display: flex; align-items: center; justify-content: center; padding: 0; }
 .event-form-control input::placeholder,
@@ -473,9 +477,10 @@ dd { margin: 0; white-space: pre-wrap; }
 .member-row-head { color: var(--muted); font-size: .82rem; font-weight: 900; letter-spacing: .04em; background: rgba(237, 246, 234, .7); }
 .member-row button { padding: 10px 12px; }
 .public-member-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-.public-member-item { min-height: 82px; padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .9); border-left: 4px solid var(--green-700); border-radius: 8px; display: grid; align-content: center; gap: 8px; background: rgba(255, 253, 248, .9); box-shadow: 0 10px 24px rgba(49, 95, 59, .07); }
+.public-member-item { min-height: 86px; padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .9); border-left: 4px solid var(--green-700); border-radius: 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 13px; background: rgba(255, 253, 248, .9); box-shadow: 0 10px 24px rgba(49, 95, 59, .07); }
 .public-member-item strong { font-size: 1.1rem; }
 .public-member-item span { color: var(--muted); font-weight: 800; }
+.public-member-copy { min-width: 0; display: grid; gap: 7px; }
 .public-member-name { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
 .public-member-name em { color: rgba(104, 117, 106, .58); font-size: .82rem; font-style: normal; font-weight: 900; white-space: nowrap; }
 .ranking-list { display: grid; gap: 12px; }
@@ -708,6 +713,13 @@ dd { margin: 0; white-space: pre-wrap; }
 .avatar-file-field input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .avatar-file-field em { min-height: 50px; border: 1px dashed rgba(63,116,75,.28); border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; color: var(--muted); background: rgba(237,246,234,.54); font-style: normal; font-weight: 850; }
 .avatar-save-button { min-height: 50px; border-radius: 16px; }
+.avatar-viewer-backdrop { position: fixed; inset: 0; z-index: 22020; padding: 22px; display: grid; place-items: center; background: rgba(20, 35, 23, .42); backdrop-filter: blur(10px); animation: inquiry-backdrop-in .18s ease-out both; }
+.avatar-viewer { position: relative; width: min(420px, 100%); padding: 28px 24px 24px; border: 1px solid rgba(217,228,213,.92); border-radius: 30px; display: grid; justify-items: center; gap: 16px; color: var(--text); background: linear-gradient(145deg, rgba(255,253,248,.98), rgba(247,251,244,.96)); box-shadow: 0 26px 80px rgba(23, 47, 28, .24); animation: inquiry-modal-rise .26s cubic-bezier(.2,.85,.25,1) both; }
+.avatar-viewer .inquiry-close-button { position: absolute; top: 16px; right: 16px; }
+.avatar-viewer-image { width: min(230px, 62vw); height: min(230px, 62vw); border-radius: 50%; display: grid; place-items: center; overflow: hidden; color: white; background: linear-gradient(135deg, var(--green-700), var(--green-800)); box-shadow: 0 22px 50px rgba(49,95,59,.22); }
+.avatar-viewer-image img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.avatar-viewer-image b { font-size: clamp(3.3rem, 18vw, 5.4rem); font-weight: 950; line-height: 1; }
+.avatar-viewer strong { color: var(--green-900); font-size: 1.1rem; font-weight: 950; }
 @keyframes inquiry-highlight-pulse {
   0% { box-shadow: 0 0 0 0 rgba(53,129,70,.26), 0 10px 24px rgba(49,95,59,.07); }
   55% { box-shadow: 0 0 0 8px rgba(53,129,70,.12), 0 14px 30px rgba(49,95,59,.11); }
@@ -862,7 +874,8 @@ dd { margin: 0; white-space: pre-wrap; }
   .event-form-control input[type="date"],
   .event-form-control input[type="time"] { height: 54px; padding-block: 0; line-height: 54px; }
   .event-form-control input[type="date"]::-webkit-date-and-time-value,
-  .event-form-control input[type="time"]::-webkit-date-and-time-value,
+  .event-form-control input[type="time"]::-webkit-date-and-time-value { min-height: 54px; }
+  /*noinspection CssInvalidPseudoSelector*/
   .event-form-control input[type="date"]::-webkit-datetime-edit,
   .event-form-control input[type="time"]::-webkit-datetime-edit { min-height: 54px; }
   .event-form-control textarea { min-height: 148px; padding: 17px 18px 38px; }
@@ -913,6 +926,8 @@ dd { margin: 0; white-space: pre-wrap; }
   .avatar-modal-backdrop { inset: 0 0 calc(78px + env(safe-area-inset-bottom)) 0; padding: 14px; align-items: end; }
   .avatar-modal { padding: 20px; border-radius: 26px; }
   .avatar-modal-head h2 { font-size: 1.34rem; }
+  .avatar-viewer-backdrop { inset: 0 0 calc(78px + env(safe-area-inset-bottom)) 0; padding: 14px; align-items: end; }
+  .avatar-viewer { padding: 26px 20px 22px; border-radius: 28px; }
   .member-avatar-xl { width: 62px; height: 62px; }
   .inquiry-open-button { width: 100%; min-height: 48px; }
   .inquiry-form textarea { min-height: 128px; }

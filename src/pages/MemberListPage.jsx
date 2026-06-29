@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import LoadingState from '../components/LoadingState'
+import MemberAvatar from '../components/MemberAvatar'
 import { getMembers } from '../services/memberService'
 import { formatTennisExperience } from '../utils/tennisExperience'
 
@@ -32,11 +33,14 @@ export default function MemberListPage() {
         <section className="public-member-list">
           {members.map((member) => (
             <article className="public-member-item" key={member.id}>
-              <div className="public-member-name">
-                <strong>{member.name || '-'}</strong>
-                {member.club_position && <em>{member.club_position}</em>}
+              <MemberAvatar name={member.name} imageUrl={member.avatar_url} previewable />
+              <div className="public-member-copy">
+                <div className="public-member-name">
+                  <strong>{member.name || '-'}</strong>
+                  {member.club_position && <em>{member.club_position}</em>}
+                </div>
+                <span>구력 : {formatTennisExperience(member.tennis_start_date)}</span>
               </div>
-              <span>구력 : {formatTennisExperience(member.tennis_start_date)}</span>
             </article>
           ))}
         </section>

@@ -140,6 +140,7 @@ function buildRanking(events) {
         name: member?.name || '-',
         user_id: member?.user_id || '',
         club_position: member?.club_position || '',
+        avatar_url: member?.avatar_url || '',
         count: 0,
         events: [],
       }

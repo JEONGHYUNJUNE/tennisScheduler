@@ -345,7 +345,7 @@ export default function EventDetailPage() {
           {attending.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
           {attending.map((item) => (
             <li key={item.id}>
-              <MemberAvatar name={item.display_name} imageUrl={item.otmember?.avatar_url} />
+              <MemberAvatar name={item.display_name} imageUrl={item.otmember?.avatar_url} previewable />
               <div className="attendee-copy">
                 <strong>{item.display_name}</strong>
                 <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
@@ -374,7 +374,7 @@ export default function EventDetailPage() {
           {waiting.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
           {waiting.map((item, index) => (
             <li key={item.id}>
-              <MemberAvatar name={item.display_name} imageUrl={item.otmember?.avatar_url} />
+              <MemberAvatar name={item.display_name} imageUrl={item.otmember?.avatar_url} previewable />
               <div className="attendee-copy">
                 <strong>{index + 1}. {item.display_name}</strong>
                 <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
@@ -399,7 +399,7 @@ export default function EventDetailPage() {
                 <article className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''}`} key={comment.id}>
                   <div className="opinion-comment-meta">
                     <div className="opinion-comment-author">
-                      <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" />
+                      <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" previewable />
                       <strong>{comment.member_name}</strong>
                     </div>
                     <time>{formatCommentTime(comment.created_at)}</time>
