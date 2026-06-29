@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 
 const missingReadTableCodes = new Set(['42P01', 'PGRST205'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
+const missingCommentLikeTableCodes = new Set(['42P01', 'PGRST205'])
 const missingCommentTableCodes = new Set(['42P01', 'PGRST200', 'PGRST205'])
 
 const selectColumns = `
@@ -171,6 +172,47 @@ export async function toggleFreeOpinionLike(opinionId, memberId, likedByMe) {
   if (error) throw error
 }
 
+export async function getFreeOpinionCommentLikeSummaries(commentIds, memberId) {
+  if (!commentIds.length) return {}
+
+  const { data, error } = await supabase
+    .from('ot_free_opinion_comment_likes')
+    .select('comment_id, member_id')
+    .in('comment_id', commentIds)
+
+  if (error) {
+    if (isMissingCommentLikeTableError(error)) return {}
+    throw error
+  }
+
+  return data.reduce((summaries, like) => {
+    const summary = summaries[like.comment_id] ?? { count: 0, likedByMe: false }
+    summary.count += 1
+    summary.likedByMe = summary.likedByMe || like.member_id === memberId
+    summaries[like.comment_id] = summary
+    return summaries
+  }, {})
+}
+
+export async function toggleFreeOpinionCommentLike(commentId, memberId, likedByMe) {
+  if (likedByMe) {
+    const { error } = await supabase
+      .from('ot_free_opinion_comment_likes')
+      .delete()
+      .eq('comment_id', commentId)
+      .eq('member_id', memberId)
+
+    if (error) throw error
+    return
+  }
+
+  const { error } = await supabase
+    .from('ot_free_opinion_comment_likes')
+    .insert({ comment_id: commentId, member_id: memberId })
+
+  if (error) throw error
+}
+
 export async function getUnreadFreeOpinionCount(memberId) {
   const { data: readState, error: readError } = await supabase
     .from('ot_free_opinion_reads')
@@ -235,6 +277,10 @@ function isMissingReadTableError(error) {
 
 function isMissingLikeTableError(error) {
   return missingLikeTableCodes.has(error.code) || /ot_free_opinion_likes/.test(error.message || '')
+}
+
+function isMissingCommentLikeTableError(error) {
+  return missingCommentLikeTableCodes.has(error.code) || /ot_free_opinion_comment_likes/.test(error.message || '')
 }
 
 function isMissingCommentTableError(error) {

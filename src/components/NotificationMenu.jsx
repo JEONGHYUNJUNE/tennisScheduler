@@ -14,8 +14,17 @@ const formatNotificationTime = (dateText) => {
 }
 
 const getNotificationLink = (notification) => {
-  if (notification.event_id) return `/events/${notification.event_id}`
-  if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') {
+  if (notification.event_id) {
+    const params = new URLSearchParams()
+    if (notification.tennis_event_comment_id) params.set('comment', notification.tennis_event_comment_id)
+    const query = params.toString()
+    return query ? `/events/${notification.event_id}?${query}` : `/events/${notification.event_id}`
+  }
+  if (
+    notification.type === 'free_opinion_created' ||
+    notification.type === 'free_opinion_comment_created' ||
+    notification.type === 'free_opinion_comment_liked'
+  ) {
     const params = new URLSearchParams()
     if (notification.free_opinion_id) params.set('opinion', notification.free_opinion_id)
     if (notification.free_opinion_comment_id) params.set('comment', notification.free_opinion_comment_id)

@@ -10,10 +10,12 @@ import {
   deleteFreeOpinionComment,
   deleteFreeOpinion,
   updateFreeOpinionComment,
+  getFreeOpinionCommentLikeSummaries,
   getFreeOpinionLikeSummaries,
   getFreeOpinions,
   markFreeOpinionsRead,
   toggleFreeOpinionLike,
+  toggleFreeOpinionCommentLike,
   updateFreeOpinion,
 } from '../services/freeOpinionService'
 
@@ -32,6 +34,7 @@ export default function FreeOpinionPage() {
   const linkedScrollKeyRef = useRef('')
   const [opinions, setOpinions] = useState([])
   const [opinionLikes, setOpinionLikes] = useState({})
+  const [commentLikes, setCommentLikes] = useState({})
   const [message, setMessage] = useState('')
   const [editingOpinionId, setEditingOpinionId] = useState(null)
   const [editMessage, setEditMessage] = useState('')
@@ -56,6 +59,7 @@ export default function FreeOpinionPage() {
       const nextOpinions = await getFreeOpinions()
       setOpinions(nextOpinions)
       setOpinionLikes(await getFreeOpinionLikeSummaries(nextOpinions.map((opinion) => opinion.id), profile.id))
+      setCommentLikes(await getFreeOpinionCommentLikeSummaries(nextOpinions.flatMap((opinion) => (opinion.comments || []).map((comment) => comment.id)), profile.id))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -143,6 +147,25 @@ export default function FreeOpinionPage() {
       await toggleFreeOpinionLike(opinion.id, profile.id, currentLike.likedByMe)
     } catch (err) {
       setError(`${err.message} SQL 015번을 실행했는지 확인해 주세요.`)
+      await load()
+    }
+  }
+
+  const handleCommentLike = async (comment) => {
+    const currentLike = commentLikes[comment.id] ?? { count: 0, likedByMe: false }
+
+    setCommentLikes((current) => ({
+      ...current,
+      [comment.id]: {
+        count: Math.max((current[comment.id]?.count || 0) + (currentLike.likedByMe ? -1 : 1), 0),
+        likedByMe: !currentLike.likedByMe,
+      },
+    }))
+
+    try {
+      await toggleFreeOpinionCommentLike(comment.id, profile.id, currentLike.likedByMe)
+    } catch (err) {
+      setError(`${err.message} SQL 027번을 실행했는지 확인해 주세요.`)
       await load()
     }
   }
@@ -447,6 +470,16 @@ export default function FreeOpinionPage() {
                               ) : (
                                 <p>{comment.message}</p>
                               )}
+
+                              <button
+                                className={`comment-heart-button ${commentLikes[comment.id]?.likedByMe ? 'liked' : ''}`}
+                                type="button"
+                                onClick={() => handleCommentLike(comment)}
+                                aria-label={commentLikes[comment.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
+                              >
+                                <span>♥</span>
+                                <strong>{commentLikes[comment.id]?.count || 0}</strong>
+                              </button>
 
                               {canManageComment && !isCommentEditing && (
                                 <div className="opinion-comment-actions">

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventLike, updateEventComment } from '../services/eventService'
+import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventCommentLikeSummaries, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventCommentLike, toggleEventLike, updateEventComment } from '../services/eventService'
 
 const emptyGuestForm = {
   guest_name: '',
@@ -44,6 +44,7 @@ const getAttendanceLabel = (myAttendance, isFull) => {
 
 export default function EventDetailPage() {
   const { eventId } = useParams()
+  const [searchParams] = useSearchParams()
   const { profile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [event, setEvent] = useState(null)
@@ -52,12 +53,14 @@ export default function EventDetailPage() {
   const [guestForm, setGuestForm] = useState(emptyGuestForm)
   const [guestSubmitting, setGuestSubmitting] = useState(false)
   const [likeSummary, setLikeSummary] = useState({ count: 0, likedByMe: false })
+  const [commentLikes, setCommentLikes] = useState({})
   const [commentMessage, setCommentMessage] = useState('')
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editCommentMessage, setEditCommentMessage] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
   const [savingCommentId, setSavingCommentId] = useState(null)
   const [deletingCommentId, setDeletingCommentId] = useState(null)
+  const linkedCommentId = searchParams.get('comment')
 
   useEffect(() => {
     getEvent(eventId)
@@ -65,11 +68,30 @@ export default function EventDetailPage() {
         setEvent(data)
         const summaries = await getEventLikeSummaries([data.id], profile.id)
         setLikeSummary(summaries[data.id] ?? { count: 0, likedByMe: false })
+        setCommentLikes(await getEventCommentLikeSummaries((data.comments || []).map((comment) => comment.id), profile.id))
       })
       .catch((err) => setError(err.message))
   }, [eventId, profile.id])
 
-  const reload = () => getEvent(eventId).then(setEvent).catch((err) => setError(err.message))
+  const reload = async () => {
+    try {
+      const nextEvent = await getEvent(eventId)
+      setEvent(nextEvent)
+      setCommentLikes(await getEventCommentLikeSummaries((nextEvent.comments || []).map((comment) => comment.id), profile.id))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  useEffect(() => {
+    if (!event || !linkedCommentId) return undefined
+
+    const timer = window.setTimeout(() => {
+      document.getElementById(`event-comment-${linkedCommentId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 160)
+
+    return () => window.clearTimeout(timer)
+  }, [event, linkedCommentId])
 
   if (error) return <p className="error">{error}</p>
   if (!event) return <LoadingState message="일정을 불러오는 중입니다." />
@@ -152,6 +174,25 @@ export default function EventDetailPage() {
       setError(`${err.message} SQL 015번을 실행했는지 확인해 주세요.`)
       const summaries = await getEventLikeSummaries([event.id], profile.id)
       setLikeSummary(summaries[event.id] ?? { count: 0, likedByMe: false })
+    }
+  }
+
+  const handleCommentLike = async (comment) => {
+    const currentLike = commentLikes[comment.id] ?? { count: 0, likedByMe: false }
+
+    setCommentLikes((current) => ({
+      ...current,
+      [comment.id]: {
+        count: Math.max((current[comment.id]?.count || 0) + (currentLike.likedByMe ? -1 : 1), 0),
+        likedByMe: !currentLike.likedByMe,
+      },
+    }))
+
+    try {
+      await toggleEventCommentLike(comment.id, profile.id, currentLike.likedByMe)
+    } catch (err) {
+      setError(`${err.message} SQL 027번을 실행했는지 확인해 주세요.`)
+      await reload()
     }
   }
 
@@ -396,7 +437,11 @@ export default function EventDetailPage() {
               const isCommentEditing = editingCommentId === comment.id
 
               return (
-                <article className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''}`} key={comment.id}>
+                <article
+                  className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''} ${linkedCommentId === comment.id ? 'linked-opinion-comment' : ''}`}
+                  id={`event-comment-${comment.id}`}
+                  key={comment.id}
+                >
                   <div className="opinion-comment-meta">
                     <div className="opinion-comment-author">
                       <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" previewable />
@@ -426,6 +471,16 @@ export default function EventDetailPage() {
                   ) : (
                     <p>{comment.message}</p>
                   )}
+
+                  <button
+                    className={`comment-heart-button ${commentLikes[comment.id]?.likedByMe ? 'liked' : ''}`}
+                    type="button"
+                    onClick={() => handleCommentLike(comment)}
+                    aria-label={commentLikes[comment.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
+                  >
+                    <span>♥</span>
+                    <strong>{commentLikes[comment.id]?.count || 0}</strong>
+                  </button>
 
                   {canManageComment && !isCommentEditing && (
                     <div className="opinion-comment-actions">
