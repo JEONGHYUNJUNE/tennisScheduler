@@ -1,11 +1,12 @@
 import { supabase } from '../lib/supabase'
 
 const missingPositionColumnCodes = new Set(['42703', 'PGRST204'])
+const missingOptionalProfileColumnPattern = /club_position|avatar_url|avatar_path/
 
 export async function getMembers() {
   const withPosition = await supabase
     .from('otmember')
-    .select('id, username, display_name, tennis_start_date, role, club_position, is_active, created_at')
+    .select('id, username, display_name, tennis_start_date, role, club_position, is_active, avatar_url, avatar_path, created_at')
     .order('created_at', { ascending: false })
 
   if (!withPosition.error) return withPosition.data.map(normalizeMember)
@@ -47,9 +48,11 @@ function normalizeMember(member) {
     user_id: member.username,
     name: member.display_name,
     club_position: member.club_position || '',
+    avatar_url: member.avatar_url || '',
+    avatar_path: member.avatar_path || '',
   }
 }
 
 function isMissingPositionColumnError(error) {
-  return missingPositionColumnCodes.has(error.code) || /club_position/.test(error.message || '')
+  return missingPositionColumnCodes.has(error.code) || missingOptionalProfileColumnPattern.test(error.message || '')
 }

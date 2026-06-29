@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
+import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
 import { getMyUpcomingEvents } from '../services/eventService'
 import { createInquiry, deleteInquiry, deleteInquiryReply, getAdminInquiries, getMyInquiries, replyToInquiry } from '../services/inquiryService'
+import { updateProfileAvatar } from '../services/profileService'
 
 const formatDate = (dateText) => {
   if (!dateText) return ''
@@ -38,13 +40,14 @@ function formatTennisExperience(startDate) {
 }
 
 export default function MyPage() {
-  const { profile } = useAuth()
+  const { profile, refreshProfile } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [myEvents, setMyEvents] = useState([])
   const [loadingEvents, setLoadingEvents] = useState(true)
   const [eventError, setEventError] = useState('')
   const [inquiryOpen, setInquiryOpen] = useState(false)
+  const [avatarOpen, setAvatarOpen] = useState(false)
 
   useEffect(() => {
     if (!profile?.id) return undefined
@@ -86,7 +89,10 @@ export default function MyPage() {
     <section className="my-page-shell">
       <div className="my-page-card">
         <div className="my-page-profile">
-          <div className="my-page-avatar" aria-hidden="true">{profile?.name?.slice(0, 1) || '?'}</div>
+          <button className="my-page-avatar-button" type="button" onClick={() => setAvatarOpen(true)} aria-label="프로필 사진 설정">
+            <MemberAvatar name={profile?.name} imageUrl={profile?.avatar_url} size="xl" />
+            <span>변경</span>
+          </button>
           <div>
             <p className="eyebrow">MY PAGE</p>
             <h1>{profile?.name || '회원'}님</h1>
@@ -163,8 +169,108 @@ export default function MyPage() {
           }}
         />
       )}
+
+      {avatarOpen && (
+        <AvatarModal
+          profile={profile}
+          onClose={() => setAvatarOpen(false)}
+          onSaved={async () => {
+            await refreshProfile()
+            setAvatarOpen(false)
+          }}
+        />
+      )}
     </section>
   )
+}
+
+function AvatarModal({ profile, onClose, onSaved }) {
+  const [imageFile, setImageFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!imageFile) {
+      setPreviewUrl('')
+      return undefined
+    }
+
+    const url = URL.createObjectURL(imageFile)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [imageFile])
+
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0] || null
+    setError('')
+    if (!file) {
+      setImageFile(null)
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('이미지 파일만 선택해 주세요.')
+      setImageFile(null)
+      return
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      setError('프로필 이미지는 12MB 이하만 가능합니다.')
+      setImageFile(null)
+      return
+    }
+    setImageFile(file)
+  }
+
+  const handleSave = async (event) => {
+    event.preventDefault()
+    if (!imageFile) return
+
+    setSaving(true)
+    setError('')
+    try {
+      await updateProfileAvatar({
+        memberId: profile.id,
+        imageFile,
+        currentAvatarPath: profile.avatar_path,
+      })
+      await onSaved()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return createPortal((
+    <div className="avatar-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <form className="avatar-modal" role="dialog" aria-modal="true" aria-labelledby="avatar-title" onSubmit={handleSave} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="avatar-modal-head">
+          <div>
+            <p className="eyebrow">PROFILE</p>
+            <h2 id="avatar-title">프로필 사진</h2>
+          </div>
+          <button type="button" className="inquiry-close-button" onClick={onClose} aria-label="프로필 사진 설정 닫기">×</button>
+        </div>
+
+        <div className="avatar-preview">
+          <MemberAvatar name={profile?.name} imageUrl={previewUrl || profile?.avatar_url} size="preview" />
+          <p>{previewUrl ? '선택한 이미지가 이렇게 보여요.' : '사진을 선택하면 미리볼 수 있어요.'}</p>
+        </div>
+
+        <label className="avatar-file-field">
+          <span>이미지 선택</span>
+          <input type="file" accept="image/*" onChange={handleFileChange} />
+          <em>{imageFile ? imageFile.name : '앨범에서 프로필 사진을 선택해 주세요.'}</em>
+        </label>
+
+        {error && <p className="inquiry-alert error">{error}</p>}
+
+        <button className="primary-button avatar-save-button" type="submit" disabled={saving || !imageFile}>
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </form>
+    </div>
+  ), document.body)
 }
 
 function InquiryModal({ highlightedInquiryId = '', initialTab = 'write', profile, onClose }) {

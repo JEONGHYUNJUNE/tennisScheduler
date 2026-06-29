@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
+import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
 import {
   addFreeOpinion,
@@ -324,7 +325,10 @@ export default function FreeOpinionPage() {
                   key={opinion.id}
                 >
                   <div className="opinion-meta">
-                    <strong>{opinion.member_name}</strong>
+                    <div className="opinion-author">
+                      <MemberAvatar name={opinion.member_name} imageUrl={opinion.member_avatar_url} />
+                      <strong>{opinion.member_name}</strong>
+                    </div>
                     <div className="opinion-meta-side">
                       <time>{formatOpinionTime(opinion.created_at)}</time>
                       {canManageOpinion && !isEditing && (
@@ -415,7 +419,10 @@ export default function FreeOpinionPage() {
                               key={comment.id}
                             >
                               <div className="opinion-comment-meta">
-                                <strong>{comment.member_name}</strong>
+                                <div className="opinion-comment-author">
+                                  <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" />
+                                  <strong>{comment.member_name}</strong>
+                                </div>
                                 <time>{formatOpinionTime(comment.created_at)}</time>
                               </div>
 

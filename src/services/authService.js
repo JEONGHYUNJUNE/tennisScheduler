@@ -191,6 +191,8 @@ function normalizeProfile(profile) {
     auth_user_id: profile.id,
     user_id: profile.username,
     name: profile.display_name,
+    avatar_url: profile.avatar_url || '',
+    avatar_path: profile.avatar_path || '',
   }
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
+import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
 import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventLike, updateEventComment } from '../services/eventService'
 
@@ -344,6 +345,7 @@ export default function EventDetailPage() {
           {attending.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
           {attending.map((item) => (
             <li key={item.id}>
+              <MemberAvatar name={item.display_name} imageUrl={item.otmember?.avatar_url} />
               <div className="attendee-copy">
                 <strong>{item.display_name}</strong>
                 <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
@@ -372,6 +374,7 @@ export default function EventDetailPage() {
           {waiting.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
           {waiting.map((item, index) => (
             <li key={item.id}>
+              <MemberAvatar name={item.display_name} imageUrl={item.otmember?.avatar_url} />
               <div className="attendee-copy">
                 <strong>{index + 1}. {item.display_name}</strong>
                 <span>{item.is_guest ? item.guest_memo || '게스트' : item.identifier}</span>
@@ -395,7 +398,10 @@ export default function EventDetailPage() {
               return (
                 <article className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''}`} key={comment.id}>
                   <div className="opinion-comment-meta">
-                    <strong>{comment.member_name}</strong>
+                    <div className="opinion-comment-author">
+                      <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" />
+                      <strong>{comment.member_name}</strong>
+                    </div>
                     <time>{formatCommentTime(comment.created_at)}</time>
                   </div>
 

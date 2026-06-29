@@ -6,7 +6,7 @@ import UserMenu from './UserMenu'
 import { useAuth } from '../contexts/AuthContext'
 import { getUnreadFreeOpinionCount, markFreeOpinionsRead } from '../services/freeOpinionService'
 import { signOut } from '../services/authService'
-import onsTennisLogo from '../assets/ons-tennis-logo-transparent.png'
+// import onsTennisLogo from '../assets/ons-tennis-logo-transparent.png'
 
 function NavIcon({ type }) {
   if (type === 'home') {

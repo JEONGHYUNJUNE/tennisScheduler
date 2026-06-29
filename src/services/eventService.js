@@ -12,7 +12,7 @@ const eventCommentSelectColumns = `
   message,
   created_at,
   updated_at,
-  otmember!tennis_event_comments_member_id_fkey(id, username, display_name)
+  otmember!tennis_event_comments_member_id_fkey(id, username, display_name, avatar_url)
 `
 
 const localDate = () => {
@@ -29,7 +29,7 @@ export const getTodayDateText = localDate
 export async function getUpcomingEvents() {
   const withGuestColumns = await supabase
     .from('tennis_events')
-    .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
     .gte('event_date', localDate())
     .order('event_date')
     .order('start_time')
@@ -39,7 +39,7 @@ export async function getUpcomingEvents() {
 
   const { data, error } = await supabase
     .from('tennis_events')
-    .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
     .gte('event_date', localDate())
     .order('event_date')
     .order('start_time')
@@ -53,7 +53,7 @@ export async function getMonthEvents(targetDate = new Date()) {
 
   const withGuestColumns = await supabase
     .from('tennis_events')
-    .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
     .gte('event_date', formatLocalDate(monthStart))
     .lt('event_date', formatLocalDate(nextMonthStart))
     .order('event_date')
@@ -64,7 +64,7 @@ export async function getMonthEvents(targetDate = new Date()) {
 
   const { data, error } = await supabase
     .from('tennis_events')
-    .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name))')
+    .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
     .gte('event_date', formatLocalDate(monthStart))
     .lt('event_date', formatLocalDate(nextMonthStart))
     .order('event_date')
@@ -98,7 +98,7 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
       id, title, event_date,
       tennis_attendances(
         id, member_id, status,
-        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, club_position, is_active)
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, club_position, is_active, avatar_url)
       )
     `)
     .gte('event_date', formatLocalDate(rangeStart))
@@ -115,7 +115,7 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
       id, title, event_date,
       tennis_attendances(
         id, member_id, status,
-        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, is_active)
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, is_active, avatar_url)
       )
     `)
     .gte('event_date', formatLocalDate(rangeStart))
@@ -203,7 +203,7 @@ export async function getEvent(eventId) {
       *,
       tennis_attendances(
         id, member_id, guest_name, guest_memo, created_by, status, created_at,
-        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date)
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, avatar_url)
       ),
       tennis_event_comments(
         id,
@@ -212,7 +212,7 @@ export async function getEvent(eventId) {
         message,
         created_at,
         updated_at,
-        otmember!tennis_event_comments_member_id_fkey(id, username, display_name)
+        otmember!tennis_event_comments_member_id_fkey(id, username, display_name, avatar_url)
       )
     `)
     .eq('id', eventId)
@@ -229,7 +229,7 @@ export async function getEvent(eventId) {
       *,
       tennis_attendances(
         id, member_id, guest_name, guest_memo, created_by, status, created_at,
-        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date)
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, avatar_url)
       )
     `)
     .eq('id', eventId)
@@ -244,7 +244,7 @@ export async function getEvent(eventId) {
       *,
       tennis_attendances(
         id, member_id, status, created_at,
-        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date)
+        otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, avatar_url)
       )
     `)
     .eq('id', eventId)
@@ -403,6 +403,7 @@ function normalizeMember(member) {
     user_id: member.username,
     name: member.display_name,
     club_position: member.club_position || '',
+    avatar_url: member.avatar_url || '',
   }
 }
 
@@ -430,6 +431,7 @@ function normalizeEventComment(comment) {
   return {
     ...comment,
     member_name: comment.otmember?.display_name || comment.otmember?.username || '회원',
+    member_avatar_url: comment.otmember?.avatar_url || '',
   }
 }
 

@@ -9,7 +9,7 @@ const selectColumns = `
   member_id,
   message,
   created_at,
-  otmember!ot_free_opinions_member_id_fkey(id, username, display_name)
+  otmember!ot_free_opinions_member_id_fkey(id, username, display_name, avatar_url)
 `
 
 const selectColumnsWithComments = `
@@ -17,7 +17,7 @@ const selectColumnsWithComments = `
   member_id,
   message,
   created_at,
-  otmember!ot_free_opinions_member_id_fkey(id, username, display_name),
+  otmember!ot_free_opinions_member_id_fkey(id, username, display_name, avatar_url),
   ot_free_opinion_comments(
     id,
     opinion_id,
@@ -25,7 +25,7 @@ const selectColumnsWithComments = `
     message,
     created_at,
     updated_at,
-    otmember!ot_free_opinion_comments_member_id_fkey(id, username, display_name)
+    otmember!ot_free_opinion_comments_member_id_fkey(id, username, display_name, avatar_url)
   )
 `
 
@@ -36,7 +36,7 @@ const commentSelectColumns = `
   message,
   created_at,
   updated_at,
-  otmember!ot_free_opinion_comments_member_id_fkey(id, username, display_name)
+  otmember!ot_free_opinion_comments_member_id_fkey(id, username, display_name, avatar_url)
 `
 
 export async function getFreeOpinions() {
@@ -214,6 +214,7 @@ function normalizeOpinion(opinion) {
   return {
     ...opinion,
     member_name: opinion.otmember?.display_name || opinion.otmember?.username || '회원',
+    member_avatar_url: opinion.otmember?.avatar_url || '',
     comments: (opinion.ot_free_opinion_comments || [])
       .map(normalizeComment)
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
@@ -224,6 +225,7 @@ function normalizeComment(comment) {
   return {
     ...comment,
     member_name: comment.otmember?.display_name || comment.otmember?.username || '회원',
+    member_avatar_url: comment.otmember?.avatar_url || '',
   }
 }
 
