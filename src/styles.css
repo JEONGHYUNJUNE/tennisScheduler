@@ -413,6 +413,14 @@ dd { margin: 0; white-space: pre-wrap; }
 .event-info-list dd strong { color: var(--muted); font-size: .95rem; }
 .event-info-list dd span { min-width: 0; overflow-wrap: anywhere; }
 .event-memo-card p { margin: 0; padding: 18px 20px; border-radius: 16px; color: #1f2b22; background: linear-gradient(135deg, rgba(237,246,234,.92), rgba(247,251,244,.72)); font-weight: 800; line-height: 1.65; white-space: pre-wrap; }
+.post-image-field { position: relative; min-height: 48px; border: 1px dashed rgba(63,116,75,.24); border-radius: 16px; padding: 13px 16px; display: flex; align-items: center; justify-content: center; color: var(--green-800); background: rgba(237,246,234,.58); font-size: .9rem; font-weight: 950; text-align: center; overflow: hidden; cursor: pointer; }
+.post-image-field input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.post-image-field span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.post-image-preview { position: relative; overflow: hidden; border: 1px solid rgba(217,228,213,.86); border-radius: 18px; background: rgba(255,255,255,.68); }
+.post-image-preview img { width: 100%; max-height: 260px; display: block; object-fit: cover; }
+.post-image-preview button { position: absolute; top: 10px; right: 10px; min-height: 34px; border: 1px solid rgba(217,228,213,.86); border-radius: 999px; padding: 0 12px; color: #b0452d; background: rgba(255,255,255,.92); font-weight: 950; }
+.post-image-display { margin-top: 12px; overflow: hidden; border: 1px solid rgba(217,228,213,.86); border-radius: 18px; display: block; background: rgba(255,255,255,.68); box-shadow: 0 10px 26px rgba(49,95,59,.07); }
+.post-image-display img { width: 100%; max-height: 420px; display: block; object-fit: cover; }
 .event-member-card.attendee-section { margin-top: 0; }
 .event-member-card .attendee-list { margin-top: 0; gap: 10px; }
 .event-member-card .attendee-list li { border: 1px solid rgba(217,228,213,.76); border-radius: 16px; align-items: center; background: rgba(255,255,255,.62); }
@@ -513,6 +521,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .opinion-form textarea { min-height: 96px; resize: vertical; border-radius: 14px; line-height: 1.6; }
 .opinion-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .opinion-form-actions span { color: var(--muted); font-size: .86rem; font-weight: 800; }
+.opinion-image-field { margin-top: -2px; }
+.opinion-image-preview { margin-top: -2px; }
 .opinion-list { display: grid; gap: 10px; }
 .opinion-item { scroll-margin-top: 110px; padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .85); border-radius: 18px; background: rgba(255, 253, 248, .9); box-shadow: 0 10px 24px rgba(49, 95, 59, .06); }
 .opinion-item.linked-opinion { border-color: rgba(63, 116, 75, .42); box-shadow: 0 0 0 3px rgba(216, 239, 72, .24), 0 10px 24px rgba(49, 95, 59, .06); }
@@ -522,6 +532,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .opinion-item time { color: var(--muted); font-size: .78rem; font-weight: 800; white-space: nowrap; }
 .opinion-meta-side { display: inline-flex; align-items: center; justify-content: flex-end; gap: 9px; }
 .opinion-item p { margin: 0; color: #2b362d; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.opinion-image-display { margin-top: 14px; }
 .opinion-edit-form { margin-top: 12px; display: grid; gap: 10px; }
 .opinion-edit-form textarea { min-height: 90px; border-radius: 14px; line-height: 1.6; resize: vertical; }
 .opinion-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }

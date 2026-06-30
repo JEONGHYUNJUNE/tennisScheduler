@@ -3,8 +3,9 @@ import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
 import { getEvent, getTodayDateText, saveEvent } from '../services/eventService'
+import { validatePostImageFile } from '../services/imageAttachmentService'
 
-const emptyForm = { title: '', event_date: '', start_time: '', end_time: '', location: '', max_players: '', memo: '' }
+const emptyForm = { title: '', event_date: '', start_time: '', end_time: '', location: '', max_players: '', memo: '', memo_image_path: '', memo_image_url: '', memo_image_file: null, remove_memo_image: false }
 
 export default function EventFormPage() {
   const { eventId } = useParams()
@@ -16,6 +17,7 @@ export default function EventFormPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(Boolean(eventId))
+  const [memoImagePreview, setMemoImagePreview] = useState('')
 
   useEffect(() => {
     if (!eventId) return
@@ -31,6 +33,10 @@ export default function EventFormPage() {
           location: data.location,
           max_players: data.max_players || '',
           memo: data.memo || '',
+          memo_image_path: data.memo_image_path || '',
+          memo_image_url: data.memo_image_url || '',
+          memo_image_file: null,
+          remove_memo_image: false,
         })
       })
       .catch((err) => setError(err.message))
@@ -46,6 +52,17 @@ export default function EventFormPage() {
     setForm((current) => ({ ...current, event_date: dateParam }))
   }, [eventId, location.search])
 
+  useEffect(() => {
+    if (!form.memo_image_file) {
+      setMemoImagePreview('')
+      return undefined
+    }
+
+    const url = URL.createObjectURL(form.memo_image_file)
+    setMemoImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [form.memo_image_file])
+
   if (loading) return <LoadingState message="일정 정보를 불러오는 중입니다." />
 
   if (eventId && eventOwnerId && !isAdmin && eventOwnerId !== profile.id) {
@@ -53,6 +70,30 @@ export default function EventFormPage() {
   }
 
   const update = (key) => (event) => setForm({ ...form, [key]: event.target.value })
+
+  const handleMemoImageChange = (event) => {
+    const file = event.target.files?.[0] || null
+    setError('')
+    if (!file) {
+      setForm((current) => ({ ...current, memo_image_file: null }))
+      return
+    }
+    try {
+      validatePostImageFile(file)
+      setForm((current) => ({ ...current, memo_image_file: file, remove_memo_image: false }))
+    } catch (err) {
+      setError(err.message)
+      setForm((current) => ({ ...current, memo_image_file: null }))
+    }
+  }
+
+  const clearMemoImage = () => {
+    setForm((current) => ({
+      ...current,
+      memo_image_file: null,
+      remove_memo_image: Boolean(current.memo_image_path),
+    }))
+  }
   const handleSubmit = async (event) => {
     event.preventDefault()
     setSubmitting(true)
@@ -152,6 +193,16 @@ export default function EventFormPage() {
               <textarea rows="5" value={form.memo} onChange={update('memo')} placeholder="메모를 입력해주세요" />
               <small>{form.memo.length}자</small>
             </span>
+            <span className="post-image-field">
+              <input type="file" accept="image/*" onChange={handleMemoImageChange} />
+              <span>{form.memo_image_file ? form.memo_image_file.name : '메모 사진 첨부'}</span>
+            </span>
+            {(memoImagePreview || (form.memo_image_url && !form.remove_memo_image)) && (
+              <div className="post-image-preview">
+                <img src={memoImagePreview || form.memo_image_url} alt="메모 첨부 이미지 미리보기" />
+                <button type="button" onClick={clearMemoImage}>삭제</button>
+              </div>
+            )}
           </span>
         </label>
 

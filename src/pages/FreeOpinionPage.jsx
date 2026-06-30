@@ -4,6 +4,7 @@ import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
+import { validatePostImageFile } from '../services/imageAttachmentService'
 import {
   addFreeOpinion,
   addFreeOpinionComment,
@@ -36,6 +37,8 @@ export default function FreeOpinionPage() {
   const [opinionLikes, setOpinionLikes] = useState({})
   const [commentLikes, setCommentLikes] = useState({})
   const [message, setMessage] = useState('')
+  const [opinionImageFile, setOpinionImageFile] = useState(null)
+  const [opinionImagePreview, setOpinionImagePreview] = useState('')
   const [editingOpinionId, setEditingOpinionId] = useState(null)
   const [editMessage, setEditMessage] = useState('')
   const [commentInputs, setCommentInputs] = useState({})
@@ -52,6 +55,17 @@ export default function FreeOpinionPage() {
   const [error, setError] = useState('')
   const linkedOpinionId = searchParams.get('opinion')
   const linkedCommentId = searchParams.get('comment')
+
+  useEffect(() => {
+    if (!opinionImageFile) {
+      setOpinionImagePreview('')
+      return undefined
+    }
+
+    const url = URL.createObjectURL(opinionImageFile)
+    setOpinionImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [opinionImageFile])
 
   const load = useCallback(async () => {
     try {
@@ -121,14 +135,31 @@ export default function FreeOpinionPage() {
     setError('')
 
     try {
-      await addFreeOpinion(profile.id, trimmedMessage)
+      await addFreeOpinion(profile.id, trimmedMessage, opinionImageFile)
       setMessage('')
+      setOpinionImageFile(null)
       await load()
       await markFreeOpinionsRead(profile.id)
     } catch (err) {
       setError(err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleOpinionImageChange = (event) => {
+    const file = event.target.files?.[0] || null
+    setError('')
+    if (!file) {
+      setOpinionImageFile(null)
+      return
+    }
+    try {
+      validatePostImageFile(file)
+      setOpinionImageFile(file)
+    } catch (err) {
+      setError(err.message)
+      setOpinionImageFile(null)
     }
   }
 
@@ -314,6 +345,16 @@ export default function FreeOpinionPage() {
               onChange={(event) => setMessage(event.target.value)}
             />
           </label>
+          <label className="post-image-field opinion-image-field">
+            <input type="file" accept="image/*" onChange={handleOpinionImageChange} />
+            <span>{opinionImageFile ? opinionImageFile.name : '사진 첨부'}</span>
+          </label>
+          {opinionImagePreview && (
+            <div className="post-image-preview opinion-image-preview">
+              <img src={opinionImagePreview} alt="소통 첨부 이미지 미리보기" />
+              <button type="button" onClick={() => setOpinionImageFile(null)}>삭제</button>
+            </div>
+          )}
           <div className="opinion-form-actions">
             <span>{message.length} / 300</span>
             <button className="primary-button" disabled={submitting || !message.trim()}>
@@ -404,6 +445,12 @@ export default function FreeOpinionPage() {
                     </form>
                   ) : (
                     <p>{opinion.message}</p>
+                  )}
+
+                  {opinion.image_url && (
+                    <a className="post-image-display opinion-image-display" href={opinion.image_url} target="_blank" rel="noreferrer">
+                      <img src={opinion.image_url} alt={opinion.image_name || '소통 첨부 이미지'} />
+                    </a>
                   )}
 
                   <div className="opinion-item-actions">

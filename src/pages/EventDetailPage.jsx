@@ -338,13 +338,18 @@ export default function EventDetailPage() {
         </dl>
       </section>
 
-      {event.memo && (
+      {(event.memo || event.memo_image_url) && (
         <section className="detail-card event-memo-card">
           <div className="event-card-title">
             <span className="event-card-title-icon memo-icon" />
             <h2>메모</h2>
           </div>
-          <p>{event.memo}</p>
+          {event.memo && <p>{event.memo}</p>}
+          {event.memo_image_url && (
+            <a className="post-image-display" href={event.memo_image_url} target="_blank" rel="noreferrer">
+              <img src={event.memo_image_url} alt={event.memo_image_name || '일정 메모 첨부 이미지'} />
+            </a>
+          )}
         </section>
       )}
 

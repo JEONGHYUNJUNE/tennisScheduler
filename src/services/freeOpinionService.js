@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
 
 const missingReadTableCodes = new Set(['42P01', 'PGRST205'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
@@ -9,6 +10,9 @@ const selectColumns = `
   id,
   member_id,
   message,
+  image_path,
+  image_name,
+  image_mime,
   created_at,
   otmember!ot_free_opinions_member_id_fkey(id, username, display_name, avatar_url)
 `
@@ -17,6 +21,9 @@ const selectColumnsWithComments = `
   id,
   member_id,
   message,
+  image_path,
+  image_name,
+  image_mime,
   created_at,
   otmember!ot_free_opinions_member_id_fkey(id, username, display_name, avatar_url),
   ot_free_opinion_comments(
@@ -60,17 +67,25 @@ export async function getFreeOpinions() {
   return data.map(normalizeOpinion)
 }
 
-export async function addFreeOpinion(memberId, message) {
+export async function addFreeOpinion(memberId, message, imageFile = null) {
+  const imagePayload = imageFile
+    ? await uploadPostImage({ file: imageFile, folder: `free-opinions/${memberId}` })
+    : {}
+
   const { data, error } = await supabase
     .from('ot_free_opinions')
     .insert({
       member_id: memberId,
       message: message.trim(),
+      ...imagePayload,
     })
     .select(selectColumns)
     .single()
 
-  if (error) throw error
+  if (error) {
+    if (imagePayload.image_path) await removePostImage(imagePayload.image_path)
+    throw error
+  }
   return normalizeOpinion(data)
 }
 
@@ -87,12 +102,19 @@ export async function updateFreeOpinion(opinionId, message) {
 }
 
 export async function deleteFreeOpinion(opinionId) {
+  const { data: opinion } = await supabase
+    .from('ot_free_opinions')
+    .select('image_path')
+    .eq('id', opinionId)
+    .maybeSingle()
+
   const { error } = await supabase
     .from('ot_free_opinions')
     .delete()
     .eq('id', opinionId)
 
   if (error) throw error
+  await removePostImage(opinion?.image_path)
 }
 
 export async function addFreeOpinionComment(opinionId, memberId, message) {
@@ -257,6 +279,9 @@ function normalizeOpinion(opinion) {
     ...opinion,
     member_name: opinion.otmember?.display_name || opinion.otmember?.username || '회원',
     member_avatar_url: opinion.otmember?.avatar_url || '',
+    image_path: opinion.image_path || '',
+    image_name: opinion.image_name || '',
+    image_url: getPostImageUrl(opinion.image_path),
     comments: (opinion.ot_free_opinion_comments || [])
       .map(normalizeComment)
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),

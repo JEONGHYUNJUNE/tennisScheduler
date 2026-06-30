@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
 
 const missingGuestColumnCodes = new Set(['42703', 'PGRST204'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
@@ -311,14 +312,37 @@ export async function saveEvent(event, memberId) {
     memo: event.memo.trim() || null,
   }
 
+  if (event.remove_memo_image) {
+    payload.memo_image_path = null
+    payload.memo_image_name = null
+    payload.memo_image_mime = null
+  }
+
+  if (event.memo_image_file) {
+    const uploadedImage = await uploadPostImage({
+      file: event.memo_image_file,
+      folder: `events/${memberId}`,
+    })
+    payload.memo_image_path = uploadedImage.image_path
+    payload.memo_image_name = uploadedImage.image_name
+    payload.memo_image_mime = uploadedImage.image_mime
+  }
+
   if (event.id) {
+    const previousImagePath = event.memo_image_path || ''
     const { data, error } = await supabase
       .from('tennis_events')
       .update(payload)
       .eq('id', event.id)
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      if (payload.memo_image_path) await removePostImage(payload.memo_image_path)
+      throw error
+    }
+    if ((event.remove_memo_image || event.memo_image_file) && previousImagePath && previousImagePath !== payload.memo_image_path) {
+      await removePostImage(previousImagePath)
+    }
     return data
   }
 
@@ -327,7 +351,10 @@ export async function saveEvent(event, memberId) {
     .insert({ ...payload, created_by: memberId })
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    if (payload.memo_image_path) await removePostImage(payload.memo_image_path)
+    throw error
+  }
   return data
 }
 
@@ -391,8 +418,15 @@ export async function removeGuestAttendance(attendanceId) {
 }
 
 export async function deleteEvent(eventId) {
+  const { data: event } = await supabase
+    .from('tennis_events')
+    .select('memo_image_path')
+    .eq('id', eventId)
+    .maybeSingle()
+
   const { error } = await supabase.from('tennis_events').delete().eq('id', eventId)
   if (error) throw error
+  await removePostImage(event?.memo_image_path)
 }
 
 export async function addEventComment(eventId, memberId, message) {
@@ -462,6 +496,9 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
   return {
     ...event,
     max_players: event.max_participants,
+    memo_image_path: event.memo_image_path || '',
+    memo_image_name: event.memo_image_name || '',
+    memo_image_url: getPostImageUrl(event.memo_image_path),
     supports_guest_attendance: supportsGuestAttendance,
     tennis_attendances: attendances.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)),
     comments: (event.tennis_event_comments || [])
