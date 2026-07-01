@@ -23,6 +23,7 @@ const getNotificationLink = (notification) => {
   if (
     notification.type === 'free_opinion_created' ||
     notification.type === 'free_opinion_comment_created' ||
+    notification.type === 'free_opinion_comment_reply_created' ||
     notification.type === 'free_opinion_comment_liked'
   ) {
     const params = new URLSearchParams()

@@ -29,6 +29,11 @@ const formatOpinionTime = (dateText) => new Intl.DateTimeFormat('ko-KR', {
 
 const visibleCommentCount = 3
 
+const flattenComments = (comments = []) => comments.flatMap((comment) => [
+  comment,
+  ...flattenComments(comment.replies || []),
+])
+
 export default function FreeOpinionPage() {
   const { profile, isAdmin } = useAuth()
   const [searchParams] = useSearchParams()
@@ -42,6 +47,8 @@ export default function FreeOpinionPage() {
   const [editingOpinionId, setEditingOpinionId] = useState(null)
   const [editMessage, setEditMessage] = useState('')
   const [commentInputs, setCommentInputs] = useState({})
+  const [replyInputs, setReplyInputs] = useState({})
+  const [replyingCommentId, setReplyingCommentId] = useState(null)
   const [expandedCommentOpinionIds, setExpandedCommentOpinionIds] = useState({})
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editCommentMessage, setEditCommentMessage] = useState('')
@@ -50,6 +57,7 @@ export default function FreeOpinionPage() {
   const [savingOpinionId, setSavingOpinionId] = useState(null)
   const [deletingOpinionId, setDeletingOpinionId] = useState(null)
   const [submittingCommentOpinionId, setSubmittingCommentOpinionId] = useState(null)
+  const [submittingReplyCommentId, setSubmittingReplyCommentId] = useState(null)
   const [savingCommentId, setSavingCommentId] = useState(null)
   const [deletingCommentId, setDeletingCommentId] = useState(null)
   const [error, setError] = useState('')
@@ -73,7 +81,7 @@ export default function FreeOpinionPage() {
       const nextOpinions = await getFreeOpinions()
       setOpinions(nextOpinions)
       setOpinionLikes(await getFreeOpinionLikeSummaries(nextOpinions.map((opinion) => opinion.id), profile.id))
-      setCommentLikes(await getFreeOpinionCommentLikeSummaries(nextOpinions.flatMap((opinion) => (opinion.comments || []).map((comment) => comment.id)), profile.id))
+      setCommentLikes(await getFreeOpinionCommentLikeSummaries(nextOpinions.flatMap((opinion) => flattenComments(opinion.comments).map((comment) => comment.id)), profile.id))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -252,6 +260,10 @@ export default function FreeOpinionPage() {
     setCommentInputs((current) => ({ ...current, [opinionId]: value }))
   }
 
+  const handleReplyInputChange = (commentId, value) => {
+    setReplyInputs((current) => ({ ...current, [commentId]: value }))
+  }
+
   const handleCommentSubmit = async (event, opinion) => {
     event.preventDefault()
     const trimmedMessage = (commentInputs[opinion.id] || '').trim()
@@ -269,6 +281,36 @@ export default function FreeOpinionPage() {
       setError(`${err.message} SQL 021번을 실행했는지 확인해 주세요.`)
     } finally {
       setSubmittingCommentOpinionId(null)
+    }
+  }
+
+  const startReply = (comment) => {
+    setReplyingCommentId(comment.id)
+    setError('')
+  }
+
+  const cancelReply = () => {
+    setReplyingCommentId(null)
+  }
+
+  const handleReplySubmit = async (event, opinion, parentComment) => {
+    event.preventDefault()
+    const trimmedMessage = (replyInputs[parentComment.id] || '').trim()
+    if (!trimmedMessage) return
+
+    setSubmittingReplyCommentId(parentComment.id)
+    setError('')
+
+    try {
+      await addFreeOpinionComment(opinion.id, profile.id, trimmedMessage, parentComment.id)
+      setReplyInputs((current) => ({ ...current, [parentComment.id]: '' }))
+      setReplyingCommentId(null)
+      setExpandedCommentOpinionIds((current) => ({ ...current, [opinion.id]: true }))
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 029번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmittingReplyCommentId(null)
     }
   }
 
@@ -311,6 +353,7 @@ export default function FreeOpinionPage() {
     try {
       await deleteFreeOpinionComment(comment.id)
       if (editingCommentId === comment.id) cancelCommentEdit()
+      if (replyingCommentId === comment.id) cancelReply()
       await load()
     } catch (err) {
       setError(`${err.message} SQL 021번을 실행했는지 확인해 주세요.`)
@@ -378,6 +421,7 @@ export default function FreeOpinionPage() {
               const canManageOpinion = isAdmin || opinion.member_id === profile.id
               const isEditing = editingOpinionId === opinion.id
               const comments = opinion.comments || []
+              const totalCommentCount = flattenComments(comments).length
               const isCommentsExpanded = Boolean(expandedCommentOpinionIds[opinion.id])
               const visibleComments = isCommentsExpanded ? comments : comments.slice(-visibleCommentCount)
               const hiddenCommentCount = Math.max(comments.length - visibleComments.length, 0)
@@ -468,7 +512,7 @@ export default function FreeOpinionPage() {
 
                   <section className="opinion-comments">
                     <div className="opinion-comments-head">
-                      <strong>댓글 {comments.length}</strong>
+                      <strong>댓글 {totalCommentCount}</strong>
                       {comments.length > visibleCommentCount && (
                         <button type="button" onClick={() => toggleComments(opinion.id)}>
                           {isCommentsExpanded ? '접기' : `댓글 ${hiddenCommentCount}개 더보기`}
@@ -518,15 +562,26 @@ export default function FreeOpinionPage() {
                                 <p>{comment.message}</p>
                               )}
 
-                              <button
-                                className={`comment-heart-button ${commentLikes[comment.id]?.likedByMe ? 'liked' : ''}`}
-                                type="button"
-                                onClick={() => handleCommentLike(comment)}
-                                aria-label={commentLikes[comment.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
-                              >
-                                <span>♥</span>
-                                <strong>{commentLikes[comment.id]?.count || 0}</strong>
-                              </button>
+                              <div className="opinion-comment-quick-actions">
+                                <button
+                                  className={`comment-heart-button ${commentLikes[comment.id]?.likedByMe ? 'liked' : ''}`}
+                                  type="button"
+                                  onClick={() => handleCommentLike(comment)}
+                                  aria-label={commentLikes[comment.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
+                                >
+                                  <span>♥</span>
+                                  <strong>{commentLikes[comment.id]?.count || 0}</strong>
+                                </button>
+                                {!isCommentEditing && (
+                                  <button
+                                    className="comment-reply-toggle"
+                                    type="button"
+                                    onClick={() => (replyingCommentId === comment.id ? cancelReply() : startReply(comment))}
+                                  >
+                                    답글
+                                  </button>
+                                )}
+                              </div>
 
                               {canManageComment && !isCommentEditing && (
                                 <div className="opinion-comment-actions">
@@ -554,6 +609,109 @@ export default function FreeOpinionPage() {
                                     <span aria-hidden="true" />
                                   </button>
                                 </div>
+                              )}
+
+                              {comment.replies?.length > 0 && (
+                                <div className="opinion-reply-list">
+                                  {comment.replies.map((reply) => {
+                                    const canManageReply = isAdmin || reply.member_id === profile.id
+                                    const isReplyEditing = editingCommentId === reply.id
+
+                                    return (
+                                      <article
+                                        className={`opinion-comment opinion-reply ${canManageReply && !isReplyEditing ? 'manageable' : ''} ${linkedCommentId === reply.id ? 'linked-opinion-comment' : ''}`}
+                                        id={`opinion-comment-${reply.id}`}
+                                        key={reply.id}
+                                      >
+                                        <div className="opinion-comment-meta">
+                                          <div className="opinion-comment-author">
+                                            <MemberAvatar name={reply.member_name} imageUrl={reply.member_avatar_url} size="sm" previewable />
+                                            <strong>{reply.member_name}</strong>
+                                          </div>
+                                          <time>{formatOpinionTime(reply.created_at)}</time>
+                                        </div>
+
+                                        {isReplyEditing ? (
+                                          <form className="opinion-comment-edit-form" onSubmit={(event) => handleCommentUpdate(event, reply)}>
+                                            <textarea
+                                              maxLength={300}
+                                              rows="2"
+                                              value={editCommentMessage}
+                                              onChange={(event) => setEditCommentMessage(event.target.value)}
+                                            />
+                                            <div className="opinion-edit-actions">
+                                              <span>{editCommentMessage.length} / 300</span>
+                                              <button className="secondary-button" type="button" onClick={cancelCommentEdit}>
+                                                취소
+                                              </button>
+                                              <button className="primary-button" disabled={savingCommentId === reply.id || !editCommentMessage.trim()}>
+                                                {savingCommentId === reply.id ? '저장 중...' : '저장'}
+                                              </button>
+                                            </div>
+                                          </form>
+                                        ) : (
+                                          <p>{reply.message}</p>
+                                        )}
+
+                                        <button
+                                          className={`comment-heart-button ${commentLikes[reply.id]?.likedByMe ? 'liked' : ''}`}
+                                          type="button"
+                                          onClick={() => handleCommentLike(reply)}
+                                          aria-label={commentLikes[reply.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
+                                        >
+                                          <span>♥</span>
+                                          <strong>{commentLikes[reply.id]?.count || 0}</strong>
+                                        </button>
+
+                                        {canManageReply && !isReplyEditing && (
+                                          <div className="opinion-comment-actions">
+                                            <button
+                                              className="opinion-icon-button edit"
+                                              type="button"
+                                              onClick={() => startCommentEdit(reply)}
+                                              aria-label="답글 수정"
+                                              title="수정"
+                                            >
+                                              <svg aria-hidden="true" viewBox="0 0 24 24">
+                                                <path d="M13.8 5.2 18.8 10.2" />
+                                                <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                                                <path d="M4 20h16" />
+                                              </svg>
+                                            </button>
+                                            <button
+                                              className="opinion-icon-button delete"
+                                              type="button"
+                                              onClick={() => handleCommentDelete(reply)}
+                                              disabled={deletingCommentId === reply.id}
+                                              aria-label="답글 삭제"
+                                              title="삭제"
+                                            >
+                                              <span aria-hidden="true" />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </article>
+                                    )
+                                  })}
+                                </div>
+                              )}
+
+                              {replyingCommentId === comment.id && (
+                                <form className="opinion-reply-form" onSubmit={(event) => handleReplySubmit(event, opinion, comment)}>
+                                  <input
+                                    autoFocus
+                                    maxLength={300}
+                                    placeholder={`${comment.member_name}님에게 답글 남기기`}
+                                    value={replyInputs[comment.id] || ''}
+                                    onChange={(event) => handleReplyInputChange(comment.id, event.target.value)}
+                                  />
+                                  <button
+                                    className="secondary-button"
+                                    disabled={submittingReplyCommentId === comment.id || !(replyInputs[comment.id] || '').trim()}
+                                  >
+                                    {submittingReplyCommentId === comment.id ? '등록 중...' : '등록'}
+                                  </button>
+                                </form>
                               )}
                             </article>
                           )

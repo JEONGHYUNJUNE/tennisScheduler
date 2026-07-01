@@ -574,6 +574,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .comment-heart-button span { color: #d75d54; font-size: .9rem; line-height: 1; }
 .comment-heart-button strong { color: #b65751; font-size: .78rem; }
 .comment-heart-button.liked { color: #d94f47; background: rgba(255,232,226,.86); border-color: rgba(217,79,71,.22); box-shadow: 0 8px 18px rgba(217,79,71,.08); }
+.opinion-comment-quick-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.comment-reply-toggle { min-height: 30px; margin-top: 9px; border: 1px solid rgba(63, 116, 75, .13); border-radius: 999px; padding: 5px 10px; color: var(--green-800); background: rgba(237, 246, 234, .58); font-size: .78rem; font-weight: 950; line-height: 1; }
+.comment-reply-toggle:hover { background: rgba(217, 228, 213, .82); }
 .opinion-comment-actions { position: absolute; right: 10px; top: 10px; display: flex; gap: 5px; }
 .opinion-comment-actions .opinion-icon-button { width: 28px; height: 28px; }
 .opinion-comment-actions .opinion-icon-button.edit svg { width: 16px; height: 16px; }
@@ -583,6 +586,11 @@ dd { margin: 0; white-space: pre-wrap; }
 .opinion-comment-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
 .opinion-comment-form input { min-height: 42px; border-radius: 999px; background: rgba(255, 255, 255, .78); }
 .opinion-comment-form button { border-radius: 999px; padding: 9px 14px; }
+.opinion-reply-list { margin-top: 12px; padding-left: 18px; border-left: 2px solid rgba(217, 228, 213, .9); display: grid; gap: 8px; }
+.opinion-comment.opinion-reply { padding: 11px 11px 11px 12px; border-color: rgba(217, 228, 213, .62); background: rgba(255, 253, 248, .72); }
+.opinion-reply-form { margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.opinion-reply-form input { min-height: 38px; border-radius: 999px; background: rgba(255, 255, 255, .82); font-size: .88rem; }
+.opinion-reply-form button { border-radius: 999px; padding: 8px 12px; }
 .opinion-comment-edit-form { display: grid; gap: 8px; }
 .opinion-comment-edit-form textarea { min-height: 76px; border-radius: 12px; line-height: 1.55; resize: vertical; }
 .notice { margin: 0; padding: 14px 16px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 14px; color: var(--green-800); background: rgba(255, 253, 248, .86); font-weight: 900; }

@@ -30,6 +30,7 @@ const selectColumnsWithComments = `
     id,
     opinion_id,
     member_id,
+    parent_comment_id,
     message,
     created_at,
     updated_at,
@@ -41,6 +42,7 @@ const commentSelectColumns = `
   id,
   opinion_id,
   member_id,
+  parent_comment_id,
   message,
   created_at,
   updated_at,
@@ -117,12 +119,13 @@ export async function deleteFreeOpinion(opinionId) {
   await removePostImage(opinion?.image_path)
 }
 
-export async function addFreeOpinionComment(opinionId, memberId, message) {
+export async function addFreeOpinionComment(opinionId, memberId, message, parentCommentId = null) {
   const { data, error } = await supabase
     .from('ot_free_opinion_comments')
     .insert({
       opinion_id: opinionId,
       member_id: memberId,
+      parent_comment_id: parentCommentId,
       message: message.trim(),
     })
     .select(commentSelectColumns)
@@ -275,6 +278,10 @@ export async function markFreeOpinionsRead(memberId) {
 }
 
 function normalizeOpinion(opinion) {
+  const comments = (opinion.ot_free_opinion_comments || [])
+    .map(normalizeComment)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+
   return {
     ...opinion,
     member_name: opinion.otmember?.display_name || opinion.otmember?.username || '회원',
@@ -282,18 +289,36 @@ function normalizeOpinion(opinion) {
     image_path: opinion.image_path || '',
     image_name: opinion.image_name || '',
     image_url: getPostImageUrl(opinion.image_path),
-    comments: (opinion.ot_free_opinion_comments || [])
-      .map(normalizeComment)
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
+    comments: nestComments(comments),
+    flat_comments: comments,
   }
 }
 
 function normalizeComment(comment) {
   return {
     ...comment,
+    parent_comment_id: comment.parent_comment_id || null,
+    replies: [],
     member_name: comment.otmember?.display_name || comment.otmember?.username || '회원',
     member_avatar_url: comment.otmember?.avatar_url || '',
   }
+}
+
+function nestComments(comments) {
+  const byId = new Map(comments.map((comment) => [comment.id, { ...comment, replies: [] }]))
+  const roots = []
+
+  comments.forEach((comment) => {
+    const current = byId.get(comment.id)
+    const parent = comment.parent_comment_id ? byId.get(comment.parent_comment_id) : null
+    if (parent) {
+      parent.replies.push(current)
+    } else {
+      roots.push(current)
+    }
+  })
+
+  return roots
 }
 
 function isMissingReadTableError(error) {

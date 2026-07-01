@@ -138,7 +138,12 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
 
 function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
   if (notification.event_id) return `${appUrl}/#/events/${notification.event_id}`
-  if (notification.type === 'free_opinion_created' || notification.type === 'free_opinion_comment_created') {
+  if (
+    notification.type === 'free_opinion_created' ||
+    notification.type === 'free_opinion_comment_created' ||
+    notification.type === 'free_opinion_comment_reply_created' ||
+    notification.type === 'free_opinion_comment_liked'
+  ) {
     const params = new URLSearchParams()
     if (notification.free_opinion_id) params.set('opinion', notification.free_opinion_id)
     if (notification.free_opinion_comment_id) params.set('comment', notification.free_opinion_comment_id)
@@ -160,6 +165,7 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
 function getNotificationBody(notification: NotificationRecord) {
   if (
     notification.type !== 'free_opinion_comment_created' &&
+    notification.type !== 'free_opinion_comment_reply_created' &&
     notification.type !== 'member_inquiry_created' &&
     notification.type !== 'member_inquiry_replied' &&
     notification.type !== 'member_inquiry_followed_up'
