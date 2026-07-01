@@ -1,7 +1,23 @@
 import { useEffect, useState } from 'react'
 import LoadingState from '../components/LoadingState'
+import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { defaultRecommendedVideo, getRecommendedVideo, saveRecommendedVideo } from '../services/tennisVideoService'
+import {
+  addRecommendedVideoComment,
+  defaultRecommendedVideo,
+  deleteRecommendedVideoComment,
+  getRecommendedVideo,
+  getRecommendedVideoComments,
+  saveRecommendedVideo,
+  updateRecommendedVideoComment,
+} from '../services/tennisVideoService'
+
+const formatCommentTime = (dateText) => new Intl.DateTimeFormat('ko-KR', {
+  month: 'numeric',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(new Date(dateText))
 
 function getYoutubeEmbedUrl(url) {
   try {
@@ -27,24 +43,36 @@ function getYoutubeEmbedUrl(url) {
 }
 
 export default function TennisNewsPage() {
-  const { isAdmin } = useAuth()
+  const { profile, isAdmin } = useAuth()
   const [recommendedVideo, setRecommendedVideo] = useState(defaultRecommendedVideo)
   const [videoForm, setVideoForm] = useState(defaultRecommendedVideo)
+  const [comments, setComments] = useState([])
+  const [commentMessage, setCommentMessage] = useState('')
+  const [editingCommentId, setEditingCommentId] = useState(null)
+  const [editCommentMessage, setEditCommentMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [submittingComment, setSubmittingComment] = useState(false)
+  const [savingCommentId, setSavingCommentId] = useState(null)
+  const [deletingCommentId, setDeletingCommentId] = useState(null)
   const [message, setMessage] = useState('')
 
   const embedUrl = getYoutubeEmbedUrl(recommendedVideo.url)
 
   useEffect(() => {
-    getRecommendedVideo()
-      .then((video) => {
+    Promise.all([getRecommendedVideo(), getRecommendedVideoComments()])
+      .then(([video, nextComments]) => {
         setRecommendedVideo(video)
         setVideoForm(video)
+        setComments(nextComments)
       })
       .catch((error) => setMessage(error.message))
       .finally(() => setLoading(false))
   }, [])
+
+  const loadComments = async () => {
+    setComments(await getRecommendedVideoComments())
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -52,14 +80,82 @@ export default function TennisNewsPage() {
     setMessage('')
 
     try {
+      const shouldClearComments = videoForm.url.trim() !== recommendedVideo.url
       const savedVideo = await saveRecommendedVideo(videoForm)
       setRecommendedVideo(savedVideo)
       setVideoForm(savedVideo)
+      if (shouldClearComments) setComments([])
       setMessage('추천 영상이 저장됐습니다.')
     } catch (error) {
       setMessage(`${error.message} SQL 014번을 실행했는지 확인해 주세요.`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleCommentSubmit = async (event) => {
+    event.preventDefault()
+    const trimmedMessage = commentMessage.trim()
+    if (!trimmedMessage) return
+
+    setSubmittingComment(true)
+    setMessage('')
+
+    try {
+      await addRecommendedVideoComment(profile.id, trimmedMessage)
+      setCommentMessage('')
+      await loadComments()
+    } catch (error) {
+      setMessage(`${error.message} SQL 030번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmittingComment(false)
+    }
+  }
+
+  const startCommentEdit = (comment) => {
+    setEditingCommentId(comment.id)
+    setEditCommentMessage(comment.message)
+    setMessage('')
+  }
+
+  const cancelCommentEdit = () => {
+    setEditingCommentId(null)
+    setEditCommentMessage('')
+  }
+
+  const handleCommentUpdate = async (event, comment) => {
+    event.preventDefault()
+    const trimmedMessage = editCommentMessage.trim()
+    if (!trimmedMessage) return
+
+    setSavingCommentId(comment.id)
+    setMessage('')
+
+    try {
+      await updateRecommendedVideoComment(comment.id, trimmedMessage)
+      cancelCommentEdit()
+      await loadComments()
+    } catch (error) {
+      setMessage(`${error.message} SQL 030번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSavingCommentId(null)
+    }
+  }
+
+  const handleCommentDelete = async (comment) => {
+    if (!window.confirm('이 댓글을 삭제할까요?')) return
+
+    setDeletingCommentId(comment.id)
+    setMessage('')
+
+    try {
+      await deleteRecommendedVideoComment(comment.id)
+      if (editingCommentId === comment.id) cancelCommentEdit()
+      await loadComments()
+    } catch (error) {
+      setMessage(`${error.message} SQL 030번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setDeletingCommentId(null)
     }
   }
 
@@ -97,6 +193,100 @@ export default function TennisNewsPage() {
             <div className="empty-state">YouTube URL을 확인해 주세요.</div>
           )}
         </article>
+
+        <section className="video-comments-card">
+          <div className="opinion-comments-head">
+            <strong>댓글 {comments.length}</strong>
+          </div>
+
+          {comments.length > 0 ? (
+            <div className="opinion-comment-list">
+              {comments.map((comment) => {
+                const canManageComment = isAdmin || comment.member_id === profile.id
+                const isCommentEditing = editingCommentId === comment.id
+
+                return (
+                  <article
+                    className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''}`}
+                    key={comment.id}
+                  >
+                    <div className="opinion-comment-meta">
+                      <div className="opinion-comment-author">
+                        <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" previewable />
+                        <strong>{comment.member_name}</strong>
+                      </div>
+                      <time>{formatCommentTime(comment.created_at)}</time>
+                    </div>
+
+                    {isCommentEditing ? (
+                      <form className="opinion-comment-edit-form" onSubmit={(event) => handleCommentUpdate(event, comment)}>
+                        <textarea
+                          maxLength={300}
+                          rows="2"
+                          value={editCommentMessage}
+                          onChange={(event) => setEditCommentMessage(event.target.value)}
+                        />
+                        <div className="opinion-edit-actions">
+                          <span>{editCommentMessage.length} / 300</span>
+                          <button className="secondary-button" type="button" onClick={cancelCommentEdit}>
+                            취소
+                          </button>
+                          <button className="primary-button" disabled={savingCommentId === comment.id || !editCommentMessage.trim()}>
+                            {savingCommentId === comment.id ? '저장 중...' : '저장'}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <p>{comment.message}</p>
+                    )}
+
+                    {canManageComment && !isCommentEditing && (
+                      <div className="opinion-comment-actions">
+                        <button
+                          className="opinion-icon-button edit"
+                          type="button"
+                          onClick={() => startCommentEdit(comment)}
+                          aria-label="댓글 수정"
+                          title="수정"
+                        >
+                          <svg aria-hidden="true" viewBox="0 0 24 24">
+                            <path d="M13.8 5.2 18.8 10.2" />
+                            <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                            <path d="M4 20h16" />
+                          </svg>
+                        </button>
+                        <button
+                          className="opinion-icon-button delete"
+                          type="button"
+                          onClick={() => handleCommentDelete(comment)}
+                          disabled={deletingCommentId === comment.id}
+                          aria-label="댓글 삭제"
+                          title="삭제"
+                        >
+                          <span aria-hidden="true" />
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="video-comments-empty">아직 댓글이 없어요. 영상에 대한 생각을 가볍게 남겨보세요.</p>
+          )}
+
+          <form className="opinion-comment-form video-comment-form" onSubmit={handleCommentSubmit}>
+            <input
+              maxLength={300}
+              placeholder="댓글을 입력하세요."
+              value={commentMessage}
+              onChange={(event) => setCommentMessage(event.target.value)}
+            />
+            <button className="secondary-button" disabled={submittingComment || !commentMessage.trim()}>
+              {submittingComment ? '등록 중...' : '저장'}
+            </button>
+          </form>
+        </section>
 
         {isAdmin && (
           <form className="video-admin-form" onSubmit={handleSubmit}>

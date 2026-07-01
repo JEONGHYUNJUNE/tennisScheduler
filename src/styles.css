@@ -512,6 +512,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .video-admin-form { padding: 22px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 20px; display: grid; gap: 16px; background: rgba(255, 253, 248, .9); box-shadow: 0 12px 30px rgba(49, 95, 59, .07); }
 .video-admin-form h2 { color: var(--green-900); }
 .video-admin-form textarea { min-height: 70px; resize: vertical; border-radius: 14px; line-height: 1.6; }
+.video-comments-card { padding: clamp(18px, 3vw, 24px); border: 1px solid rgba(217, 228, 213, .9); border-radius: 24px; display: grid; gap: 14px; background: rgba(255, 253, 248, .92); box-shadow: 0 16px 38px rgba(49, 95, 59, .08); backdrop-filter: blur(8px); }
+.video-comments-empty { margin: 0; padding: 14px 16px; border-radius: 16px; color: var(--muted); background: rgba(237, 246, 234, .48); font-size: .9rem; font-weight: 850; line-height: 1.5; }
+.video-comment-form { margin-top: 2px; }
 .news-link-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .news-link-grid a { padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .86); border-radius: 18px; display: grid; gap: 8px; color: inherit; background: rgba(255, 253, 248, .86); box-shadow: 0 10px 24px rgba(49, 95, 59, .06); text-decoration: none; }
 .news-link-grid strong { color: var(--green-800); }
