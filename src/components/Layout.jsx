@@ -4,9 +4,10 @@ import NotificationMenu from './NotificationMenu'
 import PushNotificationButton from './PushNotificationButton'
 import UserMenu from './UserMenu'
 import { useAuth } from '../contexts/AuthContext'
+import { getUnreadChatCount } from '../services/chatService'
 import { getUnreadFreeOpinionCount, markFreeOpinionsRead } from '../services/freeOpinionService'
 import { signOut } from '../services/authService'
-// import onsTennisLogo from '../assets/ons-tennis-logo-transparent.png'
+import onsTennisLogo from '../assets/home-header-logo.png'
 
 function NavIcon({ type }) {
   if (type === 'home') {
@@ -110,6 +111,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const shellRef = useRef(null)
   const [freeOpinionUnreadCount, setFreeOpinionUnreadCount] = useState(0)
+  const [chatUnreadCount, setChatUnreadCount] = useState(0)
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
 
@@ -152,6 +154,29 @@ export default function Layout() {
     }
   }, [location.pathname, profile?.id])
 
+  useEffect(() => {
+    if (!profile?.id) return undefined
+
+    let ignore = false
+
+    const loadChatCount = async () => {
+      try {
+        const count = await getUnreadChatCount(profile.id)
+        if (!ignore) setChatUnreadCount(count)
+      } catch {
+        if (!ignore) setChatUnreadCount(0)
+      }
+    }
+
+    loadChatCount()
+    const timer = setInterval(loadChatCount, 30000)
+
+    return () => {
+      ignore = true
+      clearInterval(timer)
+    }
+  }, [profile?.id])
+
   useLayoutEffect(() => {
     if ('scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual'
@@ -185,7 +210,8 @@ export default function Layout() {
 
     const syncViewportHeight = () => {
       if (!needsSafariViewportPatch) return
-      const nextHeight = Math.round(window.innerHeight || visualViewport.height)
+      const activeEditable = isEditableElement(document.activeElement)
+      const nextHeight = Math.round(activeEditable ? visualViewport.height : (window.innerHeight || visualViewport.height))
       root.style.setProperty('--app-viewport-height', `${nextHeight}px`)
     }
 
@@ -260,16 +286,15 @@ export default function Layout() {
     setIsCreateMenuOpen(false)
   }, [location.pathname, location.search])
 
+  const isChatRoomRoute = location.pathname.startsWith('/chats/')
+
   return (
-    <div className={`app-shell ${isKeyboardOpen ? 'keyboard-open' : ''}`} ref={shellRef}>
+    <div className={`app-shell ${isKeyboardOpen ? 'keyboard-open' : ''} ${isChatRoomRoute ? 'chat-route' : ''}`} ref={shellRef}>
       <header className="site-header">
         <div className="header-main">
-          <Link className="brand" to="/">ONS TENNIS</Link>
-
-         {/* <Link className="brand" to="/" aria-label="ONS TENNIS 홈">
+          <Link className="brand" to="/" aria-label="ONS TENNIS 홈">
             <img src={onsTennisLogo} alt="ONS TENNIS" />
-
-          </Link>*/}
+          </Link>
         </div>
         <nav className="header-nav desktop-nav">
           <NavLink to="/" end>홈</NavLink>
@@ -289,6 +314,13 @@ export default function Layout() {
         <div className="header-actions">
           <UserMenu profile={profile} onLogout={handleLogout} />
           <PushNotificationButton profile={profile} />
+          <Link className="notification-button chat-header-button" to="/chats" aria-label="채팅">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 18.5v-10A3.5 3.5 0 0 1 8.5 5h7A3.5 3.5 0 0 1 19 8.5v4A3.5 3.5 0 0 1 15.5 16H10l-5 2.5Z" />
+              <path d="M8.5 10.5h7M8.5 13h4" />
+            </svg>
+            {chatUnreadCount > 0 && <span>{chatUnreadCount}</span>}
+          </Link>
           <NotificationMenu profile={profile} />
         </div>
         <nav className="mobile-quick-nav" aria-label="빠른 메뉴">

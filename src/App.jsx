@@ -12,6 +12,8 @@ import LoginPage from './pages/LoginPage'
 import MembersPage from './pages/MembersPage'
 import SignupPage from './pages/SignupPage'
 import CompleteProfilePage from './pages/CompleteProfilePage'
+import ChatListPage from './pages/ChatListPage'
+import ChatRoomPage from './pages/ChatRoomPage'
 import DiaryPage from './pages/DiaryPage'
 import MemberListPage from './pages/MemberListPage'
 import MyPage from './pages/MyPage'
@@ -52,6 +54,8 @@ export default function App() {
             <Route path="/events/new" element={<EventFormPage />} />
             <Route path="/events/:eventId/edit" element={<EventFormPage />} />
             <Route path="/members" element={<MemberListPage />} />
+            <Route path="/chats" element={<ChatListPage />} />
+            <Route path="/chats/:roomId" element={<ChatRoomPage />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/ranking" element={<RankingPage />} />
             <Route path="/tennis-news" element={<TennisNewsPage />} />

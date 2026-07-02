@@ -1,20 +1,39 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
+import { useAuth } from '../contexts/AuthContext'
+import { requestChat } from '../services/chatService'
 import { getMembers } from '../services/memberService'
 import { formatTennisExperience } from '../utils/tennisExperience'
 
 export default function MemberListPage() {
+  const { profile } = useAuth()
+  const navigate = useNavigate()
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [requestingId, setRequestingId] = useState('')
 
   useEffect(() => {
     getMembers()
-      .then((data) => setMembers(data.filter((member) => member.is_active !== false)))
+      .then((data) => setMembers(data.filter((member) => member.is_active !== false && member.id !== profile.id)))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [profile.id])
+
+  const handleChatRequest = async (memberId) => {
+    setRequestingId(memberId)
+    setError('')
+    try {
+      const room = await requestChat(memberId)
+      navigate(`/chats/${room.id}`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRequestingId('')
+    }
+  }
 
   return (
     <>
@@ -41,6 +60,14 @@ export default function MemberListPage() {
                 </div>
                 <span>구력 : {formatTennisExperience(member.tennis_start_date)}</span>
               </div>
+              <button
+                className="member-chat-button"
+                type="button"
+                onClick={() => handleChatRequest(member.id)}
+                disabled={requestingId === member.id}
+              >
+                {requestingId === member.id ? '요청 중' : '채팅 요청'}
+              </button>
             </article>
           ))}
         </section>

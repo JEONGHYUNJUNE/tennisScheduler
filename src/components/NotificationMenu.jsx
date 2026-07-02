@@ -62,6 +62,12 @@ const getNotificationLink = (notification) => {
     if (notification.tennis_diary_group_id) params.set('diaryGroup', notification.tennis_diary_group_id)
     return `/mypage?${params.toString()}`
   }
+  if (
+    notification.type === 'chat_requested' ||
+    notification.type === 'chat_message_created'
+  ) {
+    return notification.chat_room_id ? `/chats/${notification.chat_room_id}` : '/chats'
+  }
   return '/events'
 }
 

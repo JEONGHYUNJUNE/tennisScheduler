@@ -13,6 +13,7 @@ type NotificationRecord = {
   tennis_diary_entry_id?: string | null
   tennis_diary_comment_id?: string | null
   tennis_diary_group_id?: string | null
+  chat_room_id?: string | null
   inquiry_id?: string | null
   inquiry_reply_id?: string | null
   type: string
@@ -83,7 +84,7 @@ async function resolveNotification(payload: Record<string, unknown>) {
 
   const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
 
@@ -182,6 +183,12 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     const params = new URLSearchParams({ diaryTab: 'invites' })
     if (notification.tennis_diary_group_id) params.set('diaryGroup', notification.tennis_diary_group_id)
     return `${appUrl}/#/mypage?${params.toString()}`
+  }
+  if (
+    notification.type === 'chat_requested' ||
+    notification.type === 'chat_message_created'
+  ) {
+    return `${appUrl}/#/chats${notification.chat_room_id ? `/${notification.chat_room_id}` : ''}`
   }
   return `${appUrl}/#/`
 }

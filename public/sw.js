@@ -1,4 +1,4 @@
-const appIconUrl = '/pwa-icon.svg'
+const appIconUrl = '/app-icon-192.png'
 const notificationBadgeUrl = '/notification-badge.svg'
 
 self.addEventListener('push', (event) => {
