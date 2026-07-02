@@ -41,6 +41,18 @@ const getNotificationLink = (notification) => {
     if (notification.inquiry_id) params.set('inquiry', notification.inquiry_id)
     return `/mypage?${params.toString()}`
   }
+  if (
+    notification.type === 'tennis_diary_comment_created' ||
+    notification.type === 'tennis_diary_comment_reply_created' ||
+    notification.type === 'tennis_diary_liked' ||
+    notification.type === 'tennis_diary_comment_liked'
+  ) {
+    const params = new URLSearchParams()
+    if (notification.tennis_diary_entry_id) params.set('entry', notification.tennis_diary_entry_id)
+    if (notification.tennis_diary_comment_id) params.set('comment', notification.tennis_diary_comment_id)
+    const query = params.toString()
+    return query ? `/diary?${query}` : '/diary'
+  }
   return '/events'
 }
 

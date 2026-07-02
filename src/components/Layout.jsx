@@ -68,6 +68,16 @@ function NavIcon({ type }) {
     )
   }
 
+  if (type === 'diary') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 4.5h10.5A1.5 1.5 0 0 1 18 6v12.5A1.5 1.5 0 0 1 16.5 20H6V4.5Z" />
+        <path d="M6 4.5A2.5 2.5 0 0 0 6 9.5h12" />
+        <path d="M9 13h5M9 16h3" />
+      </svg>
+    )
+  }
+
   if (type === 'admin') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -101,6 +111,7 @@ export default function Layout() {
   const shellRef = useRef(null)
   const [freeOpinionUnreadCount, setFreeOpinionUnreadCount] = useState(0)
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
 
   const handleLogout = async () => {
     await signOut()
@@ -245,6 +256,10 @@ export default function Layout() {
     }
   }, [])
 
+  useEffect(() => {
+    setIsCreateMenuOpen(false)
+  }, [location.pathname, location.search])
+
   return (
     <div className={`app-shell ${isKeyboardOpen ? 'keyboard-open' : ''}`} ref={shellRef}>
       <header className="site-header">
@@ -269,6 +284,7 @@ export default function Layout() {
               <span className="nav-new-badge">NEW {freeOpinionUnreadCount}</span>
             )}
           </NavLink>
+          <NavLink to="/diary">다이어리</NavLink>
         </nav>
         <div className="header-actions">
           <UserMenu profile={profile} onLogout={handleLogout} />
@@ -284,6 +300,7 @@ export default function Layout() {
             <span>소통</span>
             {freeOpinionUnreadCount > 0 && <em>{freeOpinionUnreadCount}</em>}
           </NavLink>
+          <NavLink to="/diary"><NavIcon type="diary" /><span>다이어리</span></NavLink>
         </nav>
       </header>
       <main className="page"><Outlet /></main>
@@ -294,7 +311,27 @@ export default function Layout() {
       <nav className="mobile-bottom-nav" aria-label="하단 메뉴">
         <NavLink to="/" end><NavIcon type="home" /><span>홈</span></NavLink>
         <NavLink to="/events" end><NavIcon type="events" /><span>일정</span></NavLink>
-        <NavLink className="bottom-nav-add" to="/events/new" aria-label="새 일정 등록"><NavIcon type="plus" /></NavLink>
+        <div className={`bottom-create-wrap ${isCreateMenuOpen ? 'open' : ''}`}>
+          <div className="bottom-create-actions" aria-hidden={!isCreateMenuOpen}>
+            <Link to="/diary" className="bottom-create-action diary">
+              <NavIcon type="diary" />
+              <span>다이어리</span>
+            </Link>
+            <Link to="/events/new" className="bottom-create-action event">
+              <NavIcon type="events" />
+              <span>일정</span>
+            </Link>
+          </div>
+          <button
+            className="bottom-nav-add"
+            type="button"
+            onClick={() => setIsCreateMenuOpen((current) => !current)}
+            aria-expanded={isCreateMenuOpen}
+            aria-label="새 항목 만들기"
+          >
+            <NavIcon type="plus" />
+          </button>
+        </div>
         <NavLink to="/members"><NavIcon type="members" /><span>멤버</span></NavLink>
         <NavLink to="/mypage"><NavIcon type="mypage" /><span>마이페이지</span></NavLink>
       </nav>

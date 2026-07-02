@@ -12,6 +12,7 @@ import LoginPage from './pages/LoginPage'
 import MembersPage from './pages/MembersPage'
 import SignupPage from './pages/SignupPage'
 import CompleteProfilePage from './pages/CompleteProfilePage'
+import DiaryPage from './pages/DiaryPage'
 import MemberListPage from './pages/MemberListPage'
 import MyPage from './pages/MyPage'
 import RankingPage from './pages/RankingPage'
@@ -55,6 +56,8 @@ export default function App() {
             <Route path="/ranking" element={<RankingPage />} />
             <Route path="/tennis-news" element={<TennisNewsPage />} />
             <Route path="/free-opinions" element={<FreeOpinionPage />} />
+            <Route path="/diary" element={<DiaryPage />} />
+            <Route path="/diary/:date" element={<DiaryPage />} />
 
             <Route element={<ProtectedRoute adminOnly />}>
               <Route path="/admin/members" element={<MembersPage />} />

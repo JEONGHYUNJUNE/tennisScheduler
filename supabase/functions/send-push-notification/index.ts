@@ -10,6 +10,8 @@ type NotificationRecord = {
   event_id: string | null
   free_opinion_id?: string | null
   free_opinion_comment_id?: string | null
+  tennis_diary_entry_id?: string | null
+  tennis_diary_comment_id?: string | null
   inquiry_id?: string | null
   inquiry_reply_id?: string | null
   type: string
@@ -80,7 +82,7 @@ async function resolveNotification(payload: Record<string, unknown>) {
 
   const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
 
@@ -159,6 +161,18 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     if (notification.inquiry_id) params.set('inquiry', notification.inquiry_id)
     return `${appUrl}/#/mypage?${params.toString()}`
   }
+  if (
+    notification.type === 'tennis_diary_comment_created' ||
+    notification.type === 'tennis_diary_comment_reply_created' ||
+    notification.type === 'tennis_diary_liked' ||
+    notification.type === 'tennis_diary_comment_liked'
+  ) {
+    const params = new URLSearchParams()
+    if (notification.tennis_diary_entry_id) params.set('entry', notification.tennis_diary_entry_id)
+    if (notification.tennis_diary_comment_id) params.set('comment', notification.tennis_diary_comment_id)
+    const query = params.toString()
+    return `${appUrl}/#/diary${query ? `?${query}` : ''}`
+  }
   return `${appUrl}/#/`
 }
 
@@ -166,6 +180,8 @@ function getNotificationBody(notification: NotificationRecord) {
   if (
     notification.type !== 'free_opinion_comment_created' &&
     notification.type !== 'free_opinion_comment_reply_created' &&
+    notification.type !== 'tennis_diary_comment_created' &&
+    notification.type !== 'tennis_diary_comment_reply_created' &&
     notification.type !== 'member_inquiry_created' &&
     notification.type !== 'member_inquiry_replied' &&
     notification.type !== 'member_inquiry_followed_up'
