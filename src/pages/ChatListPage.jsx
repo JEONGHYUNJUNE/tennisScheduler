@@ -19,7 +19,9 @@ const formatChatTime = (dateText) => {
 function getRoomPreview(room) {
   if (room.status === 'requested') return '채팅 요청 대기 중'
   if (!room.last_message) return '대화가 시작되었습니다.'
-  if (room.last_message.message_type === 'image') return '사진'
+  if (room.last_message.message_type === 'image') {
+    return room.last_message.image_path?.startsWith('chat-stickers/') ? '이모티콘' : '사진'
+  }
   return room.last_message.body
 }
 

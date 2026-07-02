@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
+import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage } from './imageAttachmentService'
 
 const roomSelectColumns = `
   id,
@@ -12,7 +12,7 @@ const roomSelectColumns = `
   updated_at,
   requester:otmember!chat_rooms_requester_member_id_fkey(id, username, display_name, avatar_url),
   recipient:otmember!chat_rooms_recipient_member_id_fkey(id, username, display_name, avatar_url),
-  chat_messages(id, room_id, sender_member_id, message_type, body, created_at)
+  chat_messages(id, room_id, sender_member_id, message_type, body, image_path, created_at)
 `
 
 const messageSelectColumns = `
@@ -35,6 +35,9 @@ export const chatStickerOptions = [
   { label: '웃음', value: '😄' },
   { label: '박수', value: '👏' },
   { label: '불꽃', value: '🔥' },
+  { label: '최고', value: '💪' },
+  { label: '축하', value: '🥳' },
+  { label: '반짝', value: '✨' },
 ]
 
 export async function getChatRooms(currentMemberId) {
@@ -144,6 +147,49 @@ export async function sendChatImage(roomId, memberId, imageFile) {
 
   if (error) {
     await removePostImage(imagePayload.image_path)
+    throw error
+  }
+
+  return normalizeMessage(data)
+}
+
+export async function sendChatStickerImage(roomId, memberId, stickerFile) {
+  if (!stickerFile?.type?.startsWith('image/')) throw new Error('이미지 파일만 이모티콘으로 보낼 수 있습니다.')
+  if (stickerFile.size > 2 * 1024 * 1024) throw new Error('커스텀 이모티콘은 2MB 이하만 보낼 수 있습니다.')
+
+  const extension = stickerFile.type === 'image/gif' ? 'gif' : 'png'
+  const safeName = stickerFile.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'sticker'
+  const imagePath = `chat-stickers/${roomId}/${memberId}/${Date.now()}-${safeName}.${extension}`
+
+  const { error: uploadError } = await supabase.storage
+    .from(postImageBucketName)
+    .upload(imagePath, stickerFile, {
+      cacheControl: '31536000',
+      contentType: stickerFile.type || 'image/png',
+      upsert: false,
+    })
+
+  if (uploadError) throw uploadError
+
+  const imagePayload = {
+    image_path: imagePath,
+    image_name: stickerFile.name,
+    image_mime: stickerFile.type || 'image/png',
+  }
+
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .insert({
+      room_id: roomId,
+      message_type: 'image',
+      body: stickerFile.name,
+      ...imagePayload,
+    })
+    .select(messageSelectColumns)
+    .single()
+
+  if (error) {
+    await removePostImage(imagePath)
     throw error
   }
 
