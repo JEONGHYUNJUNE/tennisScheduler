@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const DIARY_RELEASE_NOTICE_KEY = 'ons-tennis-release-notice-diary-20260702'
+const UPDATE_PROMPT_ENABLED = import.meta.env.VITE_UPDATE_PROMPT_ENABLED === 'true'
+const DIARY_RELEASE_NOTICE_ENABLED = import.meta.env.VITE_DIARY_RELEASE_NOTICE_ENABLED !== 'false'
 
 function getAssetSignature(documentLike = document) {
   return Array.from(documentLike.querySelectorAll('script[src], link[rel="stylesheet"][href]'))
@@ -18,7 +20,7 @@ export default function AppUpdatePrompt() {
   const [showDiaryNotice, setShowDiaryNotice] = useState(false)
 
   const checkForUpdate = useCallback(async () => {
-    if (!import.meta.env.PROD || checkingRef.current || updateAvailable) return
+    if (!UPDATE_PROMPT_ENABLED || !import.meta.env.PROD || checkingRef.current || updateAvailable) return
 
     checkingRef.current = true
 
@@ -45,11 +47,15 @@ export default function AppUpdatePrompt() {
   useEffect(() => {
     currentSignatureRef.current = getAssetSignature()
 
-    if (import.meta.env.PROD && window.localStorage.getItem(DIARY_RELEASE_NOTICE_KEY) !== 'seen') {
+    if (
+      DIARY_RELEASE_NOTICE_ENABLED &&
+      import.meta.env.PROD &&
+      window.localStorage.getItem(DIARY_RELEASE_NOTICE_KEY) !== 'seen'
+    ) {
       setShowDiaryNotice(true)
     }
 
-    if (!import.meta.env.PROD) return undefined
+    if (!UPDATE_PROMPT_ENABLED || !import.meta.env.PROD) return undefined
 
     const intervalId = window.setInterval(checkForUpdate, 60000)
     const handleVisibilityChange = () => {
