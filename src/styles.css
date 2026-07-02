@@ -520,6 +520,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .news-link-grid strong { color: var(--green-800); }
 .news-link-grid span { color: var(--muted); font-size: .9rem; font-weight: 800; line-height: 1.45; }
 .diary-shell { display: grid; gap: 22px; }
+.diary-heading h1 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.diary-heading-weekday { color: var(--green-800); font-size: .56em; font-weight: 950; letter-spacing: 0; }
 .diary-calendar-card, .diary-write-card, .diary-entry-card, .diary-calendar-helper { border: 1px solid rgba(217, 228, 213, .9); border-radius: 24px; background: rgba(255, 253, 248, .93); box-shadow: 0 16px 38px rgba(49, 95, 59, .08); backdrop-filter: blur(8px); }
 .diary-calendar-card { padding: clamp(18px, 3vw, 26px); display: grid; gap: 14px; }
 .diary-calendar-head { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 10px; }
@@ -530,6 +532,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .diary-day { position: relative; min-height: 54px; border: 1px solid rgba(217,228,213,.74); border-radius: 16px; display: grid; place-items: center; color: #263129; background: rgba(255,255,255,.62); font-weight: 950; text-decoration: none; }
 .diary-day.today { border-color: rgba(208,97,56,.28); background: rgba(255,245,239,.72); color: #b65751; }
 .diary-day.has-entry { border-color: rgba(63,116,75,.24); background: rgba(237,246,234,.84); }
+.diary-day.selected { border-color: rgba(29,83,45,.48); color: white; background: linear-gradient(135deg, #3f744b, #1d532d); box-shadow: 0 12px 24px rgba(49,95,59,.22); }
+.diary-day.selected em { color: var(--green-800); background: white; }
 .diary-day.blank { border-color: transparent; background: transparent; }
 .diary-day em { position: absolute; right: 7px; bottom: 6px; min-width: 18px; height: 18px; border-radius: 999px; display: grid; place-items: center; color: white; background: var(--green-800); font-size: .68rem; font-style: normal; }
 .diary-calendar-helper { padding: 28px 24px; text-align: center; }
@@ -537,6 +541,10 @@ dd { margin: 0; white-space: pre-wrap; }
 .diary-calendar-helper p { margin: 8px 0 0; color: var(--muted); font-weight: 850; }
 .diary-day-panel, .diary-entry-list { display: grid; gap: 16px; }
 .diary-day-head { display: flex; justify-content: flex-end; gap: 8px; }
+.diary-panel-button { min-height: 44px; border-radius: 999px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; font-size: .9rem; font-weight: 950; box-shadow: 0 10px 22px rgba(49,95,59,.08); }
+.diary-panel-button.ghost { border: 1px solid rgba(63,116,75,.16); color: var(--green-800); background: rgba(255,253,248,.86); }
+.diary-panel-button.primary { border: 1px solid rgba(63,116,75,.2); color: var(--green-800); background: rgba(237,246,234,.96); }
+.diary-panel-button:hover { transform: translateY(-1px); }
 .diary-write-card { padding: clamp(18px, 3vw, 26px); display: grid; gap: 22px; }
 .diary-step { display: grid; gap: 12px; }
 .diary-step h2 { margin: 0; color: #18231b; font-size: clamp(1.05rem, 2.4vw, 1.35rem); }

@@ -29,6 +29,9 @@ const formatDiaryDate = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
+}).format(new Date(`${dateText}T00:00:00`))
+
+const formatDiaryWeekday = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   weekday: 'short',
 }).format(new Date(`${dateText}T00:00:00`))
 
@@ -60,7 +63,7 @@ function getMonthDays(year, month) {
   ]
 }
 
-function DiaryCalendar({ monthDate, summary, onMonthChange }) {
+function DiaryCalendar({ monthDate, selectedDate, summary, onMonthChange }) {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth() + 1
   const monthDays = getMonthDays(year, month)
@@ -79,7 +82,7 @@ function DiaryCalendar({ monthDate, summary, onMonthChange }) {
         {monthDays.map((dateText, index) => (
           dateText ? (
             <Link
-              className={`diary-day ${dateText === todayText ? 'today' : ''} ${summary[dateText] ? 'has-entry' : ''}`}
+              className={`diary-day ${dateText === todayText ? 'today' : ''} ${dateText === selectedDate ? 'selected' : ''} ${summary[dateText] ? 'has-entry' : ''}`}
               key={dateText}
               to={`/diary/${dateText}`}
             >
@@ -626,6 +629,7 @@ export default function DiaryPage() {
   }, [linkedCommentId, linkedEntryId, loading, selectedDate, entries])
 
   const headingDate = useMemo(() => selectedDate ? formatDiaryDate(selectedDate) : '테니스 다이어리', [selectedDate])
+  const headingWeekday = useMemo(() => selectedDate ? formatDiaryWeekday(selectedDate) : '', [selectedDate])
 
   const handleMonthChange = (offset) => {
     setMonthDate((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
@@ -642,13 +646,16 @@ export default function DiaryPage() {
       <div className="page-heading main-heading diary-heading">
         <div>
           <p className="eyebrow">TENNIS DIARY</p>
-          <h1>{headingDate}</h1>
+          <h1>
+            {headingDate}
+            {headingWeekday && <span className="diary-heading-weekday">({headingWeekday})</span>}
+          </h1>
           <p className="heading-copy">오늘의 테니스와 마음을 날짜별로 차곡차곡 남겨보세요.</p>
         </div>
       </div>
 
       <section className="diary-shell">
-        <DiaryCalendar monthDate={monthDate} summary={summary} onMonthChange={handleMonthChange} />
+        <DiaryCalendar monthDate={monthDate} selectedDate={selectedDate} summary={summary} onMonthChange={handleMonthChange} />
 
         {loading && <LoadingState message="다이어리를 불러오는 중입니다." variant="inline" />}
         {error && <p className="error">{error}</p>}
@@ -656,9 +663,9 @@ export default function DiaryPage() {
         {canShowDayList ? (
           <div className="diary-day-panel">
             <div className="diary-day-head">
-              <button className="secondary-button" type="button" onClick={() => navigate('/diary')}>달력 보기</button>
+              <button className="diary-panel-button ghost" type="button" onClick={() => navigate('/diary')}>달력 보기</button>
               <button
-                className="primary-button"
+                className="diary-panel-button primary"
                 type="button"
                 onClick={() => {
                   setEditingEntry(null)
