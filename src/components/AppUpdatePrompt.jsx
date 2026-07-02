@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+const DIARY_RELEASE_NOTICE_KEY = 'ons-tennis-release-notice-diary-20260702'
+
 function getAssetSignature(documentLike = document) {
   return Array.from(documentLike.querySelectorAll('script[src], link[rel="stylesheet"][href]'))
     .map((element) => element.getAttribute('src') || element.getAttribute('href'))
@@ -13,6 +15,7 @@ export default function AppUpdatePrompt() {
   const currentSignatureRef = useRef('')
   const checkingRef = useRef(false)
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [showDiaryNotice, setShowDiaryNotice] = useState(false)
 
   const checkForUpdate = useCallback(async () => {
     if (!import.meta.env.PROD || checkingRef.current || updateAvailable) return
@@ -41,6 +44,11 @@ export default function AppUpdatePrompt() {
 
   useEffect(() => {
     currentSignatureRef.current = getAssetSignature()
+
+    if (import.meta.env.PROD && window.localStorage.getItem(DIARY_RELEASE_NOTICE_KEY) !== 'seen') {
+      setShowDiaryNotice(true)
+    }
+
     if (!import.meta.env.PROD) return undefined
 
     const intervalId = window.setInterval(checkForUpdate, 60000)
@@ -59,18 +67,36 @@ export default function AppUpdatePrompt() {
     }
   }, [checkForUpdate])
 
-  if (!updateAvailable) return null
+  const handleDiaryNoticeClose = () => {
+    window.localStorage.setItem(DIARY_RELEASE_NOTICE_KEY, 'seen')
+    setShowDiaryNotice(false)
+  }
+
+  if (!updateAvailable && !showDiaryNotice) return null
 
   return (
     <div className="app-update-overlay" role="alertdialog" aria-modal="true" aria-labelledby="app-update-title">
       <section className="app-update-card">
         <div className="app-update-ball" aria-hidden="true" />
-        <p className="eyebrow">UPDATE</p>
-        <h2 id="app-update-title">새 버전이 준비됐습니다</h2>
-        <p>최신 화면으로 적용하려면 앱을 새로고침해 주세요.</p>
-        <button type="button" onClick={() => window.location.reload()}>
-          업데이트하기
-        </button>
+        {showDiaryNotice ? (
+          <>
+            <p className="eyebrow">NEW</p>
+            <h2 id="app-update-title">테니스 다이어리가 추가됐습니다</h2>
+            <p>날짜별 기록, 사진 첨부, 공개 범위와 그룹다이어리까지 사용할 수 있어요.</p>
+            <button type="button" onClick={handleDiaryNoticeClose}>
+              확인
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="eyebrow">UPDATE</p>
+            <h2 id="app-update-title">새 버전이 준비됐습니다</h2>
+            <p>최신 화면으로 적용하려면 앱을 새로고침해 주세요.</p>
+            <button type="button" onClick={() => window.location.reload()}>
+              업데이트하기
+            </button>
+          </>
+        )}
       </section>
     </div>
   )
