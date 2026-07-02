@@ -154,19 +154,6 @@ export default function MyPage() {
       <div className="my-page-card my-page-inquiry-card">
         <div className="my-page-section-head">
           <div>
-            <p className="eyebrow">SUPPORT</p>
-            <h2>문의하기</h2>
-          </div>
-        </div>
-        <p>app이나 운영 문의 및 건의사항이 있으면 남겨주세요.</p>
-        <button className="primary-button inquiry-open-button" type="button" onClick={() => setInquiryOpen(true)}>
-          문의하기
-        </button>
-      </div>
-
-      <div className="my-page-card my-page-inquiry-card">
-        <div className="my-page-section-head">
-          <div>
             <p className="eyebrow">DIARY GROUP</p>
             <h2>그룹다이어리</h2>
           </div>
@@ -174,6 +161,19 @@ export default function MyPage() {
         <p>함께 기록할 멤버를 초대하고 그룹 공개 다이어리를 관리해 보세요.</p>
         <button className="primary-button inquiry-open-button" type="button" onClick={() => setDiaryGroupOpen(true)}>
           그룹다이어리 관리
+        </button>
+      </div>
+
+      <div className="my-page-card my-page-inquiry-card">
+        <div className="my-page-section-head">
+          <div>
+            <p className="eyebrow">SUPPORT</p>
+            <h2>문의하기</h2>
+          </div>
+        </div>
+        <p>app이나 운영 문의 및 건의사항이 있으면 남겨주세요.</p>
+        <button className="primary-button inquiry-open-button" type="button" onClick={() => setInquiryOpen(true)}>
+          문의하기
         </button>
       </div>
 
