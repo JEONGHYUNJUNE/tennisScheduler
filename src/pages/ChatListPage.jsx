@@ -52,7 +52,7 @@ export default function ChatListPage() {
         <div>
           <p className="eyebrow">CHAT</p>
           <h1>채팅</h1>
-          <p className="heading-copy">멤버와 1:1로 대화합니다.</p>
+          <p className="heading-copy">멤버들과 채팅방에서 대화합니다.</p>
         </div>
       </div>
 
