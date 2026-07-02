@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { chatStickerOptions, endChatRoom, enterChatRoom, getChatMessages, getChatRoom, sendChatImage, sendChatMessage, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessages, getChatRoom, sendChatImage, sendChatMessage, subscribeToChatRoom } from '../services/chatService'
 
 const formatMessageTime = (dateText) => {
   if (!dateText) return ''
@@ -57,7 +57,26 @@ export default function ChatRoomPage() {
       setLoading(true)
       setError('')
       try {
-        await enterChatRoom(roomId)
+        const nextRoom = await getChatRoom(roomId, profile.id)
+        if (!nextRoom) {
+          if (!ignore) {
+            setRoom(null)
+            setMessages([])
+          }
+          return
+        }
+
+        if (
+          nextRoom.status === 'requested' &&
+          [nextRoom.requester_member_id, nextRoom.recipient_member_id].includes(profile.id)
+        ) {
+          const acceptedRoom = await acceptChatRoom(roomId, profile.id)
+          if (acceptedRoom?.status === 'requested' && nextRoom.recipient_member_id === profile.id) {
+            throw new Error('채팅 요청 수락이 처리되지 않았습니다. SQL 043 적용 여부를 확인해 주세요.')
+          }
+        } else {
+          await enterChatRoom(roomId)
+        }
       } catch (err) {
         if (!ignore) setError(err.message)
       }
@@ -68,7 +87,7 @@ export default function ChatRoomPage() {
     return () => {
       ignore = true
     }
-  }, [load, roomId])
+  }, [load, profile.id, roomId])
 
   useEffect(() => {
     if (!roomId) return undefined
