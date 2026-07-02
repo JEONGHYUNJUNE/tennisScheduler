@@ -101,9 +101,9 @@ export async function enterChatRoom(roomId) {
   return data
 }
 
-export async function acceptChatRoom(roomId, memberId) {
+export async function acceptChatRoom(roomId) {
   const { data, error } = await supabase
-    .rpc('accept_one_to_one_chat', { target_room_id: roomId, target_recipient_member_id: memberId })
+    .rpc('accept_one_to_one_chat', { target_room_id: roomId })
     .single()
 
   if (error?.code === '42883' || /accept_one_to_one_chat/.test(error?.message || '')) {

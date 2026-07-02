@@ -70,9 +70,9 @@ export default function ChatRoomPage() {
           nextRoom.status === 'requested' &&
           [nextRoom.requester_member_id, nextRoom.recipient_member_id].includes(profile.id)
         ) {
-          const acceptedRoom = await acceptChatRoom(roomId, profile.id)
+          const acceptedRoom = await acceptChatRoom(roomId)
           if (acceptedRoom?.status === 'requested' && nextRoom.recipient_member_id === profile.id) {
-            throw new Error('채팅 요청 수락이 처리되지 않았습니다. SQL 043 적용 여부를 확인해 주세요.')
+            throw new Error('채팅 요청 수락이 처리되지 않았습니다. SQL 044 적용 여부를 확인해 주세요.')
           }
         } else {
           await enterChatRoom(roomId)

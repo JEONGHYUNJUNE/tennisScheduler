@@ -289,6 +289,7 @@ declare
   actor_member_id uuid;
   actor_name text;
   room_record public.chat_rooms%rowtype;
+  updated_count integer := 0;
 begin
   actor_member_id := public.current_otmember_id();
   if actor_member_id is null then
@@ -311,17 +312,25 @@ begin
     set status = 'active',
         activated_at = coalesce(activated_at, now())
     where chat_rooms.id = target_room_id
-      and chat_rooms.status = 'requested'
-    returning * into room_record;
+      and chat_rooms.status = 'requested';
 
-    if room_record.id is not null then
+    get diagnostics updated_count = row_count;
+
+    if updated_count > 0 then
       select coalesce(member.display_name, member.username, '회원')
       into actor_name
       from public.otmember member
       where member.id = actor_member_id;
 
       insert into public.chat_messages (room_id, sender_member_id, message_type, body)
-      values (target_room_id, null, 'system', coalesce(actor_name, '회원') || '님이 입장하셨습니다.');
+      select target_room_id, null, 'system', coalesce(actor_name, '회원') || '님이 입장하셨습니다.'
+      where not exists (
+        select 1
+        from public.chat_messages message
+        where message.room_id = target_room_id
+          and message.message_type = 'system'
+          and message.body = coalesce(actor_name, '회원') || '님이 입장하셨습니다.'
+      );
     end if;
   end if;
 
