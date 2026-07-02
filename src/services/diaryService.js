@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
+import { filterMentionsInText, saveMentions } from './mentionService'
 
 const missingDiaryTableCodes = new Set(['42P01', 'PGRST200', 'PGRST205'])
 
@@ -242,7 +243,7 @@ export async function respondDiaryInvitation({ groupId, memberId, accepted }) {
   if (error) throw error
 }
 
-export async function addDiaryEntry(memberId, payload, imageFile = null) {
+export async function addDiaryEntry(memberId, payload, imageFile = null, mentions = []) {
   const imagePayload = imageFile
     ? await uploadPostImage({ file: imageFile, folder: `diaries/${memberId}` })
     : {}
@@ -268,10 +269,17 @@ export async function addDiaryEntry(memberId, payload, imageFile = null) {
     throw error
   }
 
+  await saveMentions({
+    sourceType: 'tennis_diary_entry',
+    sourceId: data.id,
+    actorMemberId: memberId,
+    mentions: payload.visibility === 'private' ? [] : filterMentionsInText(`${payload.title || ''} ${payload.body || ''}`, mentions),
+  })
+
   return normalizeEntry(data)
 }
 
-export async function updateDiaryEntry(entryId, payload) {
+export async function updateDiaryEntry(entryId, payload, memberId = '', mentions = []) {
   const { data, error } = await supabase
     .from('tennis_diary_entries')
     .update({
@@ -287,6 +295,14 @@ export async function updateDiaryEntry(entryId, payload) {
     .single()
 
   if (error) throw error
+  if (memberId) {
+    await saveMentions({
+      sourceType: 'tennis_diary_entry',
+      sourceId: entryId,
+      actorMemberId: memberId,
+      mentions: payload.visibility === 'private' ? [] : filterMentionsInText(`${payload.title || ''} ${payload.body || ''}`, mentions),
+    })
+  }
   return normalizeEntry(data)
 }
 
@@ -306,7 +322,7 @@ export async function deleteDiaryEntry(entryId) {
   await removePostImage(entry?.image_path)
 }
 
-export async function addDiaryComment(entryId, memberId, message, parentCommentId = null) {
+export async function addDiaryComment(entryId, memberId, message, parentCommentId = null, mentions = []) {
   const { data, error } = await supabase
     .from('tennis_diary_comments')
     .insert({
@@ -319,10 +335,16 @@ export async function addDiaryComment(entryId, memberId, message, parentCommentI
     .single()
 
   if (error) throw error
+  await saveMentions({
+    sourceType: 'tennis_diary_comment',
+    sourceId: data.id,
+    actorMemberId: memberId,
+    mentions: filterMentionsInText(message, mentions),
+  })
   return normalizeComment(data)
 }
 
-export async function updateDiaryComment(commentId, message) {
+export async function updateDiaryComment(commentId, message, memberId = '', mentions = []) {
   const { data, error } = await supabase
     .from('tennis_diary_comments')
     .update({ message: message.trim() })
@@ -331,6 +353,14 @@ export async function updateDiaryComment(commentId, message) {
     .single()
 
   if (error) throw error
+  if (memberId) {
+    await saveMentions({
+      sourceType: 'tennis_diary_comment',
+      sourceId: commentId,
+      actorMemberId: memberId,
+      mentions: filterMentionsInText(message, mentions),
+    })
+  }
   return normalizeComment(data)
 }
 

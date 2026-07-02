@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
+import MentionText from '../components/MentionText'
+import MentionTextarea from '../components/MentionTextarea'
 import { useAuth } from '../contexts/AuthContext'
 import { validatePostImageFile } from '../services/imageAttachmentService'
 import {
@@ -16,6 +18,7 @@ import {
   getDiaryCommentLikeSummaries,
   getDiaryEntryDate,
   getDiaryEntriesByDate,
+  getDiaryGroupMembers,
   getDiaryLikeSummaries,
   getDiaryMonthSummary,
   toggleDiaryCommentLike,
@@ -23,6 +26,7 @@ import {
   updateDiaryComment,
   updateDiaryEntry,
 } from '../services/diaryService'
+import { getMembers } from '../services/memberService'
 
 const todayText = new Date().toISOString().slice(0, 10)
 
@@ -99,20 +103,27 @@ function DiaryCalendar({ monthDate, selectedDate, summary, onMonthChange }) {
   )
 }
 
-function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
+function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCancel, onSaved }) {
   const { profile } = useAuth()
   const [mood, setMood] = useState(initialEntry?.mood || 'happy')
   const [activityType, setActivityType] = useState(initialEntry?.activity_type || 'meetup')
   const [visibility, setVisibility] = useState(initialEntry?.visibility || 'public')
   const [groupId, setGroupId] = useState(initialEntry?.group_id || '')
   const [groups, setGroups] = useState([])
+  const [groupMentionCandidates, setGroupMentionCandidates] = useState([])
   const [title, setTitle] = useState(initialEntry?.title || '')
   const [body, setBody] = useState(initialEntry?.body || '')
+  const [mentions, setMentions] = useState([])
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const isEditing = Boolean(initialEntry)
+  const mentionCandidates = visibility === 'private'
+    ? []
+    : visibility === 'group'
+      ? groupMentionCandidates
+      : globalMentionCandidates
 
   useEffect(() => {
     if (!imageFile) {
@@ -133,6 +144,32 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
       })
       .catch(() => setGroups([]))
   }, [groupId, profile.id])
+
+  useEffect(() => {
+    if (visibility !== 'group' || !groupId) {
+      setGroupMentionCandidates([])
+      return
+    }
+
+    getDiaryGroupMembers(groupId)
+      .then((members) => {
+        setGroupMentionCandidates(
+          members
+            .filter((member) => member.status === 'accepted' && member.member_id !== profile.id)
+            .map((member) => ({
+              id: member.member_id,
+              name: member.member_name,
+              username: '',
+              avatar_url: member.member_avatar_url,
+            })),
+        )
+      })
+      .catch(() => setGroupMentionCandidates([]))
+  }, [groupId, profile.id, visibility])
+
+  useEffect(() => {
+    setMentions([])
+  }, [groupId, visibility])
 
   const handleImageChange = (event) => {
     const file = event.target.files?.[0] || null
@@ -170,9 +207,9 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
       }
 
       if (isEditing) {
-        await updateDiaryEntry(initialEntry.id, payload)
+        await updateDiaryEntry(initialEntry.id, payload, profile.id, mentions)
       } else {
-        await addDiaryEntry(profile.id, payload, imageFile)
+        await addDiaryEntry(profile.id, payload, imageFile, mentions)
       }
       onSaved()
     } catch (err) {
@@ -239,18 +276,23 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
             {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
         )}
-        <input
+        <MentionTextarea
+          candidates={mentionCandidates}
           maxLength={60}
+          multiline={false}
+          onChange={setTitle}
+          onMentionsChange={setMentions}
           placeholder="제목을 입력해 주세요. 선택사항이에요."
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
         />
-        <textarea
+        <MentionTextarea
+          candidates={mentionCandidates}
           maxLength={2000}
+          onChange={setBody}
+          onMentionsChange={setMentions}
           placeholder="오늘 코트에서 있었던 일, 배운 점, 기억하고 싶은 순간을 적어주세요."
           rows="6"
           value={body}
-          onChange={(event) => setBody(event.target.value)}
         />
         {!isEditing && (
           <>
@@ -279,23 +321,61 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
   )
 }
 
-function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, setError }) {
+function DiaryCommentList({ entry, globalMentionCandidates, isAdmin, profile, commentLikes, onReload, setError }) {
   const [commentInput, setCommentInput] = useState('')
   const [replyInputs, setReplyInputs] = useState({})
   const [replyingCommentId, setReplyingCommentId] = useState(null)
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editCommentMessage, setEditCommentMessage] = useState('')
+  const [commentMentions, setCommentMentions] = useState([])
+  const [replyMentions, setReplyMentions] = useState({})
+  const [editCommentMentions, setEditCommentMentions] = useState([])
   const [busyId, setBusyId] = useState('')
+  const [groupMentionCandidates, setGroupMentionCandidates] = useState([])
   const comments = entry.comments || []
   const totalCommentCount = flattenComments(comments).length
+  const mentionCandidates = entry.visibility === 'private'
+    ? []
+    : entry.visibility === 'group'
+      ? groupMentionCandidates
+      : globalMentionCandidates
+
+  useEffect(() => {
+    if (entry.visibility !== 'group' || !entry.group_id) {
+      setGroupMentionCandidates([])
+      return
+    }
+
+    getDiaryGroupMembers(entry.group_id)
+      .then((members) => {
+        setGroupMentionCandidates(
+          members
+            .filter((member) => member.status === 'accepted' && member.member_id !== profile.id)
+            .map((member) => ({
+              id: member.member_id,
+              name: member.member_name,
+              username: '',
+              avatar_url: member.member_avatar_url,
+            })),
+        )
+      })
+      .catch(() => setGroupMentionCandidates([]))
+  }, [entry.group_id, entry.visibility, profile.id])
+
+  useEffect(() => {
+    setCommentMentions([])
+    setReplyMentions({})
+    setEditCommentMentions([])
+  }, [entry.group_id, entry.visibility])
 
   const submitComment = async (event) => {
     event.preventDefault()
     if (!commentInput.trim()) return
     setBusyId(entry.id)
     try {
-      await addDiaryComment(entry.id, profile.id, commentInput)
+      await addDiaryComment(entry.id, profile.id, commentInput, null, commentMentions)
       setCommentInput('')
+      setCommentMentions([])
       await onReload()
     } catch (err) {
       setError(`${err.message} SQL 031번을 실행했는지 확인해 주세요.`)
@@ -310,8 +390,9 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
     if (!message) return
     setBusyId(parentComment.id)
     try {
-      await addDiaryComment(entry.id, profile.id, message, parentComment.id)
+      await addDiaryComment(entry.id, profile.id, message, parentComment.id, replyMentions[parentComment.id] || [])
       setReplyInputs((current) => ({ ...current, [parentComment.id]: '' }))
+      setReplyMentions((current) => ({ ...current, [parentComment.id]: [] }))
       setReplyingCommentId(null)
       await onReload()
     } catch (err) {
@@ -326,7 +407,7 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
     if (!editCommentMessage.trim()) return
     setBusyId(comment.id)
     try {
-      await updateDiaryComment(comment.id, editCommentMessage)
+      await updateDiaryComment(comment.id, editCommentMessage, profile.id, editCommentMentions)
       setEditingCommentId(null)
       setEditCommentMessage('')
       await onReload()
@@ -380,11 +461,13 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
 
         {isEditing ? (
           <form className="opinion-comment-edit-form" onSubmit={(event) => submitCommentUpdate(event, comment)}>
-            <textarea
+            <MentionTextarea
+              candidates={mentionCandidates}
               maxLength={300}
+              onChange={setEditCommentMessage}
+              onMentionsChange={setEditCommentMentions}
               rows="2"
               value={editCommentMessage}
-              onChange={(event) => setEditCommentMessage(event.target.value)}
             />
             <div className="opinion-edit-actions">
               <span>{editCommentMessage.length} / 300</span>
@@ -395,7 +478,7 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
             </div>
           </form>
         ) : (
-          <p>{comment.message}</p>
+          <p><MentionText text={comment.message} /></p>
         )}
 
         <div className="opinion-comment-quick-actions">
@@ -426,6 +509,7 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
               onClick={() => {
                 setEditingCommentId(comment.id)
                 setEditCommentMessage(comment.message)
+                setEditCommentMentions([])
               }}
               aria-label="댓글 수정"
               title="수정"
@@ -450,12 +534,18 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
 
         {replyingCommentId === comment.id && (
           <form className="opinion-reply-form" onSubmit={(event) => submitReply(event, comment)}>
-            <input
+            <MentionTextarea
               autoFocus
+              candidates={mentionCandidates}
               maxLength={300}
+              multiline={false}
               placeholder={`${comment.member_name}님에게 답글 남기기`}
               value={replyInputs[comment.id] || ''}
-              onChange={(event) => setReplyInputs((current) => ({ ...current, [comment.id]: event.target.value }))}
+              onChange={(value) => setReplyInputs((current) => ({ ...current, [comment.id]: value }))}
+              onMentionsChange={(updater) => setReplyMentions((current) => ({
+                ...current,
+                [comment.id]: typeof updater === 'function' ? updater(current[comment.id] || []) : updater,
+              }))}
             />
             <button className="secondary-button" disabled={busyId === comment.id || !(replyInputs[comment.id] || '').trim()}>
               {busyId === comment.id ? '등록 중...' : '등록'}
@@ -473,11 +563,14 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
       </div>
       {comments.length > 0 && <div className="opinion-comment-list">{comments.map((comment) => renderComment(comment))}</div>}
       <form className="opinion-comment-form" onSubmit={submitComment}>
-        <input
+        <MentionTextarea
+          candidates={mentionCandidates}
           maxLength={300}
+          multiline={false}
+          onChange={setCommentInput}
+          onMentionsChange={setCommentMentions}
           placeholder="댓글을 입력하세요."
           value={commentInput}
-          onChange={(event) => setCommentInput(event.target.value)}
         />
         <button className="secondary-button" disabled={busyId === entry.id || !commentInput.trim()}>
           {busyId === entry.id ? '등록 중...' : '저장'}
@@ -487,7 +580,7 @@ function DiaryCommentList({ entry, isAdmin, profile, commentLikes, onReload, set
   )
 }
 
-function DiaryEntryCard({ entry, isAdmin, profile, entryLike, commentLikes, onEdit, onReload, setError }) {
+function DiaryEntryCard({ entry, globalMentionCandidates, isAdmin, profile, entryLike, commentLikes, onEdit, onReload, setError }) {
   const mood = getMoodOption(entry.mood)
   const activity = getActivityOption(entry.activity_type)
   const [deleting, setDeleting] = useState(false)
@@ -533,8 +626,8 @@ function DiaryEntryCard({ entry, isAdmin, profile, entryLike, commentLikes, onEd
         <span>{mood.icon} {mood.label}</span>
         <span>{activity.label}</span>
       </div>
-      {entry.title && <h2>{entry.title}</h2>}
-      <p>{entry.body}</p>
+      {entry.title && <h2><MentionText text={entry.title} /></h2>}
+      <p><MentionText text={entry.body} /></p>
       {entry.image_url && (
         <a className="post-image-display diary-image-display" href={entry.image_url} target="_blank" rel="noreferrer">
           <img src={entry.image_url} alt={entry.image_name || '다이어리 첨부 이미지'} />
@@ -567,6 +660,7 @@ function DiaryEntryCard({ entry, isAdmin, profile, entryLike, commentLikes, onEd
         commentLikes={commentLikes}
         onReload={onReload}
         setError={setError}
+        globalMentionCandidates={globalMentionCandidates}
       />
     </article>
   )
@@ -586,6 +680,7 @@ export default function DiaryPage() {
   })
   const [summary, setSummary] = useState({})
   const [entries, setEntries] = useState([])
+  const [globalMentionCandidates, setGlobalMentionCandidates] = useState([])
   const [entryLikes, setEntryLikes] = useState({})
   const [commentLikes, setCommentLikes] = useState({})
   const [loading, setLoading] = useState(true)
@@ -624,6 +719,12 @@ export default function DiaryPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    getMembers()
+      .then((members) => setGlobalMentionCandidates(members.filter((member) => member.is_active !== false && member.id !== profile.id)))
+      .catch(() => setGlobalMentionCandidates([]))
+  }, [profile.id])
 
   useEffect(() => {
     if (selectedDate || !linkedEntryId) return
@@ -704,6 +805,7 @@ export default function DiaryPage() {
               <DiaryEntryForm
                 dateText={selectedDate}
                 initialEntry={editingEntry}
+                globalMentionCandidates={globalMentionCandidates}
                 onCancel={() => {
                   setShowForm(false)
                   setEditingEntry(null)
@@ -725,6 +827,7 @@ export default function DiaryPage() {
                   commentLikes={commentLikes}
                   entry={entry}
                   entryLike={entryLikes[entry.id]}
+                  globalMentionCandidates={globalMentionCandidates}
                   isAdmin={isAdmin}
                   key={entry.id}
                   onEdit={(nextEntry) => {

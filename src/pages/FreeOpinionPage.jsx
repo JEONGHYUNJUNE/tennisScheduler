@@ -3,8 +3,11 @@ import { useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
+import MentionText from '../components/MentionText'
+import MentionTextarea from '../components/MentionTextarea'
 import { useAuth } from '../contexts/AuthContext'
 import { validatePostImageFile } from '../services/imageAttachmentService'
+import { getMembers } from '../services/memberService'
 import {
   addFreeOpinion,
   addFreeOpinionComment,
@@ -39,19 +42,25 @@ export default function FreeOpinionPage() {
   const [searchParams] = useSearchParams()
   const linkedScrollKeyRef = useRef('')
   const [opinions, setOpinions] = useState([])
+  const [mentionCandidates, setMentionCandidates] = useState([])
   const [opinionLikes, setOpinionLikes] = useState({})
   const [commentLikes, setCommentLikes] = useState({})
   const [message, setMessage] = useState('')
+  const [messageMentions, setMessageMentions] = useState([])
   const [opinionImageFile, setOpinionImageFile] = useState(null)
   const [opinionImagePreview, setOpinionImagePreview] = useState('')
   const [editingOpinionId, setEditingOpinionId] = useState(null)
   const [editMessage, setEditMessage] = useState('')
+  const [editMessageMentions, setEditMessageMentions] = useState([])
   const [commentInputs, setCommentInputs] = useState({})
+  const [commentMentions, setCommentMentions] = useState({})
   const [replyInputs, setReplyInputs] = useState({})
+  const [replyMentions, setReplyMentions] = useState({})
   const [replyingCommentId, setReplyingCommentId] = useState(null)
   const [expandedCommentOpinionIds, setExpandedCommentOpinionIds] = useState({})
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editCommentMessage, setEditCommentMessage] = useState('')
+  const [editCommentMentions, setEditCommentMentions] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [savingOpinionId, setSavingOpinionId] = useState(null)
@@ -74,6 +83,12 @@ export default function FreeOpinionPage() {
     setOpinionImagePreview(url)
     return () => URL.revokeObjectURL(url)
   }, [opinionImageFile])
+
+  useEffect(() => {
+    getMembers()
+      .then((members) => setMentionCandidates(members.filter((member) => member.is_active !== false && member.id !== profile.id)))
+      .catch(() => setMentionCandidates([]))
+  }, [profile.id])
 
   const load = useCallback(async () => {
     try {
@@ -143,8 +158,9 @@ export default function FreeOpinionPage() {
     setError('')
 
     try {
-      await addFreeOpinion(profile.id, trimmedMessage, opinionImageFile)
+      await addFreeOpinion(profile.id, trimmedMessage, opinionImageFile, messageMentions)
       setMessage('')
+      setMessageMentions([])
       setOpinionImageFile(null)
       await load()
       await markFreeOpinionsRead(profile.id)
@@ -212,6 +228,7 @@ export default function FreeOpinionPage() {
   const startEdit = (opinion) => {
     setEditingOpinionId(opinion.id)
     setEditMessage(opinion.message)
+    setEditMessageMentions([])
     setError('')
   }
 
@@ -229,7 +246,7 @@ export default function FreeOpinionPage() {
     setError('')
 
     try {
-      await updateFreeOpinion(opinion.id, trimmedMessage)
+      await updateFreeOpinion(opinion.id, trimmedMessage, profile.id, editMessageMentions)
       cancelEdit()
       await load()
     } catch (err) {
@@ -260,8 +277,22 @@ export default function FreeOpinionPage() {
     setCommentInputs((current) => ({ ...current, [opinionId]: value }))
   }
 
+  const handleCommentMentionChange = (opinionId) => (updater) => {
+    setCommentMentions((current) => ({
+      ...current,
+      [opinionId]: typeof updater === 'function' ? updater(current[opinionId] || []) : updater,
+    }))
+  }
+
   const handleReplyInputChange = (commentId, value) => {
     setReplyInputs((current) => ({ ...current, [commentId]: value }))
+  }
+
+  const handleReplyMentionChange = (commentId) => (updater) => {
+    setReplyMentions((current) => ({
+      ...current,
+      [commentId]: typeof updater === 'function' ? updater(current[commentId] || []) : updater,
+    }))
   }
 
   const handleCommentSubmit = async (event, opinion) => {
@@ -273,8 +304,9 @@ export default function FreeOpinionPage() {
     setError('')
 
     try {
-      await addFreeOpinionComment(opinion.id, profile.id, trimmedMessage)
+      await addFreeOpinionComment(opinion.id, profile.id, trimmedMessage, null, commentMentions[opinion.id] || [])
       setCommentInputs((current) => ({ ...current, [opinion.id]: '' }))
+      setCommentMentions((current) => ({ ...current, [opinion.id]: [] }))
       setExpandedCommentOpinionIds((current) => ({ ...current, [opinion.id]: true }))
       await load()
     } catch (err) {
@@ -302,8 +334,9 @@ export default function FreeOpinionPage() {
     setError('')
 
     try {
-      await addFreeOpinionComment(opinion.id, profile.id, trimmedMessage, parentComment.id)
+      await addFreeOpinionComment(opinion.id, profile.id, trimmedMessage, parentComment.id, replyMentions[parentComment.id] || [])
       setReplyInputs((current) => ({ ...current, [parentComment.id]: '' }))
+      setReplyMentions((current) => ({ ...current, [parentComment.id]: [] }))
       setReplyingCommentId(null)
       setExpandedCommentOpinionIds((current) => ({ ...current, [opinion.id]: true }))
       await load()
@@ -317,6 +350,7 @@ export default function FreeOpinionPage() {
   const startCommentEdit = (comment) => {
     setEditingCommentId(comment.id)
     setEditCommentMessage(comment.message)
+    setEditCommentMentions([])
     setError('')
   }
 
@@ -334,7 +368,7 @@ export default function FreeOpinionPage() {
     setError('')
 
     try {
-      await updateFreeOpinionComment(comment.id, trimmedMessage)
+      await updateFreeOpinionComment(comment.id, trimmedMessage, profile.id, editCommentMentions)
       cancelCommentEdit()
       await load()
     } catch (err) {
@@ -380,12 +414,14 @@ export default function FreeOpinionPage() {
         <form className="opinion-form" onSubmit={handleSubmit}>
           <label>
             의견 남기기
-            <textarea
+            <MentionTextarea
+              candidates={mentionCandidates}
               maxLength={300}
+              onChange={setMessage}
+              onMentionsChange={setMessageMentions}
               placeholder="운영 아이디어, 코트 추천, 모임 후기, 하고 싶은 말 등을 편하게 남겨주세요."
               rows="3"
               value={message}
-              onChange={(event) => setMessage(event.target.value)}
             />
           </label>
           <label className="post-image-field opinion-image-field">
@@ -471,11 +507,13 @@ export default function FreeOpinionPage() {
 
                   {isEditing ? (
                     <form className="opinion-edit-form" onSubmit={(event) => handleUpdate(event, opinion)}>
-                      <textarea
+                      <MentionTextarea
+                        candidates={mentionCandidates}
                         maxLength={300}
+                        onChange={setEditMessage}
+                        onMentionsChange={setEditMessageMentions}
                         rows="3"
                         value={editMessage}
-                        onChange={(event) => setEditMessage(event.target.value)}
                       />
                       <div className="opinion-edit-actions">
                         <span>{editMessage.length} / 300</span>
@@ -488,7 +526,7 @@ export default function FreeOpinionPage() {
                       </div>
                     </form>
                   ) : (
-                    <p>{opinion.message}</p>
+                    <p><MentionText text={opinion.message} /></p>
                   )}
 
                   {opinion.image_url && (
@@ -542,11 +580,13 @@ export default function FreeOpinionPage() {
 
                               {isCommentEditing ? (
                                 <form className="opinion-comment-edit-form" onSubmit={(event) => handleCommentUpdate(event, comment)}>
-                                  <textarea
+                                  <MentionTextarea
+                                    candidates={mentionCandidates}
                                     maxLength={300}
+                                    onChange={setEditCommentMessage}
+                                    onMentionsChange={setEditCommentMentions}
                                     rows="2"
                                     value={editCommentMessage}
-                                    onChange={(event) => setEditCommentMessage(event.target.value)}
                                   />
                                   <div className="opinion-edit-actions">
                                     <span>{editCommentMessage.length} / 300</span>
@@ -559,7 +599,7 @@ export default function FreeOpinionPage() {
                                   </div>
                                 </form>
                               ) : (
-                                <p>{comment.message}</p>
+                                <p><MentionText text={comment.message} /></p>
                               )}
 
                               <div className="opinion-comment-quick-actions">
@@ -633,11 +673,13 @@ export default function FreeOpinionPage() {
 
                                         {isReplyEditing ? (
                                           <form className="opinion-comment-edit-form" onSubmit={(event) => handleCommentUpdate(event, reply)}>
-                                            <textarea
+                                            <MentionTextarea
+                                              candidates={mentionCandidates}
                                               maxLength={300}
+                                              onChange={setEditCommentMessage}
+                                              onMentionsChange={setEditCommentMentions}
                                               rows="2"
                                               value={editCommentMessage}
-                                              onChange={(event) => setEditCommentMessage(event.target.value)}
                                             />
                                             <div className="opinion-edit-actions">
                                               <span>{editCommentMessage.length} / 300</span>
@@ -650,7 +692,7 @@ export default function FreeOpinionPage() {
                                             </div>
                                           </form>
                                         ) : (
-                                          <p>{reply.message}</p>
+                                          <p><MentionText text={reply.message} /></p>
                                         )}
 
                                         <button
@@ -698,12 +740,15 @@ export default function FreeOpinionPage() {
 
                               {replyingCommentId === comment.id && (
                                 <form className="opinion-reply-form" onSubmit={(event) => handleReplySubmit(event, opinion, comment)}>
-                                  <input
+                                  <MentionTextarea
                                     autoFocus
+                                    candidates={mentionCandidates}
                                     maxLength={300}
+                                    multiline={false}
                                     placeholder={`${comment.member_name}님에게 답글 남기기`}
                                     value={replyInputs[comment.id] || ''}
-                                    onChange={(event) => handleReplyInputChange(comment.id, event.target.value)}
+                                    onChange={(value) => handleReplyInputChange(comment.id, value)}
+                                    onMentionsChange={handleReplyMentionChange(comment.id)}
                                   />
                                   <button
                                     className="secondary-button"
@@ -720,11 +765,14 @@ export default function FreeOpinionPage() {
                     )}
 
                     <form className="opinion-comment-form" onSubmit={(event) => handleCommentSubmit(event, opinion)}>
-                      <input
+                      <MentionTextarea
+                        candidates={mentionCandidates}
                         maxLength={300}
+                        multiline={false}
                         placeholder="댓글을 입력하세요."
                         value={commentInputs[opinion.id] || ''}
-                        onChange={(event) => handleCommentInputChange(opinion.id, event.target.value)}
+                        onChange={(value) => handleCommentInputChange(opinion.id, value)}
+                        onMentionsChange={handleCommentMentionChange(opinion.id)}
                       />
                       <button
                         className="secondary-button"

@@ -145,7 +145,9 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     notification.type === 'free_opinion_created' ||
     notification.type === 'free_opinion_comment_created' ||
     notification.type === 'free_opinion_comment_reply_created' ||
-    notification.type === 'free_opinion_comment_liked'
+    notification.type === 'free_opinion_comment_liked' ||
+    notification.type === 'free_opinion_mention' ||
+    notification.type === 'free_opinion_comment_mention'
   ) {
     const params = new URLSearchParams()
     if (notification.free_opinion_id) params.set('opinion', notification.free_opinion_id)
@@ -166,7 +168,9 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     notification.type === 'tennis_diary_comment_created' ||
     notification.type === 'tennis_diary_comment_reply_created' ||
     notification.type === 'tennis_diary_liked' ||
-    notification.type === 'tennis_diary_comment_liked'
+    notification.type === 'tennis_diary_comment_liked' ||
+    notification.type === 'tennis_diary_entry_mention' ||
+    notification.type === 'tennis_diary_comment_mention'
   ) {
     const params = new URLSearchParams()
     if (notification.tennis_diary_entry_id) params.set('entry', notification.tennis_diary_entry_id)
@@ -188,6 +192,10 @@ function getNotificationBody(notification: NotificationRecord) {
     notification.type !== 'free_opinion_comment_reply_created' &&
     notification.type !== 'tennis_diary_comment_created' &&
     notification.type !== 'tennis_diary_comment_reply_created' &&
+    notification.type !== 'free_opinion_mention' &&
+    notification.type !== 'free_opinion_comment_mention' &&
+    notification.type !== 'tennis_diary_entry_mention' &&
+    notification.type !== 'tennis_diary_comment_mention' &&
     notification.type !== 'member_inquiry_created' &&
     notification.type !== 'member_inquiry_replied' &&
     notification.type !== 'member_inquiry_followed_up'

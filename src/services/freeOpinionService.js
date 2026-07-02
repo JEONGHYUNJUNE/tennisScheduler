@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
+import { filterMentionsInText, saveMentions } from './mentionService'
 
 const missingReadTableCodes = new Set(['42P01', 'PGRST205'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
@@ -69,7 +70,7 @@ export async function getFreeOpinions() {
   return data.map(normalizeOpinion)
 }
 
-export async function addFreeOpinion(memberId, message, imageFile = null) {
+export async function addFreeOpinion(memberId, message, imageFile = null, mentions = []) {
   const imagePayload = imageFile
     ? await uploadPostImage({ file: imageFile, folder: `free-opinions/${memberId}` })
     : {}
@@ -88,10 +89,16 @@ export async function addFreeOpinion(memberId, message, imageFile = null) {
     if (imagePayload.image_path) await removePostImage(imagePayload.image_path)
     throw error
   }
+  await saveMentions({
+    sourceType: 'free_opinion',
+    sourceId: data.id,
+    actorMemberId: memberId,
+    mentions: filterMentionsInText(message, mentions),
+  })
   return normalizeOpinion(data)
 }
 
-export async function updateFreeOpinion(opinionId, message) {
+export async function updateFreeOpinion(opinionId, message, memberId = '', mentions = []) {
   const { data, error } = await supabase
     .from('ot_free_opinions')
     .update({ message: message.trim() })
@@ -100,6 +107,14 @@ export async function updateFreeOpinion(opinionId, message) {
     .single()
 
   if (error) throw error
+  if (memberId) {
+    await saveMentions({
+      sourceType: 'free_opinion',
+      sourceId: opinionId,
+      actorMemberId: memberId,
+      mentions: filterMentionsInText(message, mentions),
+    })
+  }
   return normalizeOpinion(data)
 }
 
@@ -119,7 +134,7 @@ export async function deleteFreeOpinion(opinionId) {
   await removePostImage(opinion?.image_path)
 }
 
-export async function addFreeOpinionComment(opinionId, memberId, message, parentCommentId = null) {
+export async function addFreeOpinionComment(opinionId, memberId, message, parentCommentId = null, mentions = []) {
   const { data, error } = await supabase
     .from('ot_free_opinion_comments')
     .insert({
@@ -132,10 +147,16 @@ export async function addFreeOpinionComment(opinionId, memberId, message, parent
     .single()
 
   if (error) throw error
+  await saveMentions({
+    sourceType: 'free_opinion_comment',
+    sourceId: data.id,
+    actorMemberId: memberId,
+    mentions: filterMentionsInText(message, mentions),
+  })
   return normalizeComment(data)
 }
 
-export async function updateFreeOpinionComment(commentId, message) {
+export async function updateFreeOpinionComment(commentId, message, memberId = '', mentions = []) {
   const { data, error } = await supabase
     .from('ot_free_opinion_comments')
     .update({ message: message.trim() })
@@ -144,6 +165,14 @@ export async function updateFreeOpinionComment(commentId, message) {
     .single()
 
   if (error) throw error
+  if (memberId) {
+    await saveMentions({
+      sourceType: 'free_opinion_comment',
+      sourceId: commentId,
+      actorMemberId: memberId,
+      mentions: filterMentionsInText(message, mentions),
+    })
+  }
   return normalizeComment(data)
 }
 
