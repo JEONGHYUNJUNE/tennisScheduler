@@ -841,11 +841,15 @@ dd { margin: 0; white-space: pre-wrap; }
 .diary-group-list { display: grid; gap: 12px; }
 .diary-group-item { padding: 15px; border: 1px solid rgba(217,228,213,.86); border-radius: 20px; display: grid; gap: 12px; background: rgba(255,255,255,.68); box-shadow: 0 10px 24px rgba(49,95,59,.07); }
 .diary-group-item > div:first-child { display: grid; gap: 3px; }
+.diary-group-item-head { display: flex !important; align-items: flex-start; justify-content: space-between; gap: 12px !important; }
+.diary-group-item-head > div { display: grid; gap: 3px; min-width: 0; }
 .diary-group-item strong { color: var(--green-900); font-size: 1rem; }
 .diary-group-item span { color: var(--muted); font-size: .84rem; font-weight: 850; }
 .diary-group-item > form button,
 .diary-invite-actions button,
 .diary-group-invite-box > button { min-height: 38px; border: 1px solid rgba(63,116,75,.18); border-radius: 999px; padding: 0 14px; color: var(--green-800); background: rgba(237,246,234,.9); font-weight: 950; }
+.diary-group-delete-button { min-height: 32px; border: 1px solid rgba(208,97,56,.22); border-radius: 999px; padding: 0 12px; flex: 0 0 auto; color: #b0452d; background: rgba(255,238,232,.76); font-size: .78rem; font-weight: 950; }
+.diary-group-delete-button:hover:not(:disabled) { background: rgba(255,226,216,.9); }
 .diary-group-invite-box { display: grid; gap: 10px; }
 .diary-invite-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .diary-invite-actions button:first-child { color: #b0452d; background: rgba(255,238,232,.72); border-color: rgba(208,97,56,.2); }

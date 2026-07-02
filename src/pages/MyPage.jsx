@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
 import { getMyUpcomingEvents } from '../services/eventService'
 import { createInquiry, deleteInquiry, deleteInquiryReply, getAdminInquiries, getMyInquiries, replyToInquiry } from '../services/inquiryService'
-import { createDiaryGroup, getDiaryGroupMembers, getDiaryInvitations, getMyDiaryGroups, inviteDiaryGroupMembers, respondDiaryInvitation } from '../services/diaryService'
+import { createDiaryGroup, deleteDiaryGroup, getDiaryGroupMembers, getDiaryInvitations, getMyDiaryGroups, inviteDiaryGroupMembers, respondDiaryInvitation } from '../services/diaryService'
 import { getMembers } from '../services/memberService'
 import { updateProfileAvatar } from '../services/profileService'
 
@@ -853,6 +853,28 @@ function DiaryGroupModal({ highlightedGroupId = '', initialTab = 'groups', profi
     }
   }
 
+  const handleDeleteGroup = async (group) => {
+    const acceptedCount = (groupMembers[group.id] || []).filter((member) => member.status === 'accepted').length
+    const confirmed = window.confirm(
+      `"${group.name}" 그룹다이어리를 삭제할까요?\n\n이 그룹에 작성된 모든 다이어리와 댓글, 좋아요가 함께 삭제됩니다.\n참여 중인 멤버 ${acceptedCount}명에게서도 더 이상 보이지 않습니다.`,
+    )
+    if (!confirmed) return
+
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await deleteDiaryGroup(group.id)
+      if (selectedGroupId === group.id) resetComposer()
+      setSuccess('그룹다이어리를 삭제했습니다.')
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 032번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const usedMemberIds = new Set(
     selectedGroupId
       ? (groupMembers[selectedGroupId] || []).filter((member) => member.status !== 'declined').map((member) => member.member_id)
@@ -907,9 +929,16 @@ function DiaryGroupModal({ highlightedGroupId = '', initialTab = 'groups', profi
               )}
               {groups.map((group) => (
                 <article className="diary-group-item" data-diary-group-id={group.id} key={group.id}>
-                  <div>
-                    <strong>{group.name}</strong>
-                    <span>{(groupMembers[group.id] || []).filter((member) => member.status === 'accepted').length}명 참여 중</span>
+                  <div className="diary-group-item-head">
+                    <div>
+                      <strong>{group.name}</strong>
+                      <span>{(groupMembers[group.id] || []).filter((member) => member.status === 'accepted').length}명 참여 중</span>
+                    </div>
+                    {profile.role === 'admin' && (
+                      <button className="diary-group-delete-button" type="button" onClick={() => handleDeleteGroup(group)} disabled={submitting}>
+                        삭제
+                      </button>
+                    )}
                   </div>
                   <form onSubmit={handleInvite}>
                     <button type="button" onClick={() => {

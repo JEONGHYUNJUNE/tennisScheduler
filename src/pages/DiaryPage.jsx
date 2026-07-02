@@ -68,6 +68,41 @@ function getMonthDays(year, month) {
   ]
 }
 
+function getDiaryDraftKey(memberId, dateText) {
+  return `ons-diary-draft:${memberId}:${dateText}`
+}
+
+function readDiaryDraft(memberId, dateText) {
+  if (!memberId || !dateText) return null
+
+  try {
+    const rawDraft = window.localStorage.getItem(getDiaryDraftKey(memberId, dateText))
+    return rawDraft ? JSON.parse(rawDraft) : null
+  } catch {
+    return null
+  }
+}
+
+function writeDiaryDraft(memberId, dateText, draft) {
+  if (!memberId || !dateText) return
+
+  try {
+    window.localStorage.setItem(getDiaryDraftKey(memberId, dateText), JSON.stringify(draft))
+  } catch {
+    // 초안 저장 실패는 작성 흐름을 막지 않습니다.
+  }
+}
+
+function clearDiaryDraft(memberId, dateText) {
+  if (!memberId || !dateText) return
+
+  try {
+    window.localStorage.removeItem(getDiaryDraftKey(memberId, dateText))
+  } catch {
+    // 초안 삭제 실패는 작성 흐름을 막지 않습니다.
+  }
+}
+
 function DiaryCalendar({ monthDate, selectedDate, summary, onMonthChange }) {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth() + 1
@@ -105,15 +140,16 @@ function DiaryCalendar({ monthDate, selectedDate, summary, onMonthChange }) {
 
 function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCancel, onSaved }) {
   const { profile } = useAuth()
-  const [mood, setMood] = useState(initialEntry?.mood || 'happy')
-  const [activityType, setActivityType] = useState(initialEntry?.activity_type || 'meetup')
-  const [visibility, setVisibility] = useState(initialEntry?.visibility || 'public')
-  const [groupId, setGroupId] = useState(initialEntry?.group_id || '')
+  const draft = useMemo(() => initialEntry ? null : readDiaryDraft(profile.id, dateText), [dateText, initialEntry, profile.id])
+  const [mood, setMood] = useState(initialEntry?.mood || draft?.mood || 'happy')
+  const [activityType, setActivityType] = useState(initialEntry?.activity_type || draft?.activityType || 'meetup')
+  const [visibility, setVisibility] = useState(initialEntry?.visibility || draft?.visibility || 'public')
+  const [groupId, setGroupId] = useState(initialEntry?.group_id || draft?.groupId || '')
   const [groups, setGroups] = useState([])
   const [groupMentionCandidates, setGroupMentionCandidates] = useState([])
-  const [title, setTitle] = useState(initialEntry?.title || '')
-  const [body, setBody] = useState(initialEntry?.body || '')
-  const [mentions, setMentions] = useState([])
+  const [title, setTitle] = useState(initialEntry?.title || draft?.title || '')
+  const [body, setBody] = useState(initialEntry?.body || draft?.body || '')
+  const [mentions, setMentions] = useState(draft?.mentions || [])
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
   const [saving, setSaving] = useState(false)
@@ -168,8 +204,32 @@ function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCan
   }, [groupId, profile.id, visibility])
 
   useEffect(() => {
-    setMentions([])
-  }, [groupId, visibility])
+    if (isEditing) return
+
+    writeDiaryDraft(profile.id, dateText, {
+      mood,
+      activityType,
+      visibility,
+      groupId,
+      title,
+      body,
+      mentions,
+    })
+  }, [activityType, body, dateText, groupId, isEditing, mentions, mood, profile.id, title, visibility])
+
+  const persistCurrentDraft = () => {
+    if (isEditing) return
+
+    writeDiaryDraft(profile.id, dateText, {
+      mood,
+      activityType,
+      visibility,
+      groupId,
+      title,
+      body,
+      mentions,
+    })
+  }
 
   const handleImageChange = (event) => {
     const file = event.target.files?.[0] || null
@@ -186,6 +246,11 @@ function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCan
       setError(err.message)
       setImageFile(null)
     }
+  }
+
+  const handleCancel = () => {
+    if (!isEditing) clearDiaryDraft(profile.id, dateText)
+    onCancel()
   }
 
   const handleSubmit = async (event) => {
@@ -210,6 +275,7 @@ function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCan
         await updateDiaryEntry(initialEntry.id, payload, profile.id, mentions)
       } else {
         await addDiaryEntry(profile.id, payload, imageFile, mentions)
+        clearDiaryDraft(profile.id, dateText)
       }
       onSaved()
     } catch (err) {
@@ -260,18 +326,30 @@ function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCan
         <p className="eyebrow">STEP 3</p>
         <h2>기록을 남겨주세요</h2>
         <div className="diary-visibility">
-          <button className={visibility === 'public' ? 'selected' : ''} type="button" onClick={() => setVisibility('public')}>
+          <button className={visibility === 'public' ? 'selected' : ''} type="button" onClick={() => {
+            setVisibility('public')
+            setMentions([])
+          }}>
             전체공개
           </button>
-          <button className={visibility === 'group' ? 'selected' : ''} type="button" onClick={() => setVisibility('group')}>
+          <button className={visibility === 'group' ? 'selected' : ''} type="button" onClick={() => {
+            setVisibility('group')
+            setMentions([])
+          }}>
             그룹다이어리
           </button>
-          <button className={visibility === 'private' ? 'selected' : ''} type="button" onClick={() => setVisibility('private')}>
+          <button className={visibility === 'private' ? 'selected' : ''} type="button" onClick={() => {
+            setVisibility('private')
+            setMentions([])
+          }}>
             나만보기
           </button>
         </div>
         {visibility === 'group' && (
-          <select className="diary-group-select" value={groupId} onChange={(event) => setGroupId(event.target.value)} required>
+          <select className="diary-group-select" value={groupId} onChange={(event) => {
+            setGroupId(event.target.value)
+            setMentions([])
+          }} required>
             {groups.length === 0 && <option value="">마이페이지에서 그룹 다이어리를 먼저 만들어 주세요.</option>}
             {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
@@ -297,7 +375,7 @@ function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCan
         {!isEditing && (
           <>
             <label className="post-image-field diary-image-field">
-              <input type="file" accept="image/*" onChange={handleImageChange} />
+              <input type="file" accept="image/*" onClick={persistCurrentDraft} onChange={handleImageChange} />
               <span>{imageFile ? imageFile.name : '사진 첨부'}</span>
             </label>
             {imagePreview && (
@@ -311,7 +389,7 @@ function DiaryEntryForm({ dateText, initialEntry, globalMentionCandidates, onCan
         {error && <p className="error">{error}</p>}
         <div className="diary-form-actions">
           <span>{body.length} / 2000</span>
-          <button className="secondary-button" type="button" onClick={onCancel}>취소</button>
+          <button className="secondary-button" type="button" onClick={handleCancel}>취소</button>
           <button className="primary-button" disabled={saving || !body.trim() || (visibility === 'group' && !groupId)}>
             {saving ? '저장 중...' : isEditing ? '수정 저장' : '다이어리 저장'}
           </button>
@@ -719,6 +797,11 @@ export default function DiaryPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!selectedDate || editingEntry || showForm) return
+    if (readDiaryDraft(profile.id, selectedDate)) setShowForm(true)
+  }, [editingEntry, profile.id, selectedDate, showForm])
 
   useEffect(() => {
     getMembers()

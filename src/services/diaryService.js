@@ -140,25 +140,13 @@ export async function getMyDiaryGroups(memberId) {
 
 export async function createDiaryGroup({ name, ownerMemberId, inviteeIds = [] }) {
   const { data: group, error } = await supabase
-    .from('tennis_diary_groups')
-    .insert({ name: name.trim(), owner_member_id: ownerMemberId })
-    .select('id, name, owner_member_id, created_at')
+    .rpc('create_tennis_diary_group', {
+      group_name: name.trim(),
+      invitee_member_ids: inviteeIds.filter((memberId) => memberId !== ownerMemberId),
+    })
     .single()
 
   if (error) throw error
-
-  const memberRows = [
-    { group_id: group.id, member_id: ownerMemberId, role: 'owner', status: 'accepted', invited_by_member_id: ownerMemberId, responded_at: new Date().toISOString() },
-    ...inviteeIds
-      .filter((memberId) => memberId !== ownerMemberId)
-      .map((memberId) => ({ group_id: group.id, member_id: memberId, role: 'member', status: 'pending', invited_by_member_id: ownerMemberId })),
-  ]
-
-  const { error: memberError } = await supabase
-    .from('tennis_diary_group_members')
-    .upsert(memberRows, { onConflict: 'group_id,member_id' })
-
-  if (memberError) throw memberError
 
   return group
 }
@@ -167,20 +155,28 @@ export async function inviteDiaryGroupMembers({ groupId, inviterMemberId, invite
   if (!inviteeIds.length) return
 
   const { error } = await supabase
-    .from('tennis_diary_group_members')
-    .upsert(
-      inviteeIds.map((memberId) => ({
-        group_id: groupId,
-        member_id: memberId,
-        role: 'member',
-        status: 'pending',
-        invited_by_member_id: inviterMemberId,
-        responded_at: null,
-      })),
-      { onConflict: 'group_id,member_id' },
-    )
+    .rpc('invite_tennis_diary_group_members', {
+      target_group_id: groupId,
+      invitee_member_ids: inviteeIds.filter((memberId) => memberId !== inviterMemberId),
+    })
 
   if (error) throw error
+}
+
+export async function deleteDiaryGroup(groupId) {
+  const { data: entries, error: imageError } = await supabase
+    .from('tennis_diary_entries')
+    .select('image_path')
+    .eq('group_id', groupId)
+
+  if (imageError) throw imageError
+
+  const { error } = await supabase
+    .rpc('delete_tennis_diary_group', { target_group_id: groupId })
+
+  if (error) throw error
+
+  await Promise.all((entries || []).map((entry) => removePostImage(entry.image_path)))
 }
 
 export async function getDiaryGroupMembers(groupId) {
