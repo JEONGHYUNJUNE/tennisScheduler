@@ -53,6 +53,11 @@ const getNotificationLink = (notification) => {
     const query = params.toString()
     return query ? `/diary?${query}` : '/diary'
   }
+  if (notification.type === 'tennis_diary_group_invited') {
+    const params = new URLSearchParams({ diaryTab: 'invites' })
+    if (notification.tennis_diary_group_id) params.set('diaryGroup', notification.tennis_diary_group_id)
+    return `/mypage?${params.toString()}`
+  }
   return '/events'
 }
 

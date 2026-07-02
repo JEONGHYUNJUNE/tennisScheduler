@@ -12,6 +12,7 @@ import {
   deleteDiaryEntry,
   diaryActivityOptions,
   diaryMoodOptions,
+  getMyDiaryGroups,
   getDiaryCommentLikeSummaries,
   getDiaryEntryDate,
   getDiaryEntriesByDate,
@@ -103,6 +104,8 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
   const [mood, setMood] = useState(initialEntry?.mood || 'happy')
   const [activityType, setActivityType] = useState(initialEntry?.activity_type || 'meetup')
   const [visibility, setVisibility] = useState(initialEntry?.visibility || 'public')
+  const [groupId, setGroupId] = useState(initialEntry?.group_id || '')
+  const [groups, setGroups] = useState([])
   const [title, setTitle] = useState(initialEntry?.title || '')
   const [body, setBody] = useState(initialEntry?.body || '')
   const [imageFile, setImageFile] = useState(null)
@@ -121,6 +124,15 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
     setImagePreview(url)
     return () => URL.revokeObjectURL(url)
   }, [imageFile])
+
+  useEffect(() => {
+    getMyDiaryGroups(profile.id)
+      .then((nextGroups) => {
+        setGroups(nextGroups)
+        if (!groupId && nextGroups.length > 0) setGroupId(nextGroups[0].id)
+      })
+      .catch(() => setGroups([]))
+  }, [groupId, profile.id])
 
   const handleImageChange = (event) => {
     const file = event.target.files?.[0] || null
@@ -152,6 +164,7 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
         mood,
         activity_type: activityType,
         visibility,
+        group_id: visibility === 'group' ? groupId : null,
         title,
         body,
       }
@@ -213,10 +226,19 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
           <button className={visibility === 'public' ? 'selected' : ''} type="button" onClick={() => setVisibility('public')}>
             전체공개
           </button>
+          <button className={visibility === 'group' ? 'selected' : ''} type="button" onClick={() => setVisibility('group')}>
+            그룹다이어리
+          </button>
           <button className={visibility === 'private' ? 'selected' : ''} type="button" onClick={() => setVisibility('private')}>
             나만보기
           </button>
         </div>
+        {visibility === 'group' && (
+          <select className="diary-group-select" value={groupId} onChange={(event) => setGroupId(event.target.value)} required>
+            {groups.length === 0 && <option value="">마이페이지에서 그룹 다이어리를 먼저 만들어 주세요.</option>}
+            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+          </select>
+        )}
         <input
           maxLength={60}
           placeholder="제목을 입력해 주세요. 선택사항이에요."
@@ -248,7 +270,7 @@ function DiaryEntryForm({ dateText, initialEntry, onCancel, onSaved }) {
         <div className="diary-form-actions">
           <span>{body.length} / 2000</span>
           <button className="secondary-button" type="button" onClick={onCancel}>취소</button>
-          <button className="primary-button" disabled={saving || !body.trim()}>
+          <button className="primary-button" disabled={saving || !body.trim() || (visibility === 'group' && !groupId)}>
             {saving ? '저장 중...' : isEditing ? '수정 저장' : '다이어리 저장'}
           </button>
         </div>
@@ -503,7 +525,9 @@ function DiaryEntryCard({ entry, isAdmin, profile, entryLike, commentLikes, onEd
             <time>{formatTime(entry.created_at)}</time>
           </div>
         </div>
-        <span className={`diary-visibility-badge ${entry.visibility}`}>{entry.visibility === 'public' ? '전체공개' : '나만보기'}</span>
+        <span className={`diary-visibility-badge ${entry.visibility}`}>
+          {entry.visibility === 'public' ? '전체공개' : entry.visibility === 'group' ? '그룹다이어리' : '나만보기'}
+        </span>
       </div>
       <div className="diary-entry-tags">
         <span>{mood.icon} {mood.label}</span>

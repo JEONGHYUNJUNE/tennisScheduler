@@ -12,6 +12,7 @@ type NotificationRecord = {
   free_opinion_comment_id?: string | null
   tennis_diary_entry_id?: string | null
   tennis_diary_comment_id?: string | null
+  tennis_diary_group_id?: string | null
   inquiry_id?: string | null
   inquiry_reply_id?: string | null
   type: string
@@ -82,7 +83,7 @@ async function resolveNotification(payload: Record<string, unknown>) {
 
   const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
 
@@ -172,6 +173,11 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     if (notification.tennis_diary_comment_id) params.set('comment', notification.tennis_diary_comment_id)
     const query = params.toString()
     return `${appUrl}/#/diary${query ? `?${query}` : ''}`
+  }
+  if (notification.type === 'tennis_diary_group_invited') {
+    const params = new URLSearchParams({ diaryTab: 'invites' })
+    if (notification.tennis_diary_group_id) params.set('diaryGroup', notification.tennis_diary_group_id)
+    return `${appUrl}/#/mypage?${params.toString()}`
   }
   return `${appUrl}/#/`
 }

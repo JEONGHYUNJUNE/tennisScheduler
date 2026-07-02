@@ -8,6 +8,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { signOut } from '../services/authService'
 import { getMyUpcomingEvents } from '../services/eventService'
 import { createInquiry, deleteInquiry, deleteInquiryReply, getAdminInquiries, getMyInquiries, replyToInquiry } from '../services/inquiryService'
+import { createDiaryGroup, getDiaryGroupMembers, getDiaryInvitations, getMyDiaryGroups, inviteDiaryGroupMembers, respondDiaryInvitation } from '../services/diaryService'
+import { getMembers } from '../services/memberService'
 import { updateProfileAvatar } from '../services/profileService'
 
 const formatDate = (dateText) => {
@@ -47,6 +49,7 @@ export default function MyPage() {
   const [loadingEvents, setLoadingEvents] = useState(true)
   const [eventError, setEventError] = useState('')
   const [inquiryOpen, setInquiryOpen] = useState(false)
+  const [diaryGroupOpen, setDiaryGroupOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
 
   useEffect(() => {
@@ -77,6 +80,9 @@ export default function MyPage() {
     const params = new URLSearchParams(location.search)
     if (params.get('inquiry') || params.get('inquiryTab') === 'inbox') {
       setInquiryOpen(true)
+    }
+    if (params.get('diaryTab') || params.get('diaryGroup')) {
+      setDiaryGroupOpen(true)
     }
   }, [location.search])
 
@@ -158,6 +164,19 @@ export default function MyPage() {
         </button>
       </div>
 
+      <div className="my-page-card my-page-inquiry-card">
+        <div className="my-page-section-head">
+          <div>
+            <p className="eyebrow">DIARY GROUP</p>
+            <h2>그룹다이어리</h2>
+          </div>
+        </div>
+        <p>함께 기록할 멤버를 초대하고 그룹 공개 다이어리를 관리해 보세요.</p>
+        <button className="primary-button inquiry-open-button" type="button" onClick={() => setDiaryGroupOpen(true)}>
+          그룹다이어리 관리
+        </button>
+      </div>
+
       {inquiryOpen && (
         <InquiryModal
           initialTab={new URLSearchParams(location.search).get('inquiryTab') === 'inbox' || new URLSearchParams(location.search).get('inquiry') ? 'inbox' : 'write'}
@@ -165,6 +184,18 @@ export default function MyPage() {
           profile={profile}
           onClose={() => {
             setInquiryOpen(false)
+            if (location.search) navigate('/mypage', { replace: true })
+          }}
+        />
+      )}
+
+      {diaryGroupOpen && (
+        <DiaryGroupModal
+          initialTab={new URLSearchParams(location.search).get('diaryTab') === 'invites' ? 'invites' : 'groups'}
+          highlightedGroupId={new URLSearchParams(location.search).get('diaryGroup') || ''}
+          profile={profile}
+          onClose={() => {
+            setDiaryGroupOpen(false)
             if (location.search) navigate('/mypage', { replace: true })
           }}
         />
@@ -696,6 +727,260 @@ function InquiryModal({ highlightedInquiryId = '', initialTab = 'write', profile
       </div>
     </div>
   ), document.body)
+}
+
+function DiaryGroupModal({ highlightedGroupId = '', initialTab = 'groups', profile, onClose }) {
+  const [activeTab, setActiveTab] = useState(initialTab)
+  const [groups, setGroups] = useState([])
+  const [invitations, setInvitations] = useState([])
+  const [members, setMembers] = useState([])
+  const [groupMembers, setGroupMembers] = useState({})
+  const [selectedGroupId, setSelectedGroupId] = useState('')
+  const [groupName, setGroupName] = useState('')
+  const [selectedMemberIds, setSelectedMemberIds] = useState([])
+  const [memberSearch, setMemberSearch] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [nextGroups, nextInvitations, nextMembers] = await Promise.all([
+        getMyDiaryGroups(profile.id),
+        getDiaryInvitations(profile.id),
+        getMembers(),
+      ])
+      setGroups(nextGroups)
+      setInvitations(nextInvitations)
+      setMembers(nextMembers.filter((member) => member.id !== profile.id && member.is_active !== false))
+      const memberPairs = await Promise.all(nextGroups.map(async (group) => [group.id, await getDiaryGroupMembers(group.id)]))
+      setGroupMembers(Object.fromEntries(memberPairs))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [profile.id])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    setActiveTab(initialTab)
+  }, [initialTab])
+
+  useEffect(() => {
+    if (!highlightedGroupId || loading) return undefined
+    const timer = window.setTimeout(() => {
+      document.querySelector(`[data-diary-group-id="${highlightedGroupId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 160)
+    return () => window.clearTimeout(timer)
+  }, [highlightedGroupId, loading, groups.length, invitations.length])
+
+  const filteredMembers = members.filter((member) => {
+    const keyword = memberSearch.trim().toLowerCase()
+    if (!keyword) return true
+    return `${member.name || ''} ${member.user_id || ''}`.toLowerCase().includes(keyword)
+  })
+
+  const toggleMember = (memberId) => {
+    setSelectedMemberIds((current) => (
+      current.includes(memberId)
+        ? current.filter((id) => id !== memberId)
+        : [...current, memberId]
+    ))
+  }
+
+  const resetComposer = () => {
+    setGroupName('')
+    setSelectedMemberIds([])
+    setSelectedGroupId('')
+    setMemberSearch('')
+  }
+
+  const handleCreate = async (event) => {
+    event.preventDefault()
+    if (!groupName.trim()) return
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await createDiaryGroup({ name: groupName, ownerMemberId: profile.id, inviteeIds: selectedMemberIds })
+      setSuccess('그룹다이어리를 만들고 초대를 보냈습니다.')
+      resetComposer()
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 032번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleInvite = async (event) => {
+    event.preventDefault()
+    if (!selectedGroupId || selectedMemberIds.length === 0) return
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await inviteDiaryGroupMembers({ groupId: selectedGroupId, inviterMemberId: profile.id, inviteeIds: selectedMemberIds })
+      setSuccess('초대를 보냈습니다.')
+      resetComposer()
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 032번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleInvitation = async (invitation, accepted) => {
+    setSubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await respondDiaryInvitation({ groupId: invitation.group_id, memberId: profile.id, accepted })
+      setSuccess(accepted ? '그룹다이어리에 참여했습니다.' : '초대를 거절했습니다.')
+      await load()
+    } catch (err) {
+      setError(`${err.message} SQL 032번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const usedMemberIds = new Set(
+    selectedGroupId
+      ? (groupMembers[selectedGroupId] || []).filter((member) => member.status !== 'declined').map((member) => member.member_id)
+      : [],
+  )
+
+  return createPortal((
+    <div className="inquiry-modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <div className="inquiry-modal diary-group-modal" role="dialog" aria-modal="true" aria-labelledby="diary-group-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="inquiry-modal-head">
+          <div>
+            <p className="eyebrow">DIARY GROUP</p>
+            <h2 id="diary-group-title">그룹다이어리</h2>
+          </div>
+          <button type="button" className="inquiry-close-button" onClick={onClose} aria-label="그룹다이어리 닫기">×</button>
+        </div>
+
+        <div className="inquiry-tabs" role="tablist" aria-label="그룹다이어리 메뉴">
+          <button type="button" className={activeTab === 'groups' ? 'active' : ''} onClick={() => setActiveTab('groups')}>그룹다이어리</button>
+          <button type="button" className={activeTab === 'invites' ? 'active' : ''} onClick={() => setActiveTab('invites')}>
+            받은초대
+            {invitations.length > 0 && <span>{invitations.length}</span>}
+          </button>
+        </div>
+
+        {error && <p className="inquiry-alert error">{error}</p>}
+        {success && <p className="inquiry-alert success">{success}</p>}
+        {loading && <LoadingState message="그룹다이어리를 불러오는 중입니다." variant="inline" />}
+
+        {activeTab === 'groups' ? (
+          <>
+            <form className="diary-group-form" onSubmit={handleCreate}>
+              <label>
+                <span>그룹 다이어리 이름</span>
+                <input value={groupName} maxLength={40} placeholder="예: 토요 레슨 기록" onChange={(event) => setGroupName(event.target.value)} />
+              </label>
+              <MemberPicker
+                members={filteredMembers}
+                memberSearch={memberSearch}
+                selectedMemberIds={selectedMemberIds}
+                setMemberSearch={setMemberSearch}
+                toggleMember={toggleMember}
+              />
+              <button className="primary-button inquiry-submit-button" disabled={submitting || !groupName.trim()}>
+                {submitting ? '생성 중...' : '그룹 만들기'}
+              </button>
+            </form>
+
+            <div className="diary-group-list">
+              {groups.length === 0 && !loading && (
+                <EmptyState compact title="그룹다이어리가 없어요." description="함께 기록할 멤버를 초대해서 시작해보세요." />
+              )}
+              {groups.map((group) => (
+                <article className="diary-group-item" data-diary-group-id={group.id} key={group.id}>
+                  <div>
+                    <strong>{group.name}</strong>
+                    <span>{(groupMembers[group.id] || []).filter((member) => member.status === 'accepted').length}명 참여 중</span>
+                  </div>
+                  <form onSubmit={handleInvite}>
+                    <button type="button" onClick={() => {
+                      setSelectedGroupId(group.id)
+                      setSelectedMemberIds([])
+                      setMemberSearch('')
+                    }}>
+                      초대하기
+                    </button>
+                  </form>
+                  {selectedGroupId === group.id && (
+                    <div className="diary-group-invite-box">
+                      <MemberPicker
+                        members={filteredMembers.filter((member) => !usedMemberIds.has(member.id))}
+                        memberSearch={memberSearch}
+                        selectedMemberIds={selectedMemberIds}
+                        setMemberSearch={setMemberSearch}
+                        toggleMember={toggleMember}
+                      />
+                      <button className="primary-button" type="button" onClick={handleInvite} disabled={submitting || selectedMemberIds.length === 0}>
+                        {submitting ? '초대 중...' : '선택 멤버 초대'}
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="diary-group-list">
+            {invitations.length === 0 && !loading && (
+              <EmptyState compact title="받은 초대가 없어요." description="그룹다이어리 초대가 오면 여기에 표시돼요." />
+            )}
+            {invitations.map((invitation) => (
+              <article className="diary-group-item invited" data-diary-group-id={invitation.group_id} key={invitation.group_id}>
+                <div>
+                  <strong>{invitation.group?.name || '그룹다이어리'}</strong>
+                  <span>{invitation.inviter_name}님의 초대</span>
+                </div>
+                <div className="diary-invite-actions">
+                  <button type="button" onClick={() => handleInvitation(invitation, false)} disabled={submitting}>거절</button>
+                  <button type="button" onClick={() => handleInvitation(invitation, true)} disabled={submitting}>수락</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  ), document.body)
+}
+
+function MemberPicker({ members, memberSearch, selectedMemberIds, setMemberSearch, toggleMember }) {
+  return (
+    <div className="diary-member-picker">
+      <input value={memberSearch} placeholder="멤버 검색" onChange={(event) => setMemberSearch(event.target.value)} />
+      <div>
+        {members.map((member) => (
+          <label key={member.id}>
+            <input
+              type="checkbox"
+              checked={selectedMemberIds.includes(member.id)}
+              onChange={() => toggleMember(member.id)}
+            />
+            <MemberAvatar name={member.name} imageUrl={member.avatar_url} size="sm" />
+            <span>{member.name}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function formatInquiryDate(dateText) {

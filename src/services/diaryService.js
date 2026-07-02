@@ -10,6 +10,7 @@ const entrySelectColumns = `
   mood,
   activity_type,
   visibility,
+  group_id,
   title,
   body,
   image_path,
@@ -17,7 +18,7 @@ const entrySelectColumns = `
   image_mime,
   created_at,
   updated_at,
-  otmember!tennis_diary_entries_member_id_fkey(id, username, display_name, avatar_url)
+    otmember!tennis_diary_entries_member_id_fkey(id, username, display_name, avatar_url)
 `
 
 const entrySelectColumnsWithComments = `
@@ -112,6 +113,135 @@ export async function getDiaryEntryDate(entryId) {
   return data?.diary_date || ''
 }
 
+export async function getMyDiaryGroups(memberId) {
+  const { data, error } = await supabase
+    .from('tennis_diary_group_members')
+    .select(`
+      group_id,
+      role,
+      status,
+      tennis_diary_groups(id, name, owner_member_id, created_at)
+    `)
+    .eq('member_id', memberId)
+    .eq('status', 'accepted')
+
+  if (error) {
+    if (isMissingDiaryTableError(error)) return []
+    throw error
+  }
+
+  return (data || []).map((membership) => ({
+    ...membership.tennis_diary_groups,
+    role: membership.role,
+    member_status: membership.status,
+  })).filter(Boolean).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+}
+
+export async function createDiaryGroup({ name, ownerMemberId, inviteeIds = [] }) {
+  const { data: group, error } = await supabase
+    .from('tennis_diary_groups')
+    .insert({ name: name.trim(), owner_member_id: ownerMemberId })
+    .select('id, name, owner_member_id, created_at')
+    .single()
+
+  if (error) throw error
+
+  const memberRows = [
+    { group_id: group.id, member_id: ownerMemberId, role: 'owner', status: 'accepted', invited_by_member_id: ownerMemberId, responded_at: new Date().toISOString() },
+    ...inviteeIds
+      .filter((memberId) => memberId !== ownerMemberId)
+      .map((memberId) => ({ group_id: group.id, member_id: memberId, role: 'member', status: 'pending', invited_by_member_id: ownerMemberId })),
+  ]
+
+  const { error: memberError } = await supabase
+    .from('tennis_diary_group_members')
+    .upsert(memberRows, { onConflict: 'group_id,member_id' })
+
+  if (memberError) throw memberError
+
+  return group
+}
+
+export async function inviteDiaryGroupMembers({ groupId, inviterMemberId, inviteeIds = [] }) {
+  if (!inviteeIds.length) return
+
+  const { error } = await supabase
+    .from('tennis_diary_group_members')
+    .upsert(
+      inviteeIds.map((memberId) => ({
+        group_id: groupId,
+        member_id: memberId,
+        role: 'member',
+        status: 'pending',
+        invited_by_member_id: inviterMemberId,
+        responded_at: null,
+      })),
+      { onConflict: 'group_id,member_id' },
+    )
+
+  if (error) throw error
+}
+
+export async function getDiaryGroupMembers(groupId) {
+  const { data, error } = await supabase
+    .from('tennis_diary_group_members')
+    .select('group_id, member_id, role, status, otmember!tennis_diary_group_members_member_id_fkey(id, username, display_name, avatar_url)')
+    .eq('group_id', groupId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    if (isMissingDiaryTableError(error)) return []
+    throw error
+  }
+
+  return (data || []).map((member) => ({
+    ...member,
+    member_name: member.otmember?.display_name || member.otmember?.username || '회원',
+    member_avatar_url: member.otmember?.avatar_url || '',
+  }))
+}
+
+export async function getDiaryInvitations(memberId) {
+  const { data, error } = await supabase
+    .from('tennis_diary_group_members')
+    .select(`
+      group_id,
+      member_id,
+      status,
+      created_at,
+      tennis_diary_groups(id, name, owner_member_id, created_at),
+      inviter:otmember!tennis_diary_group_members_invited_by_member_id_fkey(id, username, display_name, avatar_url)
+    `)
+    .eq('member_id', memberId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    if (isMissingDiaryTableError(error)) return []
+    throw error
+  }
+
+  return (data || []).map((invite) => ({
+    ...invite,
+    group: invite.tennis_diary_groups,
+    inviter_name: invite.inviter?.display_name || invite.inviter?.username || '회원',
+  }))
+}
+
+export async function respondDiaryInvitation({ groupId, memberId, accepted }) {
+  const { error } = await supabase
+    .from('tennis_diary_group_members')
+    .update({
+      status: accepted ? 'accepted' : 'declined',
+      responded_at: new Date().toISOString(),
+    })
+    .eq('group_id', groupId)
+    .eq('member_id', memberId)
+    .eq('status', 'pending')
+
+  if (error) throw error
+}
+
 export async function addDiaryEntry(memberId, payload, imageFile = null) {
   const imagePayload = imageFile
     ? await uploadPostImage({ file: imageFile, folder: `diaries/${memberId}` })
@@ -125,6 +255,7 @@ export async function addDiaryEntry(memberId, payload, imageFile = null) {
       mood: payload.mood,
       activity_type: payload.activity_type,
       visibility: payload.visibility,
+      group_id: payload.visibility === 'group' ? payload.group_id : null,
       title: payload.title.trim() || null,
       body: payload.body.trim(),
       ...imagePayload,
@@ -147,6 +278,7 @@ export async function updateDiaryEntry(entryId, payload) {
       mood: payload.mood,
       activity_type: payload.activity_type,
       visibility: payload.visibility,
+      group_id: payload.visibility === 'group' ? payload.group_id : null,
       title: payload.title.trim() || null,
       body: payload.body.trim(),
     })
@@ -301,6 +433,7 @@ function normalizeEntry(entry) {
   return {
     ...entry,
     title: entry.title || '',
+    group_id: entry.group_id || null,
     member_name: entry.otmember?.display_name || entry.otmember?.username || '회원',
     member_avatar_url: entry.otmember?.avatar_url || '',
     image_path: entry.image_path || '',
