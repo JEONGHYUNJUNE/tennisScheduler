@@ -546,8 +546,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message.mine.sticker p { background: rgba(237,246,234,.95); }
 .chat-message time { color: rgba(104,117,106,.68); font-size: .68rem; font-weight: 800; }
 .chat-message.mine time { justify-self: end; }
-.chat-message img { max-width: min(260px, 64vw); max-height: 280px; border-radius: 18px; display: block; object-fit: cover; box-shadow: 0 10px 24px rgba(49,95,59,.12); }
-.chat-message.sticker-image img { width: 76px; height: 76px; border-radius: 0; object-fit: contain; background: transparent; box-shadow: none; }
+.chat-message > div img { max-width: min(260px, 64vw); max-height: 280px; border-radius: 18px; display: block; object-fit: cover; box-shadow: 0 10px 24px rgba(49,95,59,.12); }
+.chat-message.sticker-image > div img { width: 76px; height: 76px; border-radius: 0; object-fit: contain; background: transparent; box-shadow: none; }
 .chat-composer { position: relative; z-index: 3; padding: 12px 14px; border-top: 1px solid rgba(217,228,213,.9); display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px auto; gap: 8px; align-items: center; background: rgba(255,253,248,.96); backdrop-filter: blur(14px); }
 .chat-composer input[type="text"],
 .chat-composer > input:not([type]) { min-height: 42px; border: 1px solid rgba(132,162,132,.34); border-radius: 999px; padding: 0 15px; background: white; }
