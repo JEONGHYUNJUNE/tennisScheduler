@@ -34,15 +34,9 @@ const messageSelectColumns = `
 `
 
 export const chatStickerOptions = [
-  { label: '테니스공', value: '🎾' },
-  { label: '좋아요', value: '👍' },
-  { label: '하이파이브', value: '🙌' },
-  { label: '웃음', value: '😄' },
-  { label: '박수', value: '👏' },
-  { label: '불꽃', value: '🔥' },
-  { label: '최고', value: '💪' },
-  { label: '축하', value: '🥳' },
-  { label: '반짝', value: '✨' },
+  { label: '박장대소', value: '🤣' },
+  { label: '따봉', value: '👍' },
+  { label: '하트웃음', value: '🥰' },
 ]
 
 export async function getChatRooms(currentMemberId) {

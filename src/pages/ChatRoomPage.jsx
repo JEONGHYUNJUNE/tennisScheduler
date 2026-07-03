@@ -5,7 +5,7 @@ import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
 import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, subscribeToChatRoom } from '../services/chatService'
 
-const maxCustomStickers = 6
+const maxCustomStickers = 12
 const customStickerSize = 256
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`

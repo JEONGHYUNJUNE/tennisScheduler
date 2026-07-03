@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const DIARY_RELEASE_NOTICE_KEY = 'ons-tennis-release-notice-diary-20260702'
-const UPDATE_PROMPT_ENABLED = import.meta.env.VITE_UPDATE_PROMPT_ENABLED === 'true'
+const UPDATE_PROMPT_ENABLED = import.meta.env.VITE_UPDATE_PROMPT_ENABLED !== 'false'
 const DIARY_RELEASE_NOTICE_ENABLED = import.meta.env.VITE_DIARY_RELEASE_NOTICE_ENABLED !== 'false'
 
 function getAssetSignature(documentLike = document) {
