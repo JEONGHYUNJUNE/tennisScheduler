@@ -422,7 +422,7 @@ export default function ChatRoomPage() {
           value={message}
           placeholder={isActive ? '메시지를 입력하세요.' : '상대가 입장하면 대화할 수 있어요.'}
           onChange={handleMessageChange}
-          disabled={!isActive || sending}
+          disabled={!isActive}
           rows={1}
         />
         <div className="chat-sticker-wrap">
@@ -454,6 +454,8 @@ export default function ChatRoomPage() {
           type="button"
           className="chat-send-button"
           disabled={!isActive || sending || !message.trim()}
+          onMouseDown={(event) => event.preventDefault()}
+          onTouchStart={(event) => event.preventDefault()}
           onPointerDown={(event) => event.preventDefault()}
           onClick={sendTextMessage}
         >
