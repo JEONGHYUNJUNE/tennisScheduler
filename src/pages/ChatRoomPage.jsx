@@ -76,6 +76,7 @@ export default function ChatRoomPage() {
   const listRef = useRef(null)
   const fileInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
+  const messageInputRef = useRef(null)
   const [room, setRoom] = useState(null)
   const [messages, setMessages] = useState([])
   const [message, setMessage] = useState('')
@@ -177,6 +178,21 @@ export default function ChatRoomPage() {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    await sendTextMessage()
+  }
+
+  const resizeMessageInput = (element = messageInputRef.current) => {
+    if (!element) return
+    element.style.height = 'auto'
+    element.style.height = `${Math.min(element.scrollHeight, 96)}px`
+  }
+
+  const handleMessageChange = (event) => {
+    setMessage(event.target.value)
+    resizeMessageInput(event.target)
+  }
+
+  const sendTextMessage = async () => {
     const trimmed = message.trim()
     if (!trimmed || !isActive) return
 
@@ -186,11 +202,19 @@ export default function ChatRoomPage() {
       await sendChatMessage(roomId, trimmed)
       setMessage('')
       setStickerOpen(false)
+      if (messageInputRef.current) messageInputRef.current.style.height = ''
     } catch (err) {
       setError(err.message)
     } finally {
       setSending(false)
+      window.requestAnimationFrame(() => messageInputRef.current?.focus())
     }
+  }
+
+  const dismissKeyboard = (event) => {
+    if (event.target.closest('a, button, input, textarea, select')) return
+    document.activeElement?.blur?.()
+    setStickerOpen(false)
   }
 
   const handleSticker = async (sticker) => {
@@ -357,7 +381,7 @@ export default function ChatRoomPage() {
         )}
       </div>
 
-      <div className="chat-message-list" ref={listRef}>
+      <div className="chat-message-list" ref={listRef} onPointerDown={dismissKeyboard}>
         {error && <p className="error chat-inline-error">{error}</p>}
         {messages.map((item) => {
           const mine = item.sender_member_id === profile.id
@@ -393,11 +417,13 @@ export default function ChatRoomPage() {
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
         <button type="button" className="chat-tool-button" onClick={() => fileInputRef.current?.click()} disabled={!isActive || sending} aria-label="사진 보내기">+</button>
-        <input
+        <textarea
+          ref={messageInputRef}
           value={message}
           placeholder={isActive ? '메시지를 입력하세요.' : '상대가 입장하면 대화할 수 있어요.'}
-          onChange={(event) => setMessage(event.target.value)}
+          onChange={handleMessageChange}
           disabled={!isActive || sending}
+          rows={1}
         />
         <div className="chat-sticker-wrap">
           <button type="button" className="chat-sticker-button" onClick={() => setStickerOpen((current) => !current)} disabled={!isActive || sending} aria-label="이모티콘">☺</button>
@@ -424,7 +450,15 @@ export default function ChatRoomPage() {
             </div>
           )}
         </div>
-        <button type="submit" className="chat-send-button" disabled={!isActive || sending || !message.trim()}>전송</button>
+        <button
+          type="button"
+          className="chat-send-button"
+          disabled={!isActive || sending || !message.trim()}
+          onPointerDown={(event) => event.preventDefault()}
+          onClick={sendTextMessage}
+        >
+          전송
+        </button>
       </form>
       {stickerEditor && (
         <div className="chat-sticker-editor-overlay" role="dialog" aria-modal="true" aria-labelledby="chat-sticker-editor-title">
