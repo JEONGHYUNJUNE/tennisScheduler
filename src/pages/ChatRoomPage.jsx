@@ -101,10 +101,12 @@ export default function ChatRoomPage() {
   const stickerFileInputRef = useRef(null)
   const messageInputRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
+  const scrollCorrectionTimersRef = useRef([])
   const [room, setRoom] = useState(null)
   const [messages, setMessages] = useState([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [showScrollBottom, setShowScrollBottom] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -139,6 +141,32 @@ export default function ChatRoomPage() {
     shouldScrollToBottomRef.current = scrollToBottom
     setMessages((current) => mergeMessages(current, list))
   }, [])
+
+  const isNearMessageBottom = useCallback(() => {
+    const list = listRef.current
+    if (!list) return true
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 96
+  }, [])
+
+  const scrollToMessageBottom = useCallback(({ behavior = 'smooth' } = {}) => {
+    const list = listRef.current
+    if (!list) return
+    list.scrollTo({ top: list.scrollHeight, behavior })
+    setShowScrollBottom(false)
+  }, [])
+
+  const scheduleScrollToBottom = useCallback(({ behavior = 'smooth' } = {}) => {
+    scrollCorrectionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId))
+    scrollCorrectionTimersRef.current = []
+
+    scrollToMessageBottom({ behavior })
+    window.requestAnimationFrame(() => scrollToMessageBottom({ behavior: 'auto' }))
+
+    ;[80, 240, 520].forEach((delay) => {
+      const timerId = window.setTimeout(() => scrollToMessageBottom({ behavior: 'auto' }), delay)
+      scrollCorrectionTimersRef.current.push(timerId)
+    })
+  }, [scrollToMessageBottom])
 
   const load = useCallback(async () => {
     setError('')
@@ -220,7 +248,7 @@ export default function ChatRoomPage() {
     return subscribeToChatRoom(roomId, {
       onMessage: (nextMessage) => getChatMessage(nextMessage.id)
         .then((hydratedMessage) => {
-          if (hydratedMessage) appendMessages(hydratedMessage)
+          if (hydratedMessage) appendMessages(hydratedMessage, { scrollToBottom: isNearMessageBottom() })
           markRead()
         })
         .catch((err) => setError(err.message)),
@@ -232,7 +260,7 @@ export default function ChatRoomPage() {
         setRoom((current) => mergeRoomPresence(current, nextRoom, profile.id))
       },
     })
-  }, [appendMessages, load, markRead, profile.id, roomId])
+  }, [appendMessages, isNearMessageBottom, load, markRead, profile.id, roomId])
 
   useEffect(() => {
     if (!isActive) return undefined
@@ -254,13 +282,17 @@ export default function ChatRoomPage() {
     }
   }, [isActive, markRead])
 
+  useEffect(() => () => {
+    scrollCorrectionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId))
+  }, [])
+
   useEffect(() => {
     if (!shouldScrollToBottomRef.current) {
       shouldScrollToBottomRef.current = true
       return
     }
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages.length])
+    scheduleScrollToBottom()
+  }, [messages.length, scheduleScrollToBottom])
 
   const loadOlderMessages = useCallback(async () => {
     if (!hasMoreMessages || loadingOlder || messages.length === 0) return
@@ -288,7 +320,10 @@ export default function ChatRoomPage() {
   }, [hasMoreMessages, loadingOlder, messages, roomId])
 
   const handleMessageScroll = () => {
-    if (listRef.current?.scrollTop <= 48) loadOlderMessages()
+    const list = listRef.current
+    if (!list) return
+    if (list.scrollTop <= 48) loadOlderMessages()
+    setShowScrollBottom(!isNearMessageBottom())
   }
 
   const handleSubmit = async (event) => {
@@ -538,6 +573,16 @@ export default function ChatRoomPage() {
           )
         })}
       </div>
+      {showScrollBottom && (
+        <button
+          type="button"
+          className="chat-scroll-bottom-button"
+          onClick={() => scheduleScrollToBottom()}
+          aria-label="최신 메시지로 이동"
+        >
+          ↓
+        </button>
+      )}
 
       <form className="chat-composer" onSubmit={handleSubmit}>
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
