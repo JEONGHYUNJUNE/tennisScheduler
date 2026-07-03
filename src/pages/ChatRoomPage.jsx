@@ -146,6 +146,7 @@ export default function ChatRoomPage() {
       const updates = await markChatRoomRead(roomId)
       if (updates) {
         setRoom((current) => mergeRoomPresence(current, updates, profile.id))
+        window.dispatchEvent(new CustomEvent('ons-tennis-chat-unread-changed'))
       }
     } catch (err) {
       if (!/mark_one_to_one_chat_read/.test(err.message || '')) setError(err.message)

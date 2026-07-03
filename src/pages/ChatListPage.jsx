@@ -4,7 +4,7 @@ import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { getChatRooms } from '../services/chatService'
+import { getChatRooms, getRoomUnreadCount, subscribeToChatUpdates } from '../services/chatService'
 
 const formatChatTime = (dateText) => {
   if (!dateText) return ''
@@ -45,7 +45,21 @@ export default function ChatListPage() {
   useEffect(() => {
     load()
     const timer = window.setInterval(load, 20000)
-    return () => window.clearInterval(timer)
+    const unsubscribe = subscribeToChatUpdates(load)
+    const handleFocus = () => load()
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(timer)
+      unsubscribe()
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [load])
 
   return (
@@ -66,17 +80,27 @@ export default function ChatListPage() {
           {rooms.length === 0 && (
             <EmptyState compact title="대화 중인 채팅이 없어요." description="멤버 화면에서 채팅을 요청해보세요." />
           )}
-          {rooms.map((room) => (
-            <Link className="chat-room-card" to={`/chats/${room.id}`} key={room.id}>
-              <MemberAvatar name={room.other_member.name} imageUrl={room.other_member.avatar_url} />
-              <div>
-                <strong>{room.other_member.name}</strong>
-                <p>{getRoomPreview(room)}</p>
-              </div>
-              <time>{formatChatTime(room.updated_at || room.requested_at)}</time>
-              {room.status === 'requested' && room.recipient_member_id === profile.id && <em>요청</em>}
-            </Link>
-          ))}
+          {rooms.map((room) => {
+            const unreadCount = getRoomUnreadCount(room, profile.id)
+            const hasRequestBadge = room.status === 'requested' && room.recipient_member_id === profile.id
+
+            return (
+              <Link className="chat-room-card" to={`/chats/${room.id}`} key={room.id}>
+                <MemberAvatar name={room.other_member.name} imageUrl={room.other_member.avatar_url} />
+                <div>
+                  <strong>{room.other_member.name}</strong>
+                  <p>{getRoomPreview(room)}</p>
+                </div>
+                <time>{formatChatTime(room.updated_at || room.requested_at)}</time>
+                {hasRequestBadge && <em className="chat-room-request-badge">요청</em>}
+                {!hasRequestBadge && unreadCount > 0 && (
+                  <em className="chat-room-unread-badge" aria-label={`안 읽은 메시지 ${unreadCount}개`}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </em>
+                )}
+              </Link>
+            )
+          })}
         </section>
       )}
     </>

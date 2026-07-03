@@ -520,7 +520,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-room-card strong { color: var(--green-900); }
 .chat-room-card p { margin: 0; overflow: hidden; color: var(--muted); font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
 .chat-room-card time { color: rgba(104,117,106,.72); font-size: .78rem; font-weight: 850; }
-.chat-room-card em { position: absolute; right: 16px; bottom: 10px; border-radius: 999px; padding: 4px 8px; color: white; background: var(--warm); font-size: .7rem; font-style: normal; font-weight: 950; }
+.chat-room-card em { position: absolute; right: 16px; bottom: 10px; border-radius: 999px; font-style: normal; font-weight: 950; }
+.chat-room-request-badge { padding: 4px 8px; color: white; background: var(--warm); font-size: .7rem; }
+.chat-room-unread-badge { min-width: 22px; height: 22px; padding: 0 7px; display: inline-grid; place-items: center; color: white; background: #e55345; font-size: .72rem; box-shadow: 0 8px 18px rgba(229,83,69,.22); }
 .app-shell.chat-route .site-header,
 .app-shell.chat-route .site-footer,
 .app-shell.chat-route .mobile-bottom-nav { display: none; }

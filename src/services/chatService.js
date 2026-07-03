@@ -247,19 +247,46 @@ export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged }) {
   }
 }
 
+export function subscribeToChatUpdates(onChange) {
+  const channel = supabase
+    .channel('chat-updates')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+      () => onChange?.(),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'chat_rooms' },
+      () => onChange?.(),
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}
+
 export async function getUnreadChatCount(memberId) {
   const rooms = await getChatRooms(memberId)
   return rooms.filter((room) => {
     if (room.status === 'requested') return room.recipient_member_id === memberId
-    if (room.status !== 'active') return false
+    return getRoomUnreadCount(room, memberId) > 0
+  }).length
+}
 
-    const ownLastReadAt = room.requester_member_id === memberId
-      ? room.requester_last_read_at
-      : room.recipient_last_read_at
-    const lastOtherMessage = [...room.messages].reverse().find((message) => message.sender_member_id !== memberId && message.message_type !== 'system')
-    if (!lastOtherMessage) return false
-    if (!ownLastReadAt) return true
-    return new Date(lastOtherMessage.created_at) > new Date(ownLastReadAt)
+export function getRoomUnreadCount(room, memberId) {
+  if (!room || room.status !== 'active') return 0
+
+  const ownLastReadAt = room.requester_member_id === memberId
+    ? room.requester_last_read_at
+    : room.recipient_last_read_at
+  const ownLastReadTime = ownLastReadAt ? new Date(ownLastReadAt).getTime() : 0
+
+  return (room.messages || []).filter((message) => {
+    if (!message.sender_member_id || message.sender_member_id === memberId || message.message_type === 'system') return false
+    if (!ownLastReadTime) return true
+    return new Date(message.created_at).getTime() > ownLastReadTime
   }).length
 }
 

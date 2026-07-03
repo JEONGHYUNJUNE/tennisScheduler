@@ -4,7 +4,7 @@ import NotificationMenu from './NotificationMenu'
 import PushNotificationButton from './PushNotificationButton'
 import UserMenu from './UserMenu'
 import { useAuth } from '../contexts/AuthContext'
-import { getUnreadChatCount } from '../services/chatService'
+import { getUnreadChatCount, subscribeToChatUpdates } from '../services/chatService'
 import { getUnreadFreeOpinionCount, markFreeOpinionsRead } from '../services/freeOpinionService'
 import { signOut } from '../services/authService'
 import onsTennisLogo from '../assets/home-header-logo.png'
@@ -170,10 +170,19 @@ export default function Layout() {
 
     loadChatCount()
     const timer = setInterval(loadChatCount, 30000)
+    const unsubscribe = subscribeToChatUpdates(loadChatCount)
+    window.addEventListener('ons-tennis-chat-unread-changed', loadChatCount)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') loadChatCount()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       ignore = true
       clearInterval(timer)
+      unsubscribe()
+      window.removeEventListener('ons-tennis-chat-unread-changed', loadChatCount)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [profile?.id])
 
