@@ -1112,8 +1112,8 @@ dd { margin: 0; white-space: pre-wrap; }
   .app-shell.keyboard-open.chat-route { padding-bottom: 0; }
   .app-shell.keyboard-open.chat-route .page { padding-bottom: 0; }
   .app-shell.keyboard-open.chat-route .chat-room-shell { padding-bottom: 0; }
-  .app-shell.keyboard-open.chat-route .chat-message-list { padding-bottom: 8px; }
-  .app-shell.keyboard-open.chat-route .chat-composer { position: sticky; bottom: 0; padding-bottom: 8px; }
+  .app-shell.keyboard-open.chat-route .chat-message-list { padding-bottom: 68px; }
+  .app-shell.keyboard-open.chat-route .chat-composer { position: fixed; left: 0; right: 0; bottom: 0; padding-bottom: 8px; }
   .chat-tool-button,
   .chat-sticker-button { width: 38px; height: 38px; }
   .chat-send-button { padding-inline: 12px; }
