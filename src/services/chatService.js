@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase'
 import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage } from './imageAttachmentService'
 
+export const chatMessagePageSize = 100
+
 const roomSelectColumns = `
   id,
   status,
@@ -15,8 +17,7 @@ const roomSelectColumns = `
   requester_last_seen_at,
   recipient_last_seen_at,
   requester:otmember!chat_rooms_requester_member_id_fkey(id, username, display_name, avatar_url),
-  recipient:otmember!chat_rooms_recipient_member_id_fkey(id, username, display_name, avatar_url),
-  chat_messages(id, room_id, sender_member_id, message_type, body, image_path, created_at)
+  recipient:otmember!chat_rooms_recipient_member_id_fkey(id, username, display_name, avatar_url)
 `
 
 const messageSelectColumns = `
@@ -56,7 +57,8 @@ export async function getChatRooms(currentMemberId) {
     throw error
   }
 
-  return (data || []).map((room) => normalizeRoom(room, currentMemberId))
+  const rooms = (data || []).map((room) => normalizeRoom(room, currentMemberId))
+  return Promise.all(rooms.map((room) => hydrateRoomPreview(room, currentMemberId)))
 }
 
 export async function getChatRoom(roomId, currentMemberId) {
@@ -75,19 +77,39 @@ export async function getChatRoom(roomId, currentMemberId) {
   return normalizeRoom(data, currentMemberId)
 }
 
-export async function getChatMessages(roomId) {
-  const { data, error } = await supabase
+export async function getChatMessages(roomId, { before = null, limit = chatMessagePageSize } = {}) {
+  let query = supabase
     .from('chat_messages')
     .select(messageSelectColumns)
     .eq('room_id', roomId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (before) query = query.lt('created_at', before)
+
+  const { data, error } = await query
 
   if (error) {
     if (isMissingChatTableError(error)) return []
     throw error
   }
 
-  return (data || []).map(normalizeMessage)
+  return (data || []).map(normalizeMessage).reverse()
+}
+
+export async function getChatMessage(messageId) {
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select(messageSelectColumns)
+    .eq('id', messageId)
+    .maybeSingle()
+
+  if (error) {
+    if (isMissingChatTableError(error)) return null
+    throw error
+  }
+
+  return data ? normalizeMessage(data) : null
 }
 
 export async function requestChat(recipientMemberId) {
@@ -248,8 +270,9 @@ export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged }) {
 }
 
 export function subscribeToChatUpdates(onChange) {
+  const channelName = `chat-updates:${Date.now()}:${Math.random().toString(36).slice(2)}`
   const channel = supabase
-    .channel('chat-updates')
+    .channel(channelName)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages' },
@@ -277,6 +300,7 @@ export async function getUnreadChatCount(memberId) {
 
 export function getRoomUnreadCount(room, memberId) {
   if (!room || room.status !== 'active') return 0
+  if (typeof room.unread_count === 'number') return room.unread_count
 
   const ownLastReadAt = room.requester_member_id === memberId
     ? room.requester_last_read_at
@@ -288,6 +312,44 @@ export function getRoomUnreadCount(room, memberId) {
     if (!ownLastReadTime) return true
     return new Date(message.created_at).getTime() > ownLastReadTime
   }).length
+}
+
+async function hydrateRoomPreview(room, memberId) {
+  const [latestMessage, unreadCount] = await Promise.all([
+    getChatMessages(room.id, { limit: 1 }).then((messages) => messages.at(-1) || null),
+    getUnreadMessageCount(room, memberId),
+  ])
+
+  return {
+    ...room,
+    messages: latestMessage ? [latestMessage] : [],
+    last_message: latestMessage,
+    unread_count: unreadCount,
+  }
+}
+
+async function getUnreadMessageCount(room, memberId) {
+  if (!room || room.status !== 'active') return 0
+
+  const ownLastReadAt = room.requester_member_id === memberId
+    ? room.requester_last_read_at
+    : room.recipient_last_read_at
+  let query = supabase
+    .from('chat_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('room_id', room.id)
+    .neq('sender_member_id', memberId)
+    .neq('message_type', 'system')
+
+  if (ownLastReadAt) query = query.gt('created_at', ownLastReadAt)
+
+  const { count, error } = await query
+  if (error) {
+    if (isMissingChatTableError(error)) return 0
+    throw error
+  }
+
+  return count || 0
 }
 
 function normalizeRoom(room, currentMemberId) {

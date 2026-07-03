@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 6
 const customStickerSize = 256
@@ -83,6 +83,15 @@ function mergeRoomPresence(room, updates, profileId) {
   }
 }
 
+function mergeMessages(messages, nextMessages) {
+  const messageMap = new Map()
+  ;[...messages, ...nextMessages].forEach((item) => {
+    if (item?.id) messageMap.set(item.id, item)
+  })
+
+  return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+}
+
 export default function ChatRoomPage() {
   const { roomId } = useParams()
   const navigate = useNavigate()
@@ -91,8 +100,11 @@ export default function ChatRoomPage() {
   const fileInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
   const messageInputRef = useRef(null)
+  const shouldScrollToBottomRef = useRef(true)
   const [room, setRoom] = useState(null)
   const [messages, setMessages] = useState([])
+  const [hasMoreMessages, setHasMoreMessages] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -121,6 +133,13 @@ export default function ChatRoomPage() {
     window.localStorage.setItem(getCustomStickerStorageKey(profile.id), JSON.stringify(limited))
   }, [profile.id])
 
+  const appendMessages = useCallback((nextMessages, { scrollToBottom = true } = {}) => {
+    const list = Array.isArray(nextMessages) ? nextMessages : [nextMessages]
+    if (list.length === 0) return
+    shouldScrollToBottomRef.current = scrollToBottom
+    setMessages((current) => mergeMessages(current, list))
+  }, [])
+
   const load = useCallback(async () => {
     setError('')
     try {
@@ -128,10 +147,14 @@ export default function ChatRoomPage() {
       if (!nextRoom) {
         setRoom(null)
         setMessages([])
+        setHasMoreMessages(false)
         return
       }
       setRoom(nextRoom)
-      setMessages(await getChatMessages(roomId))
+      const nextMessages = await getChatMessages(roomId)
+      shouldScrollToBottomRef.current = true
+      setMessages(nextMessages)
+      setHasMoreMessages(nextMessages.length === chatMessagePageSize)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -195,9 +218,9 @@ export default function ChatRoomPage() {
   useEffect(() => {
     if (!roomId) return undefined
     return subscribeToChatRoom(roomId, {
-      onMessage: () => getChatMessages(roomId)
-        .then((nextMessages) => {
-          setMessages(nextMessages)
+      onMessage: (nextMessage) => getChatMessage(nextMessage.id)
+        .then((hydratedMessage) => {
+          if (hydratedMessage) appendMessages(hydratedMessage)
           markRead()
         })
         .catch((err) => setError(err.message)),
@@ -209,7 +232,7 @@ export default function ChatRoomPage() {
         setRoom((current) => mergeRoomPresence(current, nextRoom, profile.id))
       },
     })
-  }, [load, markRead, profile.id, roomId])
+  }, [appendMessages, load, markRead, profile.id, roomId])
 
   useEffect(() => {
     if (!isActive) return undefined
@@ -232,8 +255,41 @@ export default function ChatRoomPage() {
   }, [isActive, markRead])
 
   useEffect(() => {
+    if (!shouldScrollToBottomRef.current) {
+      shouldScrollToBottomRef.current = true
+      return
+    }
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages.length])
+
+  const loadOlderMessages = useCallback(async () => {
+    if (!hasMoreMessages || loadingOlder || messages.length === 0) return
+
+    const list = listRef.current
+    const previousHeight = list?.scrollHeight || 0
+    const previousTop = list?.scrollTop || 0
+
+    setLoadingOlder(true)
+    setError('')
+    try {
+      const olderMessages = await getChatMessages(roomId, { before: messages[0].created_at })
+      shouldScrollToBottomRef.current = false
+      setMessages((current) => mergeMessages(olderMessages, current))
+      setHasMoreMessages(olderMessages.length === chatMessagePageSize)
+      window.requestAnimationFrame(() => {
+        if (!listRef.current) return
+        listRef.current.scrollTop = listRef.current.scrollHeight - previousHeight + previousTop
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoadingOlder(false)
+    }
+  }, [hasMoreMessages, loadingOlder, messages, roomId])
+
+  const handleMessageScroll = () => {
+    if (listRef.current?.scrollTop <= 48) loadOlderMessages()
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -258,7 +314,8 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      await sendChatMessage(roomId, trimmed)
+      const sentMessage = await sendChatMessage(roomId, trimmed)
+      appendMessages(sentMessage)
       setMessage('')
       setStickerOpen(false)
       if (messageInputRef.current) messageInputRef.current.style.height = ''
@@ -281,7 +338,8 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      await sendChatMessage(roomId, sticker.value, 'sticker')
+      const sentMessage = await sendChatMessage(roomId, sticker.value, 'sticker')
+      appendMessages(sentMessage)
       setStickerOpen(false)
     } catch (err) {
       setError(err.message)
@@ -296,7 +354,8 @@ export default function ChatRoomPage() {
     setError('')
     try {
       const stickerFile = dataUrlToFile(sticker.dataUrl, sticker.name || 'custom-sticker.png', sticker.mime || 'image/png')
-      await sendChatStickerImage(roomId, profile.id, stickerFile)
+      const sentMessage = await sendChatStickerImage(roomId, profile.id, stickerFile)
+      appendMessages(sentMessage)
       setStickerOpen(false)
     } catch (err) {
       setError(err.message)
@@ -391,7 +450,8 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      await sendChatImage(roomId, profile.id, file)
+      const sentMessage = await sendChatImage(roomId, profile.id, file)
+      appendMessages(sentMessage)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -440,7 +500,8 @@ export default function ChatRoomPage() {
         )}
       </div>
 
-      <div className="chat-message-list" ref={listRef} onPointerDown={dismissKeyboard}>
+      <div className="chat-message-list" ref={listRef} onScroll={handleMessageScroll} onPointerDown={dismissKeyboard}>
+        {loadingOlder && <p className="chat-system-message">이전 대화를 불러오는 중입니다.</p>}
         {error && <p className="error chat-inline-error">{error}</p>}
         {messages.map((item) => {
           const mine = item.sender_member_id === profile.id
