@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessages, getChatRoom, sendChatImage, sendChatMessage, sendChatStickerImage, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 6
 const customStickerSize = 256
@@ -69,6 +69,20 @@ const formatMessageTime = (dateText) => {
   }).format(new Date(dateText))
 }
 
+function mergeRoomPresence(room, updates, profileId) {
+  if (!room || !updates) return room
+  const nextRoom = { ...room, ...updates }
+  const isRequester = nextRoom.requester_member_id === profileId
+
+  return {
+    ...nextRoom,
+    own_last_read_at: isRequester ? nextRoom.requester_last_read_at : nextRoom.recipient_last_read_at,
+    other_last_read_at: isRequester ? nextRoom.recipient_last_read_at : nextRoom.requester_last_read_at,
+    own_last_seen_at: isRequester ? nextRoom.requester_last_seen_at : nextRoom.recipient_last_seen_at,
+    other_last_seen_at: isRequester ? nextRoom.recipient_last_seen_at : nextRoom.requester_last_seen_at,
+  }
+}
+
 export default function ChatRoomPage() {
   const { roomId } = useParams()
   const navigate = useNavigate()
@@ -125,6 +139,19 @@ export default function ChatRoomPage() {
     }
   }, [profile.id, roomId])
 
+  const markRead = useCallback(async () => {
+    if (!roomId) return
+
+    try {
+      const updates = await markChatRoomRead(roomId)
+      if (updates) {
+        setRoom((current) => mergeRoomPresence(current, updates, profile.id))
+      }
+    } catch (err) {
+      if (!/mark_one_to_one_chat_read/.test(err.message || '')) setError(err.message)
+    }
+  }, [profile.id, roomId])
+
   useEffect(() => {
     let ignore = false
 
@@ -167,10 +194,41 @@ export default function ChatRoomPage() {
   useEffect(() => {
     if (!roomId) return undefined
     return subscribeToChatRoom(roomId, {
-      onMessage: () => getChatMessages(roomId).then(setMessages).catch((err) => setError(err.message)),
-      onRoomChanged: () => load(),
+      onMessage: () => getChatMessages(roomId)
+        .then((nextMessages) => {
+          setMessages(nextMessages)
+          markRead()
+        })
+        .catch((err) => setError(err.message)),
+      onRoomChanged: (nextRoom) => {
+        if (nextRoom.status === 'ended') {
+          load()
+          return
+        }
+        setRoom((current) => mergeRoomPresence(current, nextRoom, profile.id))
+      },
     })
-  }, [load, roomId])
+  }, [load, markRead, profile.id, roomId])
+
+  useEffect(() => {
+    if (!isActive) return undefined
+
+    markRead()
+    const timerId = window.setInterval(markRead, 25000)
+    const handleFocus = () => markRead()
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') markRead()
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(timerId)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [isActive, markRead])
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
@@ -390,6 +448,9 @@ export default function ChatRoomPage() {
           }
           const isCustomStickerImage = item.message_type === 'image' && item.image_path?.startsWith('chat-stickers/')
           const isImageMessage = item.message_type === 'image'
+          const isReadByOther = mine &&
+            room?.other_last_read_at &&
+            new Date(room.other_last_read_at) >= new Date(item.created_at)
 
           return (
             <article className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''}`} key={item.id}>
@@ -406,7 +467,10 @@ export default function ChatRoomPage() {
                 ) : (
                   <p>{item.body}</p>
                 )}
-                <time>{formatMessageTime(item.created_at)}</time>
+                <span className="chat-message-meta">
+                  {isReadByOther && <em>읽음</em>}
+                  <time>{formatMessageTime(item.created_at)}</time>
+                </span>
               </div>
             </article>
           )

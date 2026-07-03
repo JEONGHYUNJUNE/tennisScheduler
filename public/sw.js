@@ -39,8 +39,16 @@ self.addEventListener('notificationclick', (event) => {
       const sameOriginClient = clientList.find((client) => new URL(client.url).origin === self.location.origin)
 
       if (sameOriginClient) {
-        sameOriginClient.postMessage({ type: 'ONS_TENNIS_NOTIFICATION_NAVIGATE', url: targetUrl })
-        return sameOriginClient.focus().then(() => sameOriginClient.navigate(targetUrl).catch(() => undefined))
+        return sameOriginClient.navigate(targetUrl)
+          .then((client) => {
+            const targetClient = client || sameOriginClient
+            targetClient.postMessage({ type: 'ONS_TENNIS_NOTIFICATION_NAVIGATE', url: targetUrl })
+            return targetClient.focus()
+          })
+          .catch(() => {
+            sameOriginClient.postMessage({ type: 'ONS_TENNIS_NOTIFICATION_NAVIGATE', url: targetUrl })
+            return sameOriginClient.focus()
+          })
       }
 
       return self.clients.openWindow(targetUrl)

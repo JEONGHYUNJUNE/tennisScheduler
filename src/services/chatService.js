@@ -10,6 +10,10 @@ const roomSelectColumns = `
   activated_at,
   ended_at,
   updated_at,
+  requester_last_read_at,
+  recipient_last_read_at,
+  requester_last_seen_at,
+  recipient_last_seen_at,
   requester:otmember!chat_rooms_requester_member_id_fkey(id, username, display_name, avatar_url),
   recipient:otmember!chat_rooms_recipient_member_id_fkey(id, username, display_name, avatar_url),
   chat_messages(id, room_id, sender_member_id, message_type, body, image_path, created_at)
@@ -112,6 +116,16 @@ export async function acceptChatRoom(roomId) {
   if (error?.code === '42883' || /accept_one_to_one_chat/.test(error?.message || '')) {
     return enterChatRoom(roomId)
   }
+  if (error) throw error
+  return data
+}
+
+export async function markChatRoomRead(roomId) {
+  const { data, error } = await supabase
+    .rpc('mark_one_to_one_chat_read', { target_room_id: roomId })
+    .single()
+
+  if (error?.code === '42883' || /mark_one_to_one_chat_read/.test(error?.message || '')) return null
   if (error) throw error
   return data
 }
@@ -235,16 +249,32 @@ export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged }) {
 
 export async function getUnreadChatCount(memberId) {
   const rooms = await getChatRooms(memberId)
-  return rooms.filter((room) => room.status === 'requested' && room.recipient_member_id === memberId).length
+  return rooms.filter((room) => {
+    if (room.status === 'requested') return room.recipient_member_id === memberId
+    if (room.status !== 'active') return false
+
+    const ownLastReadAt = room.requester_member_id === memberId
+      ? room.requester_last_read_at
+      : room.recipient_last_read_at
+    const lastOtherMessage = [...room.messages].reverse().find((message) => message.sender_member_id !== memberId && message.message_type !== 'system')
+    if (!lastOtherMessage) return false
+    if (!ownLastReadAt) return true
+    return new Date(lastOtherMessage.created_at) > new Date(ownLastReadAt)
+  }).length
 }
 
 function normalizeRoom(room, currentMemberId) {
   const otherMember = room.requester_member_id === currentMemberId ? room.recipient : room.requester
+  const isRequester = room.requester_member_id === currentMemberId
   const messages = (room.chat_messages || []).map(normalizeMessage).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
   const lastMessage = messages.at(-1) || null
 
   return {
     ...room,
+    own_last_read_at: isRequester ? room.requester_last_read_at : room.recipient_last_read_at,
+    other_last_read_at: isRequester ? room.recipient_last_read_at : room.requester_last_read_at,
+    own_last_seen_at: isRequester ? room.requester_last_seen_at : room.recipient_last_seen_at,
+    other_last_seen_at: isRequester ? room.recipient_last_seen_at : room.requester_last_seen_at,
     other_member: {
       id: otherMember?.id || '',
       name: otherMember?.display_name || otherMember?.username || '회원',

@@ -544,8 +544,10 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message.mine p { color: white; background: var(--green-700); border-bottom-right-radius: 6px; }
 .chat-message.sticker p { padding: 10px 12px; font-size: 2rem; line-height: 1; background: rgba(255,255,255,.84); }
 .chat-message.mine.sticker p { background: rgba(237,246,234,.95); }
-.chat-message time { color: rgba(104,117,106,.68); font-size: .68rem; font-weight: 800; }
-.chat-message.mine time { justify-self: end; }
+.chat-message-meta { display: inline-flex; gap: 6px; align-items: center; color: rgba(104,117,106,.68); font-size: .68rem; font-weight: 800; }
+.chat-message.mine .chat-message-meta { justify-self: end; }
+.chat-message-meta em { color: var(--green-800); font-style: normal; font-weight: 950; }
+.chat-message time { color: inherit; font: inherit; }
 .chat-message > div img { max-width: min(260px, 64vw); max-height: 280px; border-radius: 18px; display: block; object-fit: cover; box-shadow: 0 10px 24px rgba(49,95,59,.12); }
 .chat-message.sticker-image > div img { width: 76px; height: 76px; border-radius: 0; object-fit: contain; background: transparent; box-shadow: none; }
 .chat-composer { position: relative; z-index: 3; padding: 12px 14px; border-top: 1px solid rgba(217,228,213,.9); display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px auto; gap: 8px; align-items: center; background: rgba(255,253,248,.96); backdrop-filter: blur(14px); }
@@ -1109,9 +1111,9 @@ dd { margin: 0; white-space: pre-wrap; }
   .chat-composer { padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); grid-template-columns: 38px minmax(0, 1fr) 38px auto; }
   .app-shell.keyboard-open.chat-route { padding-bottom: 0; }
   .app-shell.keyboard-open.chat-route .page { padding-bottom: 0; }
-  .app-shell.keyboard-open.chat-route .chat-room-shell { padding-bottom: 62px; }
-  .app-shell.keyboard-open.chat-route .chat-message-list { padding-bottom: 12px; }
-  .app-shell.keyboard-open.chat-route .chat-composer { position: fixed; left: 0; right: 0; bottom: 0; padding-bottom: 8px; }
+  .app-shell.keyboard-open.chat-route .chat-room-shell { padding-bottom: 0; }
+  .app-shell.keyboard-open.chat-route .chat-message-list { padding-bottom: 8px; }
+  .app-shell.keyboard-open.chat-route .chat-composer { position: sticky; bottom: 0; padding-bottom: 8px; }
   .chat-tool-button,
   .chat-sticker-button { width: 38px; height: 38px; }
   .chat-send-button { padding-inline: 12px; }
