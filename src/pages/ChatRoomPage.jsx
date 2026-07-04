@@ -471,6 +471,15 @@ export default function ChatRoomPage() {
     resizeMessageInput(event.target)
   }
 
+  const toggleStickerPanel = () => {
+    setStickerOpen((current) => !current)
+    window.requestAnimationFrame(() => messageInputRef.current?.focus())
+  }
+
+  const keepComposerFocus = (event) => {
+    event.preventDefault()
+  }
+
   const sendTextMessage = async () => {
     const trimmed = message.trim()
     if (!trimmed || !isActive) return
@@ -513,6 +522,7 @@ export default function ChatRoomPage() {
       setError(err.message)
     } finally {
       setSending(false)
+      window.requestAnimationFrame(() => messageInputRef.current?.focus())
     }
   }
 
@@ -531,6 +541,7 @@ export default function ChatRoomPage() {
       setError(err.message)
     } finally {
       setSending(false)
+      window.requestAnimationFrame(() => messageInputRef.current?.focus())
     }
   }
 
@@ -628,6 +639,7 @@ export default function ChatRoomPage() {
       setError(err.message)
     } finally {
       setSending(false)
+      window.requestAnimationFrame(() => messageInputRef.current?.focus())
     }
   }
 
@@ -644,6 +656,7 @@ export default function ChatRoomPage() {
       setError(err.message)
     } finally {
       setSending(false)
+      window.requestAnimationFrame(() => messageInputRef.current?.focus())
     }
   }
 
@@ -769,7 +782,18 @@ export default function ChatRoomPage() {
         )}
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
-        <button type="button" className="chat-tool-button" onClick={() => fileInputRef.current?.click()} disabled={!isActive || sending} aria-label="사진 보내기">+</button>
+        <button
+          type="button"
+          className="chat-tool-button"
+          onMouseDown={keepComposerFocus}
+          onTouchStart={keepComposerFocus}
+          onPointerDown={keepComposerFocus}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={!isActive || sending}
+          aria-label="사진 보내기"
+        >
+          +
+        </button>
         <textarea
           ref={messageInputRef}
           value={message}
@@ -779,24 +803,68 @@ export default function ChatRoomPage() {
           rows={1}
         />
         <div className="chat-sticker-wrap">
-          <button type="button" className="chat-sticker-button" onClick={() => setStickerOpen((current) => !current)} disabled={!isActive || sending} aria-label="이모티콘">☺</button>
+          <button
+            type="button"
+            className="chat-sticker-button"
+            onMouseDown={keepComposerFocus}
+            onTouchStart={keepComposerFocus}
+            onPointerDown={keepComposerFocus}
+            onClick={toggleStickerPanel}
+            disabled={!isActive || sending}
+            aria-label="이모티콘"
+          >
+            ☺
+          </button>
           {stickerOpen && (
             <div className="chat-sticker-panel">
               {chatStickerOptions.map((sticker) => (
-                <button type="button" key={sticker.label} onClick={() => handleSticker(sticker)} aria-label={sticker.label}>
+                <button
+                  type="button"
+                  key={sticker.label}
+                  onMouseDown={keepComposerFocus}
+                  onTouchStart={keepComposerFocus}
+                  onPointerDown={keepComposerFocus}
+                  onClick={() => handleSticker(sticker)}
+                  aria-label={sticker.label}
+                >
                   {sticker.value}
                 </button>
               ))}
               {customStickers.map((sticker) => (
                 <span className="chat-custom-sticker-slot" key={sticker.id}>
-                  <button type="button" onClick={() => handleCustomSticker(sticker)} aria-label="커스텀 이모티콘 보내기">
+                  <button
+                    type="button"
+                    onMouseDown={keepComposerFocus}
+                    onTouchStart={keepComposerFocus}
+                    onPointerDown={keepComposerFocus}
+                    onClick={() => handleCustomSticker(sticker)}
+                    aria-label="커스텀 이모티콘 보내기"
+                  >
                     <img src={sticker.dataUrl} alt="" />
                   </button>
-                  <button type="button" className="chat-custom-sticker-remove" onClick={() => handleRemoveCustomSticker(sticker.id)} aria-label="커스텀 이모티콘 삭제">×</button>
+                  <button
+                    type="button"
+                    className="chat-custom-sticker-remove"
+                    onMouseDown={keepComposerFocus}
+                    onTouchStart={keepComposerFocus}
+                    onPointerDown={keepComposerFocus}
+                    onClick={() => handleRemoveCustomSticker(sticker.id)}
+                    aria-label="커스텀 이모티콘 삭제"
+                  >
+                    ×
+                  </button>
                 </span>
               ))}
               {customStickers.length < maxCustomStickers && (
-                <button type="button" className="chat-sticker-add-button" onClick={openStickerEditor} aria-label="이모티콘 만들기">
+                <button
+                  type="button"
+                  className="chat-sticker-add-button"
+                  onMouseDown={keepComposerFocus}
+                  onTouchStart={keepComposerFocus}
+                  onPointerDown={keepComposerFocus}
+                  onClick={openStickerEditor}
+                  aria-label="이모티콘 만들기"
+                >
                   +
                 </button>
               )}
