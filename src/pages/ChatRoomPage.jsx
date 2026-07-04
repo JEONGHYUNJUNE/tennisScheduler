@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, markChatRoomRead, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerImage, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 24
 const stickerPanelSlotCount = 15
@@ -73,6 +73,16 @@ async function createEditedStickerDataUrl(editor) {
 const formatMessageTime = (dateText) => {
   if (!dateText) return ''
   return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(dateText))
+}
+
+const formatSearchResultTime = (dateText) => {
+  if (!dateText) return ''
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'numeric',
+    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(dateText))
@@ -157,6 +167,11 @@ export default function ChatRoomPage() {
   const [stickerEditor, setStickerEditor] = useState(null)
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState('')
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
@@ -419,15 +434,64 @@ export default function ChatRoomPage() {
     openMessageActions(item)
   }
 
-  const scrollToMessage = (messageId) => {
+  const highlightMessage = (messageId) => {
     const element = listRef.current?.querySelector(`[data-message-id="${messageId}"]`)
-    if (!element) {
-      setError('이전 메시지를 위로 불러온 뒤 확인할 수 있어요.')
-      return
-    }
+    if (!element) return false
     element.scrollIntoView({ block: 'center', behavior: 'smooth' })
     element.classList.add('highlight')
     window.setTimeout(() => element.classList.remove('highlight'), 900)
+    return true
+  }
+
+  const scrollToMessage = (messageId) => {
+    if (!highlightMessage(messageId)) {
+      setError('이전 메시지를 위로 불러온 뒤 확인할 수 있어요.')
+    }
+  }
+
+  const handleSearchSubmit = async (event) => {
+    event.preventDefault()
+    const keyword = searchQuery.trim()
+    if (!keyword) return
+
+    setSearching(true)
+    setSearchError('')
+    try {
+      const results = await searchChatMessages(roomId, keyword)
+      setSearchResults(results)
+      if (results.length === 0) setSearchError('검색 결과가 없어요.')
+    } catch (err) {
+      setSearchError(err.message)
+      setSearchResults([])
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleSearchResultClick = async (item) => {
+    setSearchError('')
+    setStickerOpen(false)
+    if (highlightMessage(item.id)) return
+
+    setLoadingOlder(true)
+    try {
+      const aroundMessages = await getChatMessagesAround(roomId, item.created_at)
+      shouldScrollToBottomRef.current = false
+      setMessages(aroundMessages)
+      setHasMoreMessages(aroundMessages.length >= chatMessagePageSize)
+      window.setTimeout(() => highlightMessage(item.id), 80)
+    } catch (err) {
+      setSearchError(err.message)
+    } finally {
+      setLoadingOlder(false)
+    }
+  }
+
+  const closeSearch = () => {
+    setSearchOpen(false)
+    setSearchQuery('')
+    setSearchResults([])
+    setSearchError('')
   }
 
   const handleReplyToMessage = () => {
@@ -723,11 +787,48 @@ export default function ChatRoomPage() {
           <strong>{otherMember.name}</strong>
           <span>{isActive ? '실시간 채팅 중' : isRequested ? '채팅 요청 중' : '종료됨'}</span>
         </div>
+        <button
+          type="button"
+          className={`chat-search-toggle ${searchOpen ? 'active' : ''}`}
+          onClick={() => setSearchOpen((current) => !current)}
+          aria-label="채팅 검색"
+        >
+          ⌕
+        </button>
         {room?.status !== 'ended' && (
           <button type="button" className="chat-end-button" onClick={handleEnd} disabled={sending}>종료</button>
         )}
       </div>
       <div className="chat-message-list" ref={listRef} onScroll={handleMessageScroll} onPointerDown={dismissKeyboard}>
+        {searchOpen && (
+          <section className="chat-search-panel">
+            <form className="chat-search-form" onSubmit={handleSearchSubmit}>
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="채팅 내용 검색"
+                autoFocus
+              />
+              <button type="submit" disabled={searching || !searchQuery.trim()}>
+                {searching ? '검색 중' : '검색'}
+              </button>
+              <button type="button" onClick={closeSearch} aria-label="검색 닫기">×</button>
+            </form>
+            {searchError && <p>{searchError}</p>}
+            {searchResults.length > 0 && (
+              <div className="chat-search-results">
+                {searchResults.map((result) => (
+                  <button type="button" key={result.id} onClick={() => handleSearchResultClick(result)}>
+                    <strong>{result.sender_name || '회원'}</strong>
+                    <span>{getMessagePreview(result)}</span>
+                    <time>{formatSearchResultTime(result.created_at)}</time>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
         {room?.notice_message && (
           <button type="button" className="chat-notice-bar" onClick={() => scrollToMessage(room.notice_message.id)}>
             <span>공지</span>

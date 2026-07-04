@@ -234,6 +234,58 @@ export async function getChatMessage(messageId) {
   return message
 }
 
+export async function searchChatMessages(roomId, keyword, { limit = 30 } = {}) {
+  const searchText = keyword.trim()
+  if (!searchText) return []
+
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select(messageWithReplyIdSelectColumns)
+    .eq('room_id', roomId)
+    .ilike('body', `%${escapeLikePattern(searchText)}%`)
+    .neq('message_type', 'system')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    if (isMissingChatTableError(error)) return []
+    throw error
+  }
+
+  return hydrateMessageReplies((data || []).map(normalizeMessage))
+}
+
+export async function getChatMessagesAround(roomId, createdAt, { limit = 50 } = {}) {
+  if (!createdAt) return getChatMessages(roomId)
+
+  const [olderResult, newerResult] = await Promise.all([
+    supabase
+      .from('chat_messages')
+      .select(messageWithReplyIdSelectColumns)
+      .eq('room_id', roomId)
+      .lte('created_at', createdAt)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('chat_messages')
+      .select(messageWithReplyIdSelectColumns)
+      .eq('room_id', roomId)
+      .gt('created_at', createdAt)
+      .order('created_at', { ascending: true })
+      .limit(limit),
+  ])
+
+  const error = olderResult.error || newerResult.error
+  if (error) {
+    if (isMissingChatTableError(error)) return []
+    throw error
+  }
+
+  const olderMessages = (olderResult.data || []).map(normalizeMessage).reverse()
+  const newerMessages = (newerResult.data || []).map(normalizeMessage)
+  return hydrateMessageReplies(mergeMessageRows([...olderMessages, ...newerMessages]))
+}
+
 export async function requestChat(recipientMemberId) {
   const { data, error } = await supabase
     .rpc('request_one_to_one_chat', { target_member_id: recipientMemberId })
@@ -499,6 +551,19 @@ export function getRoomUnreadCount(room, memberId) {
     if (!ownLastReadTime) return true
     return new Date(message.created_at).getTime() > ownLastReadTime
   }).length
+}
+
+function escapeLikePattern(value) {
+  return value.replace(/[\\%_]/g, (match) => `\\${match}`)
+}
+
+function mergeMessageRows(messages) {
+  const messageMap = new Map()
+  messages.forEach((message) => {
+    if (!message?.id) return
+    messageMap.set(message.id, message)
+  })
+  return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
 }
 
 async function hydrateRoomPreview(room, memberId) {
