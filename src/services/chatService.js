@@ -53,6 +53,20 @@ const baseMessageSelectColumns = `
   sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
 `
 
+const messageWithReplyIdSelectColumns = `
+  id,
+  room_id,
+  sender_member_id,
+  message_type,
+  body,
+  image_path,
+  image_name,
+  image_mime,
+  reply_to_message_id,
+  created_at,
+  sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
+`
+
 const messageSelectColumns = `
   id,
   room_id,
@@ -149,7 +163,20 @@ export async function getChatMessages(roomId, { before = null, limit = chatMessa
 
   let { data, error } = await query
 
-  if (isMissingReplyNoticeSchemaError(error)) {
+  if (isMissingReplyRelationError(error)) {
+    query = supabase
+      .from('chat_messages')
+      .select(messageWithReplyIdSelectColumns)
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (before) query = query.lt('created_at', before)
+
+    const fallback = await query
+    data = fallback.data
+    error = fallback.error
+  } else if (isMissingReplyNoticeSchemaError(error)) {
     query = supabase
       .from('chat_messages')
       .select(baseMessageSelectColumns)
@@ -169,7 +196,7 @@ export async function getChatMessages(roomId, { before = null, limit = chatMessa
     throw error
   }
 
-  return (data || []).map(normalizeMessage).reverse()
+  return hydrateMessageReplies((data || []).map(normalizeMessage).reverse())
 }
 
 export async function getChatMessage(messageId) {
@@ -179,7 +206,15 @@ export async function getChatMessage(messageId) {
     .eq('id', messageId)
     .maybeSingle()
 
-  if (isMissingReplyNoticeSchemaError(error)) {
+  if (isMissingReplyRelationError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .select(messageWithReplyIdSelectColumns)
+      .eq('id', messageId)
+      .maybeSingle()
+    data = fallback.data
+    error = fallback.error
+  } else if (isMissingReplyNoticeSchemaError(error)) {
     const fallback = await supabase
       .from('chat_messages')
       .select(baseMessageSelectColumns)
@@ -194,7 +229,9 @@ export async function getChatMessage(messageId) {
     throw error
   }
 
-  return data ? normalizeMessage(data) : null
+  if (!data) return null
+  const [message] = await hydrateMessageReplies([normalizeMessage(data)])
+  return message
 }
 
 export async function requestChat(recipientMemberId) {
@@ -248,7 +285,7 @@ export async function sendChatMessage(roomId, body, messageType = 'text', { repl
   let { data, error } = await supabase
     .from('chat_messages')
     .insert(payload)
-    .select(messageSelectColumns)
+    .select(messageWithReplyIdSelectColumns)
     .single()
 
   if (isMissingReplyNoticeSchemaError(error)) {
@@ -266,7 +303,7 @@ export async function sendChatMessage(roomId, body, messageType = 'text', { repl
   }
 
   if (error) throw error
-  return normalizeMessage(data)
+  return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
 }
 
 export async function sendChatImage(roomId, memberId, imageFile, { replyToMessageId = null } = {}) {
@@ -283,7 +320,7 @@ export async function sendChatImage(roomId, memberId, imageFile, { replyToMessag
   let { data, error } = await supabase
     .from('chat_messages')
     .insert(payload)
-    .select(messageSelectColumns)
+    .select(messageWithReplyIdSelectColumns)
     .single()
 
   if (isMissingReplyNoticeSchemaError(error)) {
@@ -306,7 +343,7 @@ export async function sendChatImage(roomId, memberId, imageFile, { replyToMessag
     throw error
   }
 
-  return normalizeMessage(data)
+  return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
 }
 
 export async function sendChatStickerImage(roomId, memberId, stickerFile, { replyToMessageId = null } = {}) {
@@ -344,7 +381,7 @@ export async function sendChatStickerImage(roomId, memberId, stickerFile, { repl
   let { data, error } = await supabase
     .from('chat_messages')
     .insert(payload)
-    .select(messageSelectColumns)
+    .select(messageWithReplyIdSelectColumns)
     .single()
 
   if (isMissingReplyNoticeSchemaError(error)) {
@@ -367,7 +404,7 @@ export async function sendChatStickerImage(roomId, memberId, stickerFile, { repl
     throw error
   }
 
-  return normalizeMessage(data)
+  return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
 }
 
 export async function endChatRoom(roomId) {
@@ -488,6 +525,43 @@ async function hydrateRoomNotice(room) {
   }
 }
 
+async function hydrateSentMessage(message, replyToMessageId) {
+  if (!message || !replyToMessageId || message.reply_to) return message
+
+  const replyMessage = await getChatMessage(replyToMessageId)
+  return {
+    ...message,
+    reply_to_message_id: message.reply_to_message_id || replyToMessageId,
+    reply_to: replyMessage,
+  }
+}
+
+async function hydrateMessageReplies(messages) {
+  const replyIds = [...new Set(
+    messages
+      .filter((message) => message.reply_to_message_id && !message.reply_to)
+      .map((message) => message.reply_to_message_id),
+  )]
+
+  if (replyIds.length === 0) return messages
+
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select(baseMessageSelectColumns)
+    .in('id', replyIds)
+
+  if (error) {
+    if (isMissingChatTableError(error)) return messages
+    throw error
+  }
+
+  const replyMap = new Map((data || []).map((message) => [message.id, normalizeMessage(message)]))
+  return messages.map((message) => ({
+    ...message,
+    reply_to: message.reply_to || replyMap.get(message.reply_to_message_id) || null,
+  }))
+}
+
 async function getUnreadMessageCount(room, memberId) {
   if (!room || room.status !== 'active') return 0
 
@@ -557,4 +631,9 @@ function isMissingReplyNoticeSchemaError(error) {
   return error.code === '42703' ||
     error.code === 'PGRST200' ||
     /reply_to_message_id|notice_message_id|notice_set_by_member_id|notice_set_at|chat_messages_reply_to_message_id_fkey/i.test(error.message || '')
+}
+
+function isMissingReplyRelationError(error) {
+  if (!error) return false
+  return error.code === 'PGRST200' || /chat_messages_reply_to_message_id_fkey/i.test(error.message || '')
 }
