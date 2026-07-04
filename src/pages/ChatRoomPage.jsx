@@ -131,7 +131,6 @@ export default function ChatRoomPage() {
   const stickerFileInputRef = useRef(null)
   const messageInputRef = useRef(null)
   const longPressTimerRef = useRef(null)
-  const swipeStateRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
   const scrollCorrectionTimersRef = useRef([])
   const [room, setRoom] = useState(null)
@@ -148,7 +147,6 @@ export default function ChatRoomPage() {
   const [stickerEditor, setStickerEditor] = useState(null)
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
-  const [swipeReply, setSwipeReply] = useState(null)
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
@@ -381,11 +379,6 @@ export default function ChatRoomPage() {
     window.clearTimeout(longPressTimerRef.current)
   }
 
-  const clearSwipeReply = () => {
-    swipeStateRef.current = null
-    setSwipeReply(null)
-  }
-
   const openMessageActions = (item) => {
     if (!item || item.message_type === 'system') return
     setStickerOpen(false)
@@ -396,68 +389,7 @@ export default function ChatRoomPage() {
   const startLongPress = (event, item) => {
     if (event.target.closest('a, button')) return
     clearLongPress()
-    swipeStateRef.current = {
-      id: item.id,
-      item,
-      startX: event.clientX,
-      startY: event.clientY,
-      dragging: false,
-      cancelled: false,
-    }
     longPressTimerRef.current = window.setTimeout(() => openMessageActions(item), 520)
-  }
-
-  const handleMessagePointerMove = (event) => {
-    const swipeState = swipeStateRef.current
-    if (!swipeState || swipeState.cancelled) return
-
-    const deltaX = event.clientX - swipeState.startX
-    const deltaY = event.clientY - swipeState.startY
-    const absX = Math.abs(deltaX)
-    const absY = Math.abs(deltaY)
-
-    if (!swipeState.dragging && absY > 14 && absY > absX) {
-      clearLongPress()
-      swipeState.cancelled = true
-      setSwipeReply(null)
-      return
-    }
-
-    if (deltaX >= 0) {
-      if (absX > 10) clearLongPress()
-      setSwipeReply(null)
-      return
-    }
-
-    if (!swipeState.dragging && absX > 12 && absX > absY + 8) {
-      swipeState.dragging = true
-      clearLongPress()
-    }
-
-    if (!swipeState.dragging) return
-    if (event.cancelable) event.preventDefault()
-
-    const offset = Math.max(deltaX, -76)
-    swipeState.offset = offset
-    swipeState.ready = offset <= -52
-    setSwipeReply({
-      id: swipeState.id,
-      offset,
-      ready: swipeState.ready,
-    })
-  }
-
-  const handleMessagePointerUp = (item) => {
-    clearLongPress()
-    const shouldReply = swipeStateRef.current?.id === item.id && swipeStateRef.current?.ready
-    clearSwipeReply()
-
-    if (!shouldReply) return
-    setReplyTarget(item)
-    setActionMessage(null)
-    setStickerOpen(false)
-    window.navigator?.vibrate?.(8)
-    window.requestAnimationFrame(() => messageInputRef.current?.focus())
   }
 
   const handleMessageContextMenu = (event, item) => {
@@ -794,24 +726,16 @@ export default function ChatRoomPage() {
 
           return (
             <article
-              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''} ${swipeReply?.id === item.id ? 'swiping' : ''} ${swipeReply?.id === item.id && swipeReply.ready ? 'swipe-ready' : ''}`}
+              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''}`}
               key={item.id}
               data-message-id={item.id}
-              style={swipeReply?.id === item.id ? { transform: `translateX(${swipeReply.offset}px)` } : undefined}
               onContextMenu={(event) => handleMessageContextMenu(event, item)}
               onPointerDown={(event) => startLongPress(event, item)}
-              onPointerMove={handleMessagePointerMove}
               onDragStart={(event) => event.preventDefault()}
               onSelectStart={(event) => event.preventDefault()}
-              onPointerUp={() => handleMessagePointerUp(item)}
-              onPointerCancel={() => {
-                clearLongPress()
-                clearSwipeReply()
-              }}
-              onPointerLeave={() => {
-                clearLongPress()
-                if (!swipeStateRef.current?.dragging) clearSwipeReply()
-              }}
+              onPointerUp={clearLongPress}
+              onPointerCancel={clearLongPress}
+              onPointerLeave={clearLongPress}
             >
               {!mine && <MemberAvatar name={item.sender_name} imageUrl={item.sender_avatar_url} size="sm" previewable />}
               <div>

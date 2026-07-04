@@ -546,11 +546,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-scroll-bottom-button { position: fixed; right: 18px; bottom: 76px; z-index: 4; width: 42px; height: 42px; border: 1px solid rgba(63,116,75,.16); border-radius: 50%; display: grid; place-items: center; color: var(--green-800); background: rgba(255,253,248,.96); box-shadow: 0 12px 28px rgba(37,48,38,.18); font-size: 1.25rem; font-weight: 950; }
 .chat-inline-error { margin: 0 0 4px; }
 .chat-system-message { align-self: center; margin: 4px 0; border-radius: 999px; padding: 7px 12px; color: var(--muted); background: rgba(255,255,255,.7); font-size: .78rem; font-weight: 850; }
-.chat-message { position: relative; max-width: min(76%, 520px); display: flex; align-items: flex-end; gap: 8px; border-radius: 20px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; transition: transform .18s ease, background-color .18s ease, box-shadow .18s ease; }
-.chat-message.swiping { transition: none; }
-.chat-message::after { content: "답장"; position: absolute; right: -58px; bottom: 12px; width: 46px; height: 30px; border-radius: 999px; display: grid; place-items: center; color: var(--green-800); background: rgba(255,253,248,.94); box-shadow: 0 8px 18px rgba(49,95,59,.16); font-size: .72rem; font-weight: 950; opacity: 0; transform: scale(.86); transition: opacity .16s ease, transform .16s ease; pointer-events: none; }
-.chat-message.swiping::after { opacity: .72; transform: scale(.92); }
-.chat-message.swipe-ready::after { opacity: 1; color: white; background: var(--green-700); transform: scale(1); }
+.chat-message { position: relative; max-width: min(76%, 520px); display: flex; align-items: flex-end; gap: 8px; border-radius: 20px; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: pan-y; transition: background-color .18s ease, box-shadow .18s ease; }
 .chat-message.highlight { background: rgba(205,234,197,.46); box-shadow: 0 0 0 8px rgba(205,234,197,.46); }
 .chat-message.mine { align-self: flex-end; flex-direction: row-reverse; }
 .chat-message.theirs { align-self: flex-start; }
