@@ -595,6 +595,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-custom-sticker-slot img { width: 36px; height: 36px; border-radius: 10px; object-fit: contain; }
 .chat-custom-sticker-remove { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px !important; border: 1px solid rgba(208,97,56,.18) !important; border-radius: 50% !important; color: #b0452d; background: rgba(255,238,232,.96) !important; font-size: .9rem !important; line-height: 1; }
 .chat-sticker-add-button { color: var(--green-800); font-size: 1.6rem !important; }
+.chat-sticker-pager { grid-column: 1 / -1; min-height: 30px; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: .76rem; font-weight: 950; }
+.chat-sticker-pager button { width: 32px; height: 30px; border-radius: 999px; color: var(--green-800); background: rgba(255,255,255,.86); font-size: 1.2rem; line-height: 1; }
+.chat-sticker-pager button:disabled { opacity: .35; }
 .chat-sticker-editor-overlay { position: fixed; z-index: 30000; inset: 0; padding: 18px; display: grid; place-items: center; background: rgba(18,31,21,.42); backdrop-filter: blur(10px); }
 .chat-sticker-editor-modal { width: min(360px, 100%); border: 1px solid rgba(217,228,213,.9); border-radius: 26px; padding: 20px; display: grid; gap: 14px; background: rgba(255,253,248,.98); box-shadow: 0 26px 80px rgba(18,31,21,.26); animation: modal-sheet-up .2s cubic-bezier(.2,.8,.22,1) both; }
 .chat-sticker-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }

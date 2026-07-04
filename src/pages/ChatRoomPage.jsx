@@ -5,7 +5,9 @@ import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
 import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
-const maxCustomStickers = 12
+const maxCustomStickers = 24
+const stickerPanelSlotCount = 12
+const customStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length - 1)
 const customStickerSize = 256
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
@@ -144,6 +146,7 @@ export default function ChatRoomPage() {
   const [error, setError] = useState('')
   const [stickerOpen, setStickerOpen] = useState(false)
   const [customStickers, setCustomStickers] = useState([])
+  const [customStickerPage, setCustomStickerPage] = useState(0)
   const [stickerEditor, setStickerEditor] = useState(null)
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
@@ -152,6 +155,13 @@ export default function ChatRoomPage() {
   const isRequested = room?.status === 'requested'
 
   const otherMember = useMemo(() => room?.other_member || { name: '회원' }, [room])
+  const customStickerPageCount = useMemo(() => (
+    Math.max(1, Math.ceil(customStickers.length / customStickerPageSize))
+  ), [customStickers.length])
+  const visibleCustomStickers = useMemo(() => {
+    const pageStart = customStickerPage * customStickerPageSize
+    return customStickers.slice(pageStart, pageStart + customStickerPageSize)
+  }, [customStickerPage, customStickers])
 
   useEffect(() => {
     try {
@@ -167,6 +177,10 @@ export default function ChatRoomPage() {
     setCustomStickers(limited)
     window.localStorage.setItem(getCustomStickerStorageKey(profile.id), JSON.stringify(limited))
   }, [profile.id])
+
+  useEffect(() => {
+    setCustomStickerPage((current) => Math.min(current, customStickerPageCount - 1))
+  }, [customStickerPageCount])
 
   const appendMessages = useCallback((nextMessages, { scrollToBottom = true } = {}) => {
     const list = Array.isArray(nextMessages) ? nextMessages : [nextMessages]
@@ -589,7 +603,7 @@ export default function ChatRoomPage() {
         return
       }
 
-      saveCustomStickers([
+      const nextStickers = [
         ...customStickers,
         {
           id: `${Date.now()}`,
@@ -597,7 +611,9 @@ export default function ChatRoomPage() {
           mime: stickerFile.type,
           dataUrl,
         },
-      ])
+      ]
+      saveCustomStickers(nextStickers)
+      setCustomStickerPage(Math.ceil(nextStickers.length / customStickerPageSize) - 1)
       setStickerEditor(null)
       setError('')
     } catch (err) {
@@ -829,7 +845,7 @@ export default function ChatRoomPage() {
                   {sticker.value}
                 </button>
               ))}
-              {customStickers.map((sticker) => (
+              {visibleCustomStickers.map((sticker) => (
                 <span className="chat-custom-sticker-slot" key={sticker.id}>
                   <button
                     type="button"
@@ -866,6 +882,33 @@ export default function ChatRoomPage() {
                 >
                   +
                 </button>
+              )}
+              {customStickerPageCount > 1 && (
+                <div className="chat-sticker-pager">
+                  <button
+                    type="button"
+                    onMouseDown={keepComposerFocus}
+                    onTouchStart={keepComposerFocus}
+                    onPointerDown={keepComposerFocus}
+                    onClick={() => setCustomStickerPage((current) => Math.max(0, current - 1))}
+                    disabled={customStickerPage === 0}
+                    aria-label="이전 이모티콘 페이지"
+                  >
+                    ‹
+                  </button>
+                  <span>{customStickerPage + 1} / {customStickerPageCount}</span>
+                  <button
+                    type="button"
+                    onMouseDown={keepComposerFocus}
+                    onTouchStart={keepComposerFocus}
+                    onPointerDown={keepComposerFocus}
+                    onClick={() => setCustomStickerPage((current) => Math.min(customStickerPageCount - 1, current + 1))}
+                    disabled={customStickerPage >= customStickerPageCount - 1}
+                    aria-label="다음 이모티콘 페이지"
+                  >
+                    ›
+                  </button>
+                </div>
               )}
             </div>
           )}
