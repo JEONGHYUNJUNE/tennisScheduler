@@ -7,14 +7,16 @@ import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, e
 
 const maxCustomStickers = 24
 const stickerPanelSlotCount = 15
-const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length - 1)
+const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
 const customStickerPageSize = stickerPanelSlotCount
 const customStickerSize = 256
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
 const getCustomStickerPageCount = (stickerCount) => {
-  if (stickerCount <= firstCustomStickerPageSize) return 1
-  return 1 + Math.ceil((stickerCount - firstCustomStickerPageSize) / customStickerPageSize)
+  if (stickerCount < firstCustomStickerPageSize) return 1
+  const remainingCustomStickers = Math.max(0, stickerCount - firstCustomStickerPageSize)
+  const addButtonSlot = stickerCount < maxCustomStickers ? 1 : 0
+  return 1 + Math.ceil((remainingCustomStickers + addButtonSlot) / customStickerPageSize)
 }
 
 function readFileAsDataUrl(file) {
