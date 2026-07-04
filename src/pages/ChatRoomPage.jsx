@@ -6,11 +6,16 @@ import { useAuth } from '../contexts/AuthContext'
 import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 24
-const stickerPanelSlotCount = 12
-const customStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length - 1)
+const stickerPanelSlotCount = 15
+const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length - 1)
+const customStickerPageSize = stickerPanelSlotCount
 const customStickerSize = 256
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
+const getCustomStickerPageCount = (stickerCount) => {
+  if (stickerCount <= firstCustomStickerPageSize) return 1
+  return 1 + Math.ceil((stickerCount - firstCustomStickerPageSize) / customStickerPageSize)
+}
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -155,11 +160,12 @@ export default function ChatRoomPage() {
   const isRequested = room?.status === 'requested'
 
   const otherMember = useMemo(() => room?.other_member || { name: '회원' }, [room])
-  const customStickerPageCount = useMemo(() => (
-    Math.max(1, Math.ceil(customStickers.length / customStickerPageSize))
-  ), [customStickers.length])
+  const customStickerPageCount = useMemo(() => getCustomStickerPageCount(customStickers.length), [customStickers.length])
   const visibleCustomStickers = useMemo(() => {
-    const pageStart = customStickerPage * customStickerPageSize
+    if (customStickerPage === 0) {
+      return customStickers.slice(0, firstCustomStickerPageSize)
+    }
+    const pageStart = firstCustomStickerPageSize + ((customStickerPage - 1) * customStickerPageSize)
     return customStickers.slice(pageStart, pageStart + customStickerPageSize)
   }, [customStickerPage, customStickers])
 
@@ -613,7 +619,7 @@ export default function ChatRoomPage() {
         },
       ]
       saveCustomStickers(nextStickers)
-      setCustomStickerPage(Math.ceil(nextStickers.length / customStickerPageSize) - 1)
+      setCustomStickerPage(getCustomStickerPageCount(nextStickers.length) - 1)
       setStickerEditor(null)
       setError('')
     } catch (err) {
@@ -832,7 +838,7 @@ export default function ChatRoomPage() {
           </button>
           {stickerOpen && (
             <div className="chat-sticker-panel">
-              {chatStickerOptions.map((sticker) => (
+              {customStickerPage === 0 && chatStickerOptions.map((sticker) => (
                 <button
                   type="button"
                   key={sticker.label}
