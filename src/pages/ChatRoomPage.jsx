@@ -876,7 +876,7 @@ export default function ChatRoomPage() {
                   </button>
                 </span>
               ))}
-              {customStickers.length < maxCustomStickers && (
+              {customStickerPage === customStickerPageCount - 1 && customStickers.length < maxCustomStickers && (
                 <button
                   type="button"
                   className="chat-sticker-add-button"
