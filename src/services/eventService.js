@@ -245,6 +245,7 @@ export async function getEvent(eventId) {
     .from('tennis_events')
     .select(`
       *,
+      creator:otmember!tennis_events_created_by_fkey(id, username, display_name, avatar_url),
       tennis_attendances(
         id, member_id, guest_name, guest_memo, created_by, status, created_at,
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, avatar_url)
@@ -264,13 +265,14 @@ export async function getEvent(eventId) {
 
   if (!withComments.error) return normalizeEvent(withComments.data, true)
   if (!isRecoverableAttendanceEmbedError(withComments.error) && !isMissingCommentTableError(withComments.error)) {
-    throw withComments.error
+    if (!isRecoverableEventCreatorEmbedError(withComments.error)) throw withComments.error
   }
 
   const withGuestColumns = await supabase
     .from('tennis_events')
     .select(`
       *,
+      creator:otmember!tennis_events_created_by_fkey(id, username, display_name, avatar_url),
       tennis_attendances(
         id, member_id, guest_name, guest_memo, created_by, status, created_at,
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, avatar_url)
@@ -280,7 +282,7 @@ export async function getEvent(eventId) {
     .single()
 
   if (!withGuestColumns.error) return normalizeEvent(withGuestColumns.data, true)
-  if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
+  if (!isRecoverableAttendanceEmbedError(withGuestColumns.error) && !isRecoverableEventCreatorEmbedError(withGuestColumns.error)) throw withGuestColumns.error
 
   const { data, error } = await supabase
     .from('tennis_events')
@@ -485,6 +487,7 @@ function normalizeMember(member) {
 }
 
 function normalizeEvent(event, supportsGuestAttendance = true) {
+  const creator = normalizeMember(event.creator)
   const attendances = event.tennis_attendances?.map((attendance) => ({
     ...attendance,
     otmember: normalizeMember(attendance.otmember),
@@ -499,6 +502,9 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
     memo_image_path: event.memo_image_path || '',
     memo_image_name: event.memo_image_name || '',
     memo_image_url: getPostImageUrl(event.memo_image_path),
+    creator,
+    creator_name: creator?.name || creator?.user_id || '',
+    creator_avatar_url: creator?.avatar_url || '',
     supports_guest_attendance: supportsGuestAttendance,
     tennis_attendances: attendances.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)),
     comments: (event.tennis_event_comments || [])
@@ -521,6 +527,10 @@ function isMissingGuestColumnError(error) {
 
 function isRecoverableAttendanceEmbedError(error) {
   return isMissingGuestColumnError(error) || relationshipAmbiguousCodes.has(error.code)
+}
+
+function isRecoverableEventCreatorEmbedError(error) {
+  return relationshipAmbiguousCodes.has(error.code) || /tennis_events_created_by_fkey|creator|relationship/i.test(error.message || '')
 }
 
 function isMissingLikeTableError(error) {

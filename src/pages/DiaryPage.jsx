@@ -806,11 +806,6 @@ export default function DiaryPage() {
   }, [load])
 
   useEffect(() => {
-    if (!selectedDate || editingEntry || showForm) return
-    if (readDiaryDraft(profile.id, selectedDate)) setShowForm(true)
-  }, [editingEntry, profile.id, selectedDate, showForm])
-
-  useEffect(() => {
     getMembers()
       .then((members) => setGlobalMentionCandidates(members.filter((member) => member.is_active !== false && member.id !== profile.id)))
       .catch(() => setGlobalMentionCandidates([]))

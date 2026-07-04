@@ -324,6 +324,29 @@ export default function EventDetailPage() {
           <div><dt><span className="detail-mini-icon pin-icon" /></dt><dd><strong>장소</strong><span>{event.location || '장소 미정'}</span></dd></div>
           <div>
             <dt>
+              <span className="detail-mini-icon event-author-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+                  <path d="M4.5 20c.8-4.2 3.4-6.4 7.5-6.4s6.7 2.2 7.5 6.4" />
+                </svg>
+              </span>
+            </dt>
+            <dd>
+              <strong>작성자</strong>
+              <span className="event-author-inline">
+                {event.creator_name ? (
+                  <>
+                    <MemberAvatar name={event.creator_name} imageUrl={event.creator_avatar_url} size="xs" previewable />
+                    <b>{event.creator_name}</b>
+                  </>
+                ) : (
+                  <b>작성자 정보 없음</b>
+                )}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>
               <span className="detail-mini-icon detail-member-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
