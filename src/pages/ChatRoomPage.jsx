@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatRoom, markChatRoomRead, sendChatImage, sendChatMessage, sendChatStickerImage, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 12
 const customStickerSize = 256
@@ -69,6 +69,29 @@ const formatMessageTime = (dateText) => {
   }).format(new Date(dateText))
 }
 
+const getMessagePreview = (item) => {
+  if (!item) return ''
+  if (item.message_type === 'sticker') return item.body || '이모티콘'
+  if (item.message_type === 'image') {
+    return item.image_path?.startsWith('chat-stickers/') ? '이모티콘' : '사진'
+  }
+  return item.body || '메시지'
+}
+
+const getMessageCopyText = (item) => {
+  if (!item) return ''
+  if (item.message_type === 'image') {
+    return item.image_path?.startsWith('chat-stickers/') ? '이모티콘' : (item.image_name || item.body || '사진')
+  }
+  return item.body || ''
+}
+
+const getMessageAuthor = (item, profileId) => {
+  if (!item) return '회원'
+  if (item.sender_member_id === profileId) return '나'
+  return item.sender_name || '회원'
+}
+
 function mergeRoomPresence(room, updates, profileId) {
   if (!room || !updates) return room
   const nextRoom = { ...room, ...updates }
@@ -86,7 +109,14 @@ function mergeRoomPresence(room, updates, profileId) {
 function mergeMessages(messages, nextMessages) {
   const messageMap = new Map()
   ;[...messages, ...nextMessages].forEach((item) => {
-    if (item?.id) messageMap.set(item.id, item)
+    if (!item?.id) return
+    const previous = messageMap.get(item.id)
+    messageMap.set(item.id, {
+      ...previous,
+      ...item,
+      reply_to: item.reply_to || previous?.reply_to || null,
+      reply_to_message_id: item.reply_to_message_id || previous?.reply_to_message_id || null,
+    })
   })
 
   return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
@@ -100,6 +130,7 @@ export default function ChatRoomPage() {
   const fileInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
   const messageInputRef = useRef(null)
+  const longPressTimerRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
   const scrollCorrectionTimersRef = useRef([])
   const [room, setRoom] = useState(null)
@@ -114,6 +145,8 @@ export default function ChatRoomPage() {
   const [stickerOpen, setStickerOpen] = useState(false)
   const [customStickers, setCustomStickers] = useState([])
   const [stickerEditor, setStickerEditor] = useState(null)
+  const [actionMessage, setActionMessage] = useState(null)
+  const [replyTarget, setReplyTarget] = useState(null)
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
@@ -258,6 +291,15 @@ export default function ChatRoomPage() {
           return
         }
         setRoom((current) => mergeRoomPresence(current, nextRoom, profile.id))
+        if (nextRoom.notice_message_id) {
+          getChatMessage(nextRoom.notice_message_id)
+            .then((noticeMessage) => {
+              setRoom((current) => current ? { ...current, notice_message: noticeMessage } : current)
+            })
+            .catch((err) => setError(err.message))
+        } else {
+          setRoom((current) => current ? { ...current, notice_message: null } : current)
+        }
       },
     })
   }, [appendMessages, isNearMessageBottom, load, markRead, profile.id, roomId])
@@ -284,6 +326,7 @@ export default function ChatRoomPage() {
 
   useEffect(() => () => {
     scrollCorrectionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId))
+    window.clearTimeout(longPressTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -326,15 +369,101 @@ export default function ChatRoomPage() {
     setShowScrollBottom(!isNearMessageBottom())
   }
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
-    await sendTextMessage()
-  }
-
   const resizeMessageInput = (element = messageInputRef.current) => {
     if (!element) return
     element.style.height = 'auto'
     element.style.height = `${Math.min(element.scrollHeight, 96)}px`
+  }
+
+  const clearLongPress = () => {
+    window.clearTimeout(longPressTimerRef.current)
+  }
+
+  const openMessageActions = (item) => {
+    if (!item || item.message_type === 'system') return
+    setStickerOpen(false)
+    setActionMessage(item)
+    window.navigator?.vibrate?.(8)
+  }
+
+  const startLongPress = (event, item) => {
+    if (event.target.closest('a, button')) return
+    if (event.cancelable) event.preventDefault()
+    clearLongPress()
+    longPressTimerRef.current = window.setTimeout(() => openMessageActions(item), 520)
+  }
+
+  const handleMessageContextMenu = (event, item) => {
+    event.preventDefault()
+    openMessageActions(item)
+  }
+
+  const scrollToMessage = (messageId) => {
+    const element = listRef.current?.querySelector(`[data-message-id="${messageId}"]`)
+    if (!element) {
+      setError('이전 메시지를 위로 불러온 뒤 확인할 수 있어요.')
+      return
+    }
+    element.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    element.classList.add('highlight')
+    window.setTimeout(() => element.classList.remove('highlight'), 900)
+  }
+
+  const handleReplyToMessage = () => {
+    if (!actionMessage) return
+    setReplyTarget(actionMessage)
+    setActionMessage(null)
+    window.requestAnimationFrame(() => messageInputRef.current?.focus())
+  }
+
+  const handleSetNotice = async () => {
+    if (!actionMessage) return
+
+    setSending(true)
+    setError('')
+    try {
+      const updates = await setChatRoomNotice(roomId, actionMessage.id)
+      setRoom((current) => ({
+        ...mergeRoomPresence(current, updates, profile.id),
+        notice_message: actionMessage,
+      }))
+      setActionMessage(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleCopyMessage = async () => {
+    if (!actionMessage) return
+
+    const text = getMessageCopyText(actionMessage)
+    if (!text) {
+      setActionMessage(null)
+      return
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+      }
+      setError('')
+    } catch {
+      setError('복사하지 못했습니다. 다시 시도해 주세요.')
+    } finally {
+      setActionMessage(null)
+    }
   }
 
   const handleMessageChange = (event) => {
@@ -349,9 +478,11 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      const sentMessage = await sendChatMessage(roomId, trimmed)
-      appendMessages(sentMessage)
+      const currentReplyTarget = replyTarget
+      const sentMessage = await sendChatMessage(roomId, trimmed, 'text', { replyToMessageId: replyTarget?.id || null })
+      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setMessage('')
+      setReplyTarget(null)
       setStickerOpen(false)
       if (messageInputRef.current) messageInputRef.current.style.height = ''
     } catch (err) {
@@ -373,8 +504,10 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      const sentMessage = await sendChatMessage(roomId, sticker.value, 'sticker')
-      appendMessages(sentMessage)
+      const currentReplyTarget = replyTarget
+      const sentMessage = await sendChatMessage(roomId, sticker.value, 'sticker', { replyToMessageId: replyTarget?.id || null })
+      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      setReplyTarget(null)
       setStickerOpen(false)
     } catch (err) {
       setError(err.message)
@@ -388,9 +521,11 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
+      const currentReplyTarget = replyTarget
       const stickerFile = dataUrlToFile(sticker.dataUrl, sticker.name || 'custom-sticker.png', sticker.mime || 'image/png')
-      const sentMessage = await sendChatStickerImage(roomId, profile.id, stickerFile)
-      appendMessages(sentMessage)
+      const sentMessage = await sendChatStickerImage(roomId, profile.id, stickerFile, { replyToMessageId: replyTarget?.id || null })
+      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      setReplyTarget(null)
       setStickerOpen(false)
     } catch (err) {
       setError(err.message)
@@ -485,8 +620,10 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      const sentMessage = await sendChatImage(roomId, profile.id, file)
-      appendMessages(sentMessage)
+      const currentReplyTarget = replyTarget
+      const sentMessage = await sendChatImage(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
+      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      setReplyTarget(null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -510,6 +647,11 @@ export default function ChatRoomPage() {
     }
   }
 
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    sendTextMessage()
+  }
+
   if (loading) return <LoadingState message="채팅방을 준비하는 중입니다." />
 
   if (!room && !error) {
@@ -519,6 +661,21 @@ export default function ChatRoomPage() {
         <Link className="secondary-button" to="/chats">채팅 목록으로</Link>
       </section>
     )
+  }
+
+  const renderMessageBody = (item, isImageMessage, isCustomStickerImage) => {
+    if (isImageMessage && item.image_url) {
+      if (isCustomStickerImage) {
+        return <img src={item.image_url} alt={item.image_name || '커스텀 이모티콘'} />
+      }
+      return (
+        <a href={item.image_url} target="_blank" rel="noreferrer">
+          <img src={item.image_url} alt={item.image_name || '채팅 이미지'} />
+        </a>
+      )
+    }
+
+    return <span className="chat-message-text">{item.body}</span>
   }
 
   return (
@@ -534,8 +691,14 @@ export default function ChatRoomPage() {
           <button type="button" className="chat-end-button" onClick={handleEnd} disabled={sending}>종료</button>
         )}
       </div>
-
       <div className="chat-message-list" ref={listRef} onScroll={handleMessageScroll} onPointerDown={dismissKeyboard}>
+        {room?.notice_message && (
+          <button type="button" className="chat-notice-bar" onClick={() => scrollToMessage(room.notice_message.id)}>
+            <span>공지</span>
+            <strong>{getMessageAuthor(room.notice_message, profile.id)}</strong>
+            <em>{getMessagePreview(room.notice_message)}</em>
+          </button>
+        )}
         {loadingOlder && <p className="chat-system-message">이전 대화를 불러오는 중입니다.</p>}
         {error && <p className="error chat-inline-error">{error}</p>}
         {messages.map((item) => {
@@ -550,20 +713,30 @@ export default function ChatRoomPage() {
             new Date(room.other_last_read_at) >= new Date(item.created_at)
 
           return (
-            <article className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''}`} key={item.id}>
+            <article
+              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''}`}
+              key={item.id}
+              data-message-id={item.id}
+              onContextMenu={(event) => handleMessageContextMenu(event, item)}
+              onPointerDown={(event) => startLongPress(event, item)}
+              onDragStart={(event) => event.preventDefault()}
+              onSelectStart={(event) => event.preventDefault()}
+              onPointerUp={clearLongPress}
+              onPointerCancel={clearLongPress}
+              onPointerLeave={clearLongPress}
+            >
               {!mine && <MemberAvatar name={item.sender_name} imageUrl={item.sender_avatar_url} size="sm" previewable />}
               <div>
-                {isImageMessage && item.image_url ? (
-                  isCustomStickerImage ? (
-                    <img src={item.image_url} alt={item.image_name || '커스텀 이모티콘'} />
-                  ) : (
-                    <a href={item.image_url} target="_blank" rel="noreferrer">
-                      <img src={item.image_url} alt={item.image_name || '채팅 이미지'} />
-                    </a>
-                  )
-                ) : (
-                  <p>{item.body}</p>
+                {item.reply_to && (
+                  <div className="chat-reply-bubble">
+                    <button type="button" className="chat-message-reply-context" onClick={() => scrollToMessage(item.reply_to.id)}>
+                      <strong>{getMessageAuthor(item.reply_to, profile.id)}에게 답장</strong>
+                      <span>{getMessagePreview(item.reply_to)}</span>
+                    </button>
+                    {renderMessageBody(item, isImageMessage, isCustomStickerImage)}
+                  </div>
                 )}
+                {!item.reply_to && renderMessageBody(item, isImageMessage, isCustomStickerImage)}
                 <span className="chat-message-meta">
                   {isReadByOther && <em>읽음</em>}
                   <time>{formatMessageTime(item.created_at)}</time>
@@ -585,6 +758,15 @@ export default function ChatRoomPage() {
       )}
 
       <form className="chat-composer" onSubmit={handleSubmit}>
+        {replyTarget && (
+          <div className="chat-reply-composer">
+            <div>
+              <strong><em>답장 중</em>{getMessageAuthor(replyTarget, profile.id)}에게 답장</strong>
+              <span>{getMessagePreview(replyTarget)}</span>
+            </div>
+            <button type="button" onClick={() => setReplyTarget(null)} aria-label="답장 취소">×</button>
+          </div>
+        )}
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
         <button type="button" className="chat-tool-button" onClick={() => fileInputRef.current?.click()} disabled={!isActive || sending} aria-label="사진 보내기">+</button>
@@ -633,6 +815,19 @@ export default function ChatRoomPage() {
           전송
         </button>
       </form>
+      {actionMessage && (
+        <div className="chat-action-overlay" onClick={() => setActionMessage(null)}>
+          <div className="chat-action-menu" onClick={(event) => event.stopPropagation()}>
+            <p>
+              <strong>{getMessageAuthor(actionMessage, profile.id)}</strong>
+              <span>{getMessagePreview(actionMessage)}</span>
+            </p>
+            <button type="button" onClick={handleReplyToMessage}>답장</button>
+            <button type="button" onClick={handleSetNotice} disabled={sending}>공지</button>
+            <button type="button" onClick={handleCopyMessage}>복사</button>
+          </div>
+        </div>
+      )}
       {stickerEditor && (
         <div className="chat-sticker-editor-overlay" role="dialog" aria-modal="true" aria-labelledby="chat-sticker-editor-title">
           <section className="chat-sticker-editor-modal">

@@ -3,7 +3,7 @@ import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage 
 
 export const chatMessagePageSize = 100
 
-const roomSelectColumns = `
+const baseRoomSelectColumns = `
   id,
   status,
   requester_member_id,
@@ -20,7 +20,27 @@ const roomSelectColumns = `
   recipient:otmember!chat_rooms_recipient_member_id_fkey(id, username, display_name, avatar_url)
 `
 
-const messageSelectColumns = `
+const roomSelectColumns = `
+  id,
+  status,
+  requester_member_id,
+  recipient_member_id,
+  requested_at,
+  activated_at,
+  ended_at,
+  updated_at,
+  notice_message_id,
+  notice_set_by_member_id,
+  notice_set_at,
+  requester_last_read_at,
+  recipient_last_read_at,
+  requester_last_seen_at,
+  recipient_last_seen_at,
+  requester:otmember!chat_rooms_requester_member_id_fkey(id, username, display_name, avatar_url),
+  recipient:otmember!chat_rooms_recipient_member_id_fkey(id, username, display_name, avatar_url)
+`
+
+const baseMessageSelectColumns = `
   id,
   room_id,
   sender_member_id,
@@ -33,6 +53,32 @@ const messageSelectColumns = `
   sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
 `
 
+const messageSelectColumns = `
+  id,
+  room_id,
+  sender_member_id,
+  message_type,
+  body,
+  image_path,
+  image_name,
+  image_mime,
+  reply_to_message_id,
+  created_at,
+  sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url),
+  reply_to:chat_messages!chat_messages_reply_to_message_id_fkey(
+    id,
+    room_id,
+    sender_member_id,
+    message_type,
+    body,
+    image_path,
+    image_name,
+    image_mime,
+    created_at,
+    sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
+  )
+`
+
 export const chatStickerOptions = [
   { label: '박장대소', value: '🤣' },
   { label: '따봉', value: '👍' },
@@ -40,11 +86,21 @@ export const chatStickerOptions = [
 ]
 
 export async function getChatRooms(currentMemberId) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('chat_rooms')
     .select(roomSelectColumns)
     .neq('status', 'ended')
     .order('updated_at', { ascending: false })
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_rooms')
+      .select(baseRoomSelectColumns)
+      .neq('status', 'ended')
+      .order('updated_at', { ascending: false })
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     if (isMissingChatTableError(error)) return []
@@ -56,11 +112,21 @@ export async function getChatRooms(currentMemberId) {
 }
 
 export async function getChatRoom(roomId, currentMemberId) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('chat_rooms')
     .select(roomSelectColumns)
     .eq('id', roomId)
     .maybeSingle()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_rooms')
+      .select(baseRoomSelectColumns)
+      .eq('id', roomId)
+      .maybeSingle()
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     if (isMissingChatTableError(error)) return null
@@ -68,7 +134,7 @@ export async function getChatRoom(roomId, currentMemberId) {
   }
   if (!data) return null
 
-  return normalizeRoom(data, currentMemberId)
+  return hydrateRoomNotice(normalizeRoom(data, currentMemberId))
 }
 
 export async function getChatMessages(roomId, { before = null, limit = chatMessagePageSize } = {}) {
@@ -81,7 +147,22 @@ export async function getChatMessages(roomId, { before = null, limit = chatMessa
 
   if (before) query = query.lt('created_at', before)
 
-  const { data, error } = await query
+  let { data, error } = await query
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    query = supabase
+      .from('chat_messages')
+      .select(baseMessageSelectColumns)
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (before) query = query.lt('created_at', before)
+
+    const fallback = await query
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     if (isMissingChatTableError(error)) return []
@@ -92,11 +173,21 @@ export async function getChatMessages(roomId, { before = null, limit = chatMessa
 }
 
 export async function getChatMessage(messageId) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('chat_messages')
     .select(messageSelectColumns)
     .eq('id', messageId)
     .maybeSingle()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .select(baseMessageSelectColumns)
+      .eq('id', messageId)
+      .maybeSingle()
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     if (isMissingChatTableError(error)) return null
@@ -146,34 +237,69 @@ export async function markChatRoomRead(roomId) {
   return data
 }
 
-export async function sendChatMessage(roomId, body, messageType = 'text') {
-  const { data, error } = await supabase
+export async function sendChatMessage(roomId, body, messageType = 'text', { replyToMessageId = null } = {}) {
+  const payload = {
+    room_id: roomId,
+    body: body.trim(),
+    message_type: messageType,
+  }
+  if (replyToMessageId) payload.reply_to_message_id = replyToMessageId
+
+  let { data, error } = await supabase
     .from('chat_messages')
-    .insert({
-      room_id: roomId,
-      body: body.trim(),
-      message_type: messageType,
-    })
+    .insert(payload)
     .select(messageSelectColumns)
     .single()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        body: body.trim(),
+        message_type: messageType,
+      })
+      .select(baseMessageSelectColumns)
+      .single()
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) throw error
   return normalizeMessage(data)
 }
 
-export async function sendChatImage(roomId, memberId, imageFile) {
+export async function sendChatImage(roomId, memberId, imageFile, { replyToMessageId = null } = {}) {
   const imagePayload = await uploadPostImage({ file: imageFile, folder: `chats/${roomId}/${memberId}` })
 
-  const { data, error } = await supabase
+  const payload = {
+    room_id: roomId,
+    message_type: 'image',
+    body: imageFile.name,
+    ...imagePayload,
+  }
+  if (replyToMessageId) payload.reply_to_message_id = replyToMessageId
+
+  let { data, error } = await supabase
     .from('chat_messages')
-    .insert({
-      room_id: roomId,
-      message_type: 'image',
-      body: imageFile.name,
-      ...imagePayload,
-    })
+    .insert(payload)
     .select(messageSelectColumns)
     .single()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        message_type: 'image',
+        body: imageFile.name,
+        ...imagePayload,
+      })
+      .select(baseMessageSelectColumns)
+      .single()
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     await removePostImage(imagePayload.image_path)
@@ -183,7 +309,7 @@ export async function sendChatImage(roomId, memberId, imageFile) {
   return normalizeMessage(data)
 }
 
-export async function sendChatStickerImage(roomId, memberId, stickerFile) {
+export async function sendChatStickerImage(roomId, memberId, stickerFile, { replyToMessageId = null } = {}) {
   if (!stickerFile?.type?.startsWith('image/')) throw new Error('이미지 파일만 이모티콘으로 보낼 수 있습니다.')
   if (stickerFile.size > 2 * 1024 * 1024) throw new Error('커스텀 이모티콘은 2MB 이하만 보낼 수 있습니다.')
 
@@ -207,16 +333,34 @@ export async function sendChatStickerImage(roomId, memberId, stickerFile) {
     image_mime: stickerFile.type || 'image/png',
   }
 
-  const { data, error } = await supabase
+  const payload = {
+    room_id: roomId,
+    message_type: 'image',
+    body: stickerFile.name,
+    ...imagePayload,
+  }
+  if (replyToMessageId) payload.reply_to_message_id = replyToMessageId
+
+  let { data, error } = await supabase
     .from('chat_messages')
-    .insert({
-      room_id: roomId,
-      message_type: 'image',
-      body: stickerFile.name,
-      ...imagePayload,
-    })
+    .insert(payload)
     .select(messageSelectColumns)
     .single()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        message_type: 'image',
+        body: stickerFile.name,
+        ...imagePayload,
+      })
+      .select(baseMessageSelectColumns)
+      .single()
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     await removePostImage(imagePath)
@@ -241,6 +385,18 @@ export async function endChatRoom(roomId) {
   if (error) throw error
 
   await Promise.all((images || []).map((message) => removePostImage(message.image_path)))
+}
+
+export async function setChatRoomNotice(roomId, messageId) {
+  const { data, error } = await supabase
+    .rpc('set_one_to_one_chat_notice', {
+      target_room_id: roomId,
+      target_message_id: messageId,
+    })
+    .single()
+
+  if (error) throw error
+  return data
 }
 
 export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged }) {
@@ -322,6 +478,16 @@ async function hydrateRoomPreview(room, memberId) {
   }
 }
 
+async function hydrateRoomNotice(room) {
+  if (!room?.notice_message_id) return { ...room, notice_message: null }
+
+  const noticeMessage = await getChatMessage(room.notice_message_id)
+  return {
+    ...room,
+    notice_message: noticeMessage,
+  }
+}
+
 async function getUnreadMessageCount(room, memberId) {
   if (!room || room.status !== 'active') return 0
 
@@ -358,6 +524,7 @@ function normalizeRoom(room, currentMemberId) {
     other_last_read_at: isRequester ? room.recipient_last_read_at : room.requester_last_read_at,
     own_last_seen_at: isRequester ? room.requester_last_seen_at : room.recipient_last_seen_at,
     other_last_seen_at: isRequester ? room.recipient_last_seen_at : room.requester_last_seen_at,
+    notice_message: room.notice_message ? normalizeMessage(room.notice_message) : null,
     other_member: {
       id: otherMember?.id || '',
       name: otherMember?.display_name || otherMember?.username || '회원',
@@ -377,9 +544,17 @@ function normalizeMessage(message) {
     image_path: message.image_path || '',
     image_name: message.image_name || '',
     image_url: getPostImageUrl(message.image_path),
+    reply_to: message.reply_to ? normalizeMessage(message.reply_to) : null,
   }
 }
 
 function isMissingChatTableError(error) {
-  return ['42P01', '42703', 'PGRST200', 'PGRST205'].includes(error.code) || /chat_/.test(error.message || '')
+  return ['42P01', 'PGRST200', 'PGRST205'].includes(error.code) || /relation .*chat_.* does not exist/i.test(error.message || '')
+}
+
+function isMissingReplyNoticeSchemaError(error) {
+  if (!error) return false
+  return error.code === '42703' ||
+    error.code === 'PGRST200' ||
+    /reply_to_message_id|notice_message_id|notice_set_by_member_id|notice_set_at|chat_messages_reply_to_message_id_fkey/i.test(error.message || '')
 }
