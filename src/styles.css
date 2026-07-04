@@ -1160,7 +1160,9 @@ dd { margin: 0; white-space: pre-wrap; }
   .member-chat-button { grid-column: auto; width: auto; min-height: 28px; padding-inline: 9px; font-size: .68rem; }
   .app-shell.chat-route .page { width: 100%; padding: 0; overflow: hidden; }
   .chat-room-shell { height: 100dvh; min-height: 0; margin-inline: 0; border-radius: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
-  .chat-room-head { grid-template-columns: auto auto minmax(0, 1fr) auto; padding: 12px; }
+  .chat-room-head { grid-template-columns: auto auto minmax(0, 1fr) 32px auto; gap: 8px; padding: 12px; }
+  .chat-search-toggle { width: 32px; height: 32px; font-size: 1.05rem; }
+  .chat-end-button { min-height: 32px; padding-inline: 10px; font-size: .76rem; white-space: nowrap; }
   .chat-message-list { padding: 14px 12px 18px; }
   .chat-message { max-width: 86%; }
   .chat-composer { padding: 10px 10px calc(10px + env(safe-area-inset-bottom)); grid-template-columns: 38px minmax(0, 1fr) 38px auto; }
