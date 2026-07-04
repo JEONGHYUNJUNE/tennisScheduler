@@ -172,6 +172,7 @@ export default function ChatRoomPage() {
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
+  const [viewingSearchContext, setViewingSearchContext] = useState(false)
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
@@ -253,6 +254,7 @@ export default function ChatRoomPage() {
       shouldScrollToBottomRef.current = true
       setMessages(nextMessages)
       setHasMoreMessages(nextMessages.length === chatMessagePageSize)
+      setViewingSearchContext(false)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -318,7 +320,11 @@ export default function ChatRoomPage() {
     return subscribeToChatRoom(roomId, {
       onMessage: (nextMessage) => getChatMessage(nextMessage.id)
         .then((hydratedMessage) => {
-          if (hydratedMessage) appendMessages(hydratedMessage, { scrollToBottom: isNearMessageBottom() })
+          if (hydratedMessage && !viewingSearchContext) {
+            appendMessages(hydratedMessage, { scrollToBottom: isNearMessageBottom() })
+          } else if (hydratedMessage) {
+            setShowScrollBottom(true)
+          }
           markRead()
         })
         .catch((err) => setError(err.message)),
@@ -339,7 +345,7 @@ export default function ChatRoomPage() {
         }
       },
     })
-  }, [appendMessages, isNearMessageBottom, load, markRead, profile.id, roomId])
+  }, [appendMessages, isNearMessageBottom, load, markRead, profile.id, roomId, viewingSearchContext])
 
   useEffect(() => {
     if (!isActive) return undefined
@@ -479,6 +485,8 @@ export default function ChatRoomPage() {
       shouldScrollToBottomRef.current = false
       setMessages(aroundMessages)
       setHasMoreMessages(aroundMessages.length >= chatMessagePageSize)
+      setViewingSearchContext(true)
+      setShowScrollBottom(true)
       window.setTimeout(() => highlightMessage(item.id), 80)
     } catch (err) {
       setSearchError(err.message)
@@ -492,6 +500,28 @@ export default function ChatRoomPage() {
     setSearchQuery('')
     setSearchResults([])
     setSearchError('')
+  }
+
+  const handleScrollBottomClick = async () => {
+    if (!viewingSearchContext) {
+      scheduleScrollToBottom()
+      return
+    }
+
+    setLoadingOlder(true)
+    setError('')
+    try {
+      const latestMessages = await getChatMessages(roomId)
+      shouldScrollToBottomRef.current = true
+      setMessages(latestMessages)
+      setHasMoreMessages(latestMessages.length === chatMessagePageSize)
+      setViewingSearchContext(false)
+      window.setTimeout(() => scheduleScrollToBottom({ behavior: 'auto' }), 80)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoadingOlder(false)
+    }
   }
 
   const handleReplyToMessage = () => {
@@ -887,7 +917,7 @@ export default function ChatRoomPage() {
         <button
           type="button"
           className="chat-scroll-bottom-button"
-          onClick={() => scheduleScrollToBottom()}
+          onClick={handleScrollBottomClick}
           aria-label="최신 메시지로 이동"
         >
           ↓
