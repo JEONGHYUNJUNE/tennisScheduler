@@ -26,9 +26,10 @@ import {
   updateDiaryComment,
   updateDiaryEntry,
 } from '../services/diaryService'
+import { getTodayDateText } from '../services/eventService'
 import { getMembers } from '../services/memberService'
 
-const todayText = new Date().toISOString().slice(0, 10)
+const todayText = getTodayDateText()
 
 const formatDiaryDate = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
@@ -752,6 +753,7 @@ export default function DiaryPage() {
   const selectedDate = date || ''
   const linkedEntryId = searchParams.get('entry')
   const linkedCommentId = searchParams.get('comment')
+  const calendarOnly = searchParams.get('view') === 'calendar'
   const [monthDate, setMonthDate] = useState(() => {
     const base = selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()
     return new Date(base.getFullYear(), base.getMonth(), 1)
@@ -767,6 +769,11 @@ export default function DiaryPage() {
   const [error, setError] = useState('')
 
   const canShowDayList = Boolean(selectedDate)
+
+  useEffect(() => {
+    if (selectedDate || linkedEntryId || calendarOnly) return
+    navigate(`/diary/${todayText}`, { replace: true })
+  }, [calendarOnly, linkedEntryId, navigate, selectedDate])
 
   const loadMonth = useCallback(async () => {
     const nextSummary = await getDiaryMonthSummary(monthDate.getFullYear(), monthDate.getMonth() + 1)
@@ -871,7 +878,7 @@ export default function DiaryPage() {
         {canShowDayList ? (
           <div className="diary-day-panel">
             <div className="diary-day-head">
-              <button className="diary-panel-button ghost" type="button" onClick={() => navigate('/diary')}>달력 보기</button>
+              <button className="diary-panel-button ghost" type="button" onClick={() => navigate('/diary?view=calendar')}>달력 보기</button>
               <button
                 className="diary-panel-button primary"
                 type="button"
