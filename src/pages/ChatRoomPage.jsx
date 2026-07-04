@@ -595,6 +595,20 @@ export default function ChatRoomPage() {
     event.preventDefault()
   }
 
+  const appendSentMessage = async (sentMessage) => {
+    if (!viewingSearchContext) {
+      appendMessages(sentMessage)
+      return
+    }
+
+    const latestMessages = await getChatMessages(roomId)
+    shouldScrollToBottomRef.current = true
+    setMessages(mergeMessages(latestMessages, [sentMessage]))
+    setHasMoreMessages(latestMessages.length === chatMessagePageSize)
+    setViewingSearchContext(false)
+    window.setTimeout(() => scheduleScrollToBottom({ behavior: 'auto' }), 80)
+  }
+
   const sendTextMessage = async () => {
     const trimmed = message.trim()
     if (!trimmed || !isActive) return
@@ -604,7 +618,7 @@ export default function ChatRoomPage() {
     try {
       const currentReplyTarget = replyTarget
       const sentMessage = await sendChatMessage(roomId, trimmed, 'text', { replyToMessageId: replyTarget?.id || null })
-      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setMessage('')
       setReplyTarget(null)
       setStickerOpen(false)
@@ -630,7 +644,7 @@ export default function ChatRoomPage() {
     try {
       const currentReplyTarget = replyTarget
       const sentMessage = await sendChatMessage(roomId, sticker.value, 'sticker', { replyToMessageId: replyTarget?.id || null })
-      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setReplyTarget(null)
       setStickerOpen(false)
     } catch (err) {
@@ -649,7 +663,7 @@ export default function ChatRoomPage() {
       const currentReplyTarget = replyTarget
       const stickerFile = dataUrlToFile(sticker.dataUrl, sticker.name || 'custom-sticker.png', sticker.mime || 'image/png')
       const sentMessage = await sendChatStickerImage(roomId, profile.id, stickerFile, { replyToMessageId: replyTarget?.id || null })
-      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setReplyTarget(null)
       setStickerOpen(false)
     } catch (err) {
