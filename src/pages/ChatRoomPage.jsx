@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, markChatRoomRead, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerImage, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, isReusableChatStickerPath, markChatRoomRead, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 24
 const stickerPanelSlotCount = 15
@@ -92,7 +92,7 @@ const getMessagePreview = (item) => {
   if (!item) return ''
   if (item.message_type === 'sticker') return item.body || '이모티콘'
   if (item.message_type === 'image') {
-    return item.image_path?.startsWith('chat-stickers/') ? '이모티콘' : '사진'
+    return isChatStickerImagePath(item.image_path) ? '이모티콘' : '사진'
   }
   return item.body || '메시지'
 }
@@ -100,10 +100,14 @@ const getMessagePreview = (item) => {
 const getMessageCopyText = (item) => {
   if (!item) return ''
   if (item.message_type === 'image') {
-    return item.image_path?.startsWith('chat-stickers/') ? '이모티콘' : (item.image_name || item.body || '사진')
+    return isChatStickerImagePath(item.image_path) ? '이모티콘' : (item.image_name || item.body || '사진')
   }
   return item.body || ''
 }
+
+const isChatStickerImagePath = (imagePath = '') => (
+  imagePath.startsWith('chat-stickers/') || isReusableChatStickerPath(imagePath)
+)
 
 const getMessageAuthor = (item, profileId) => {
   if (!item) return '회원'
@@ -661,8 +665,16 @@ export default function ChatRoomPage() {
     setError('')
     try {
       const currentReplyTarget = replyTarget
-      const stickerFile = dataUrlToFile(sticker.dataUrl, sticker.name || 'custom-sticker.png', sticker.mime || 'image/png')
-      const sentMessage = await sendChatStickerImage(roomId, profile.id, stickerFile, { replyToMessageId: replyTarget?.id || null })
+      let stickerPayload = sticker
+
+      if (!stickerPayload.image_path) {
+        const stickerFile = dataUrlToFile(sticker.dataUrl, sticker.name || 'custom-sticker.png', sticker.mime || 'image/png')
+        const uploadedSticker = await uploadReusableChatSticker(profile.id, stickerFile)
+        stickerPayload = { ...stickerPayload, ...uploadedSticker }
+        saveCustomStickers(customStickers.map((item) => (item.id === sticker.id ? stickerPayload : item)))
+      }
+
+      const sentMessage = await sendChatStickerReference(roomId, stickerPayload, { replyToMessageId: replyTarget?.id || null })
       await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setReplyTarget(null)
       setStickerOpen(false)
@@ -718,6 +730,7 @@ export default function ChatRoomPage() {
         setError('이모티콘은 2MB 이하로 저장할 수 있습니다.')
         return
       }
+      const uploadedSticker = await uploadReusableChatSticker(profile.id, stickerFile)
 
       const nextStickers = [
         ...customStickers,
@@ -726,6 +739,7 @@ export default function ChatRoomPage() {
           name: stickerFile.name,
           mime: stickerFile.type,
           dataUrl,
+          ...uploadedSticker,
         },
       ]
       saveCustomStickers(nextStickers)
@@ -764,7 +778,7 @@ export default function ChatRoomPage() {
     try {
       const currentReplyTarget = replyTarget
       const sentMessage = await sendChatImage(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
-      appendMessages({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setReplyTarget(null)
     } catch (err) {
       setError(err.message)
@@ -887,7 +901,7 @@ export default function ChatRoomPage() {
           if (item.message_type === 'system') {
             return <p className="chat-system-message" key={item.id}>{item.body}</p>
           }
-          const isCustomStickerImage = item.message_type === 'image' && item.image_path?.startsWith('chat-stickers/')
+          const isCustomStickerImage = item.message_type === 'image' && isChatStickerImagePath(item.image_path)
           const isImageMessage = item.message_type === 'image'
           const isReadByOther = mine &&
             room?.other_last_read_at &&

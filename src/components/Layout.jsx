@@ -146,7 +146,7 @@ export default function Layout() {
       loadUnreadCount()
     }
 
-    const timer = setInterval(loadUnreadCount, 30000)
+    const timer = setInterval(loadUnreadCount, 120000)
 
     return () => {
       ignore = true
@@ -169,7 +169,7 @@ export default function Layout() {
     }
 
     loadChatCount()
-    const timer = setInterval(loadChatCount, 30000)
+    const timer = setInterval(loadChatCount, 120000)
     const unsubscribe = subscribeToChatUpdates(loadChatCount)
     window.addEventListener('ons-tennis-chat-unread-changed', loadChatCount)
     const handleVisibilityChange = () => {

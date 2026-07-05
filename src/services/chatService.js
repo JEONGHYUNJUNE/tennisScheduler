@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage } from './imageAttachmentService'
 
 export const chatMessagePageSize = 100
+const reusableStickerFolder = 'chat-custom-stickers'
 
 const baseRoomSelectColumns = `
   id,
@@ -98,6 +99,10 @@ export const chatStickerOptions = [
   { label: '따봉', value: '👍' },
   { label: '하트웃음', value: '🥰' },
 ]
+
+export function isReusableChatStickerPath(imagePath = '') {
+  return imagePath.startsWith(`${reusableStickerFolder}/`)
+}
 
 export async function getChatRooms(currentMemberId) {
   let { data, error } = await supabase
@@ -459,6 +464,71 @@ export async function sendChatStickerImage(roomId, memberId, stickerFile, { repl
   return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
 }
 
+export async function uploadReusableChatSticker(memberId, stickerFile) {
+  if (!stickerFile?.type?.startsWith('image/')) throw new Error('이미지 파일만 이모티콘으로 저장할 수 있습니다.')
+  if (stickerFile.size > 2 * 1024 * 1024) throw new Error('커스텀 이모티콘은 2MB 이하만 저장할 수 있습니다.')
+
+  const extension = stickerFile.type === 'image/gif' ? 'gif' : 'png'
+  const safeName = stickerFile.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'sticker'
+  const imagePath = `${reusableStickerFolder}/${memberId}/${Date.now()}-${safeName}.${extension}`
+
+  const { error } = await supabase.storage
+    .from(postImageBucketName)
+    .upload(imagePath, stickerFile, {
+      cacheControl: '31536000',
+      contentType: stickerFile.type || 'image/png',
+      upsert: false,
+    })
+
+  if (error) throw error
+
+  return {
+    image_path: imagePath,
+    image_name: stickerFile.name,
+    image_mime: stickerFile.type || 'image/png',
+  }
+}
+
+export async function sendChatStickerReference(roomId, stickerPayload, { replyToMessageId = null } = {}) {
+  if (!stickerPayload?.image_path) throw new Error('이모티콘 이미지가 저장되지 않았습니다.')
+
+  const payload = {
+    room_id: roomId,
+    message_type: 'image',
+    body: stickerPayload.image_name || '이모티콘',
+    image_path: stickerPayload.image_path,
+    image_name: stickerPayload.image_name || 'custom-sticker.png',
+    image_mime: stickerPayload.image_mime || 'image/png',
+  }
+  if (replyToMessageId) payload.reply_to_message_id = replyToMessageId
+
+  let { data, error } = await supabase
+    .from('chat_messages')
+    .insert(payload)
+    .select(messageWithReplyIdSelectColumns)
+    .single()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        message_type: 'image',
+        body: payload.body,
+        image_path: payload.image_path,
+        image_name: payload.image_name,
+        image_mime: payload.image_mime,
+      })
+      .select(baseMessageSelectColumns)
+      .single()
+    data = fallback.data
+    error = fallback.error
+  }
+
+  if (error) throw error
+  return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
+}
+
 export async function endChatRoom(roomId) {
   const { data: images, error: imageError } = await supabase
     .from('chat_messages')
@@ -473,7 +543,9 @@ export async function endChatRoom(roomId) {
 
   if (error) throw error
 
-  await Promise.all((images || []).map((message) => removePostImage(message.image_path)))
+  await Promise.all((images || [])
+    .filter((message) => isRoomScopedChatImagePath(roomId, message.image_path))
+    .map((message) => removePostImage(message.image_path)))
 }
 
 export async function setChatRoomNotice(roomId, messageId) {
@@ -530,6 +602,10 @@ export function subscribeToChatUpdates(onChange) {
 }
 
 export async function getUnreadChatCount(memberId) {
+  const { data, error } = await supabase.rpc('get_unread_one_to_one_chat_count')
+  if (!error && typeof data === 'number') return data
+  if (error && !isMissingUnreadCountFunctionError(error)) throw error
+
   const rooms = await getChatRooms(memberId)
   return rooms.filter((room) => {
     if (room.status === 'requested') return room.recipient_member_id === memberId
@@ -564,6 +640,14 @@ function mergeMessageRows(messages) {
     messageMap.set(message.id, message)
   })
   return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+}
+
+function isRoomScopedChatImagePath(roomId, imagePath = '') {
+  return imagePath.startsWith(`chats/${roomId}/`) || imagePath.startsWith(`chat-stickers/${roomId}/`)
+}
+
+function isMissingUnreadCountFunctionError(error) {
+  return ['42883', 'PGRST202'].includes(error.code) || /get_unread_one_to_one_chat_count/.test(error.message || '')
 }
 
 async function hydrateRoomPreview(room, memberId) {

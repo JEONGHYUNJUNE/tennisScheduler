@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
@@ -27,6 +27,7 @@ function getRoomPreview(room) {
 
 export default function ChatListPage() {
   const { profile } = useAuth()
+  const refreshTimerRef = useRef(null)
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -44,8 +45,15 @@ export default function ChatListPage() {
 
   useEffect(() => {
     load()
-    const timer = window.setInterval(load, 20000)
-    const unsubscribe = subscribeToChatUpdates(load)
+    const scheduleLoad = () => {
+      if (refreshTimerRef.current) return
+      refreshTimerRef.current = window.setTimeout(() => {
+        refreshTimerRef.current = null
+        load()
+      }, 1500)
+    }
+    const timer = window.setInterval(load, 60000)
+    const unsubscribe = subscribeToChatUpdates(scheduleLoad)
     const handleFocus = () => load()
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') load()
@@ -56,6 +64,10 @@ export default function ChatListPage() {
 
     return () => {
       window.clearInterval(timer)
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current)
+        refreshTimerRef.current = null
+      }
       unsubscribe()
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
