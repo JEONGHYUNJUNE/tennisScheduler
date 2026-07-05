@@ -4,7 +4,7 @@ import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { getChatRooms, getRoomUnreadCount, subscribeToChatUpdates } from '../services/chatService'
+import { getChatRooms, getRoomUnreadCount, isReusableChatStickerPath, subscribeToChatUpdates } from '../services/chatService'
 
 const formatChatTime = (dateText) => {
   if (!dateText) return ''
@@ -20,7 +20,7 @@ function getRoomPreview(room) {
   if (room.status === 'requested') return '채팅 요청 대기 중'
   if (!room.last_message) return '대화가 시작되었습니다.'
   if (room.last_message.message_type === 'image') {
-    return room.last_message.image_path?.startsWith('chat-stickers/') ? '이모티콘' : '사진'
+    return room.last_message.image_path?.startsWith('chat-stickers/') || isReusableChatStickerPath(room.last_message.image_path) ? '이모티콘' : '사진'
   }
   return room.last_message.body
 }
