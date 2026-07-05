@@ -114,6 +114,7 @@ export default function Layout() {
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
+  const chatUnreadRefreshTimerRef = useRef(null)
 
   const handleLogout = async () => {
     await signOut()
@@ -168,10 +169,18 @@ export default function Layout() {
       }
     }
 
+    const scheduleChatCountLoad = () => {
+      if (chatUnreadRefreshTimerRef.current) return
+      chatUnreadRefreshTimerRef.current = window.setTimeout(() => {
+        chatUnreadRefreshTimerRef.current = null
+        loadChatCount()
+      }, 1500)
+    }
+
     loadChatCount()
     const timer = setInterval(loadChatCount, 120000)
-    const unsubscribe = subscribeToChatUpdates(loadChatCount)
-    window.addEventListener('ons-tennis-chat-unread-changed', loadChatCount)
+    const unsubscribe = subscribeToChatUpdates(scheduleChatCountLoad)
+    window.addEventListener('ons-tennis-chat-unread-changed', scheduleChatCountLoad)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') loadChatCount()
     }
@@ -180,8 +189,12 @@ export default function Layout() {
     return () => {
       ignore = true
       clearInterval(timer)
+      if (chatUnreadRefreshTimerRef.current) {
+        window.clearTimeout(chatUnreadRefreshTimerRef.current)
+        chatUnreadRefreshTimerRef.current = null
+      }
       unsubscribe()
-      window.removeEventListener('ons-tennis-chat-unread-changed', loadChatCount)
+      window.removeEventListener('ons-tennis-chat-unread-changed', scheduleChatCountLoad)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [profile?.id])

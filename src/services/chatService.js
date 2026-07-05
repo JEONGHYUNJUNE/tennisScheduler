@@ -331,6 +331,17 @@ export async function markChatRoomRead(roomId) {
   return data
 }
 
+export function markChatRoomInactive(roomId) {
+  if (!roomId) return Promise.resolve()
+
+  return supabase
+    .rpc('leave_one_to_one_chat', { target_room_id: roomId })
+    .then(({ error }) => {
+      if (error?.code === '42883' || /leave_one_to_one_chat/.test(error?.message || '')) return
+      if (error) throw error
+    })
+}
+
 export async function sendChatMessage(roomId, body, messageType = 'text', { replyToMessageId = null } = {}) {
   const payload = {
     room_id: roomId,

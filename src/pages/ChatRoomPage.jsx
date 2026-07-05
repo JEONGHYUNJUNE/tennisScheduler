@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, isReusableChatStickerPath, markChatRoomRead, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 24
 const stickerPanelSlotCount = 15
@@ -268,6 +268,7 @@ export default function ChatRoomPage() {
 
   const markRead = useCallback(async () => {
     if (!roomId) return
+    if (document.visibilityState !== 'visible') return
 
     try {
       const updates = await markChatRoomRead(roomId)
@@ -355,21 +356,31 @@ export default function ChatRoomPage() {
     if (!isActive) return undefined
 
     markRead()
-    const timerId = window.setInterval(markRead, 25000)
+    const timerId = window.setInterval(markRead, 40000)
     const handleFocus = () => markRead()
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') markRead()
+      if (document.visibilityState === 'visible') {
+        markRead()
+      } else {
+        markChatRoomInactive(roomId).catch(() => {})
+      }
+    }
+    const handlePageHide = () => {
+      markChatRoomInactive(roomId).catch(() => {})
     }
 
     window.addEventListener('focus', handleFocus)
+    window.addEventListener('pagehide', handlePageHide)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       window.clearInterval(timerId)
       window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('pagehide', handlePageHide)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      markChatRoomInactive(roomId).catch(() => {})
     }
-  }, [isActive, markRead])
+  }, [isActive, markRead, roomId])
 
   useEffect(() => () => {
     scrollCorrectionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId))
