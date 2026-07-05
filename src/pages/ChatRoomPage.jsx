@@ -16,6 +16,7 @@ const customStickerSize = 256
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
 const getCustomStickerMigrationKey = (memberId) => `ons-tennis-custom-chat-stickers-migrated:${memberId}`
+const getSearchShareDraftKey = (roomId) => `ons-tennis-chat-search-share:${roomId}`
 const getCustomStickerPageCount = (stickerCount) => {
   if (stickerCount < firstCustomStickerPageSize) return 1
   const remainingCustomStickers = Math.max(0, stickerCount - firstCustomStickerPageSize)
@@ -24,6 +25,27 @@ const getCustomStickerPageCount = (stickerCount) => {
 }
 
 const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || ''
+
+function readSearchShareDraft(roomId) {
+  try {
+    const saved = window.sessionStorage.getItem(getSearchShareDraftKey(roomId))
+    return saved ? JSON.parse(saved) : null
+  } catch {
+    return null
+  }
+}
+
+function writeSearchShareDraft(roomId, draft) {
+  try {
+    if (draft) {
+      window.sessionStorage.setItem(getSearchShareDraftKey(roomId), JSON.stringify(draft))
+    } else {
+      window.sessionStorage.removeItem(getSearchShareDraftKey(roomId))
+    }
+  } catch {
+    // Losing this draft is non-critical; the chat itself is unaffected.
+  }
+}
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -216,6 +238,25 @@ export default function ChatRoomPage() {
     const pageStart = firstCustomStickerPageSize + ((customStickerPage - 1) * customStickerPageSize)
     return customStickers.slice(pageStart, pageStart + customStickerPageSize)
   }, [customStickerPage, customStickers, isRoomStickerPage, roomStickers])
+
+  useEffect(() => {
+    const draft = readSearchShareDraft(roomId)
+    if (!draft?.open) return
+
+    setSearchShareOpen(true)
+    setSearchShareQuery(draft.query || '')
+    setSearchShareResults(Array.isArray(draft.results) ? draft.results : [])
+    setSearchShareError('')
+  }, [roomId])
+
+  useEffect(() => {
+    if (!searchShareOpen) return
+    writeSearchShareDraft(roomId, {
+      open: true,
+      query: searchShareQuery,
+      results: searchShareResults,
+    })
+  }, [roomId, searchShareOpen, searchShareQuery, searchShareResults])
 
   useEffect(() => {
     let ignore = false
@@ -743,6 +784,11 @@ export default function ChatRoomPage() {
     setSearchShareQuery(pendingHashQuery)
     setSearchShareResults([])
     setSearchShareError('')
+    writeSearchShareDraft(roomId, {
+      open: true,
+      query: pendingHashQuery,
+      results: [],
+    })
     runSearchShare(pendingHashQuery)
   }
 
@@ -750,6 +796,7 @@ export default function ChatRoomPage() {
     setSearchShareOpen(false)
     setSearchShareLoading(false)
     setSearchShareError('')
+    writeSearchShareDraft(roomId, null)
     window.requestAnimationFrame(() => messageInputRef.current?.focus())
   }
 
@@ -772,6 +819,7 @@ export default function ChatRoomPage() {
       setSearchShareOpen(false)
       setSearchShareResults([])
       setSearchShareError('')
+      writeSearchShareDraft(roomId, null)
       if (messageInputRef.current) messageInputRef.current.style.height = ''
     } catch (err) {
       setError(err.message)

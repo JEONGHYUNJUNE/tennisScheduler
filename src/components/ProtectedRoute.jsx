@@ -19,6 +19,7 @@ export default function ProtectedRoute({ adminOnly = false, allowIncompleteProfi
     return () => clearTimeout(timer)
   }, [loading, profile, session])
 
+  if (loading && profile && !adminOnly) return <Outlet />
   if (loading) return <LoadingState message="사용자 정보를 확인하고 있습니다." variant="screen" />
   if (!session) return <Navigate to="/login" replace />
   if (!profile && allowIncompleteProfile && isGoogleUser) return <Outlet />

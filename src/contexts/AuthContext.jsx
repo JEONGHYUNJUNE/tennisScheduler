@@ -9,11 +9,34 @@ const AuthContext = createContext({
   isAdmin: false,
 })
 
+const profileCacheKey = 'ons-tennis-auth-profile-cache'
+
+function readCachedProfile() {
+  try {
+    const cached = window.sessionStorage.getItem(profileCacheKey)
+    return cached ? JSON.parse(cached) : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedProfile(nextProfile) {
+  try {
+    if (nextProfile) {
+      window.sessionStorage.setItem(profileCacheKey, JSON.stringify(nextProfile))
+    } else {
+      window.sessionStorage.removeItem(profileCacheKey)
+    }
+  } catch {
+    // Session storage can be unavailable in private modes; auth still works without this cache.
+  }
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState(() => readCachedProfile())
   const [loading, setLoading] = useState(true)
-  const profileRef = useRef(null)
+  const profileRef = useRef(profile)
 
   const refreshProfile = useCallback(async (nextSession) => {
     const resolvedSession = nextSession ?? (await supabase.auth.getSession()).data.session
@@ -23,6 +46,7 @@ export function AuthProvider({ children }) {
 
     if (!resolvedSession?.user) {
       profileRef.current = null
+      writeCachedProfile(null)
       setProfile(null)
       setLoading(false)
       return
@@ -32,6 +56,7 @@ export function AuthProvider({ children }) {
       setLoading(false)
     } else {
       profileRef.current = null
+      writeCachedProfile(null)
       setProfile(null)
       setLoading(true)
     }
@@ -39,6 +64,7 @@ export function AuthProvider({ children }) {
     try {
       const nextProfile = await getProfile(resolvedSession.user)
       profileRef.current = nextProfile
+      writeCachedProfile(nextProfile)
       setProfile(nextProfile)
     } catch (error) {
       console.error('회원 프로필 조회 실패:', error)
