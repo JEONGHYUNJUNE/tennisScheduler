@@ -4,6 +4,21 @@ export const postImageBucketName = 'post-images'
 
 const maxSourceSize = 12 * 1024 * 1024
 const maxImageSide = 1400
+function getImageFormat(file) {
+  if (file.type === 'image/gif') {
+    return { blob: file, mime: 'image/gif', extension: 'gif' }
+  }
+
+  if (file.type === 'image/png') {
+    return { mime: 'image/png', extension: 'png' }
+  }
+
+  if (file.type === 'image/webp') {
+    return { mime: 'image/webp', extension: 'webp' }
+  }
+
+  return { mime: 'image/jpeg', extension: 'jpg' }
+}
 
 function createImageFromFile(file) {
   return new Promise((resolve, reject) => {
@@ -23,6 +38,9 @@ function createImageFromFile(file) {
 }
 
 async function resizeImageFile(file) {
+  const format = getImageFormat(file)
+  if (format.blob) return format
+
   const image = await createImageFromFile(file)
   const scale = Math.min(1, maxImageSide / Math.max(image.naturalWidth, image.naturalHeight))
   const width = Math.max(1, Math.round(image.naturalWidth * scale))
@@ -40,14 +58,14 @@ async function resizeImageFile(file) {
         reject(new Error('이미지를 변환하지 못했습니다.'))
         return
       }
-      resolve(blob)
-    }, 'image/jpeg', 0.84)
+      resolve({ blob, mime: format.mime, extension: format.extension })
+    }, format.mime, format.mime === 'image/png' ? undefined : 0.84)
   })
 }
 
-function normalizeFileName(name) {
+function normalizeFileName(name, extension = 'jpg') {
   const safeName = name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'image'
-  return `${Date.now()}-${safeName}.jpg`
+  return `${Date.now()}-${safeName}.${extension}`
 }
 
 export function validatePostImageFile(file) {
@@ -60,12 +78,12 @@ export async function uploadPostImage({ file, folder }) {
   validatePostImageFile(file)
 
   const resizedImage = await resizeImageFile(file)
-  const imagePath = `${folder}/${normalizeFileName(file.name)}`
+  const imagePath = `${folder}/${normalizeFileName(file.name, resizedImage.extension)}`
   const { error } = await supabase.storage
     .from(postImageBucketName)
-    .upload(imagePath, resizedImage, {
+    .upload(imagePath, resizedImage.blob, {
       cacheControl: '31536000',
-      contentType: 'image/jpeg',
+      contentType: resizedImage.mime,
       upsert: false,
     })
 
@@ -74,7 +92,7 @@ export async function uploadPostImage({ file, folder }) {
   return {
     image_path: imagePath,
     image_name: file.name,
-    image_mime: 'image/jpeg',
+    image_mime: resizedImage.mime,
   }
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import MentionText from '../components/MentionText'
@@ -708,9 +709,11 @@ function DiaryEntryCard({ entry, globalMentionCandidates, isAdmin, profile, entr
       {entry.title && <h2><MentionText text={entry.title} /></h2>}
       <p><MentionText text={entry.body} /></p>
       {entry.image_url && (
-        <a className="post-image-display diary-image-display" href={entry.image_url} target="_blank" rel="noreferrer">
-          <img src={entry.image_url} alt={entry.image_name || '다이어리 첨부 이미지'} />
-        </a>
+        <ImageLightbox
+          src={entry.image_url}
+          alt={entry.image_name || '다이어리 첨부 이미지'}
+          className="post-image-display diary-image-display"
+        />
       )}
       <div className="opinion-item-actions">
         <button className={`heart-button opinion-heart ${entryLike?.likedByMe ? 'liked' : ''}`} type="button" onClick={toggleHeart}>

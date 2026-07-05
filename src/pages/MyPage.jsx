@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
@@ -690,9 +691,9 @@ function InquiryModal({ highlightedInquiryId = '', initialTab = 'write', profile
                 </div>
                 <p>{inquiry.message}</p>
                 {inquiry.image_url && (
-                  <a className="inquiry-attachment" href={inquiry.image_url} target="_blank" rel="noreferrer">
+                  <ImageLightbox src={inquiry.image_url} alt={inquiry.image_name || '문의 첨부 이미지'} className="inquiry-attachment">
                     첨부 이미지 보기
-                  </a>
+                  </ImageLightbox>
                 )}
 
                 <div className="inquiry-replies">

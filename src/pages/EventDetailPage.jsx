@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
@@ -369,9 +370,11 @@ export default function EventDetailPage() {
           </div>
           {event.memo && <p>{event.memo}</p>}
           {event.memo_image_url && (
-            <a className="post-image-display" href={event.memo_image_url} target="_blank" rel="noreferrer">
-              <img src={event.memo_image_url} alt={event.memo_image_name || '일정 메모 첨부 이미지'} />
-            </a>
+            <ImageLightbox
+              src={event.memo_image_url}
+              alt={event.memo_image_name || '일정 메모 첨부 이미지'}
+              className="post-image-display"
+            />
           )}
         </section>
       )}

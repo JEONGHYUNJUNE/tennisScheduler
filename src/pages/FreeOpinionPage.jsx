@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
+import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import MentionText from '../components/MentionText'
@@ -530,9 +531,11 @@ export default function FreeOpinionPage() {
                   )}
 
                   {opinion.image_url && (
-                    <a className="post-image-display opinion-image-display" href={opinion.image_url} target="_blank" rel="noreferrer">
-                      <img src={opinion.image_url} alt={opinion.image_name || '소통 첨부 이미지'} />
-                    </a>
+                    <ImageLightbox
+                      src={opinion.image_url}
+                      alt={opinion.image_name || '소통 첨부 이미지'}
+                      className="post-image-display opinion-image-display"
+                    />
                   )}
 
                   <div className="opinion-item-actions">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
@@ -937,9 +938,7 @@ export default function ChatRoomPage() {
         return <img src={item.image_url} alt={item.image_name || '커스텀 이모티콘'} />
       }
       return (
-        <a href={item.image_url} target="_blank" rel="noreferrer">
-          <img src={item.image_url} alt={item.image_name || '채팅 이미지'} />
-        </a>
+        <ImageLightbox src={item.image_url} alt={item.image_name || '채팅 이미지'} className="chat-image-lightbox-trigger" />
       )
     }
 
