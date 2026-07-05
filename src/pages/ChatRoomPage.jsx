@@ -4,7 +4,8 @@ import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, serializeSearchShare, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
 const maxRoomStickers = 24
@@ -95,6 +96,8 @@ const formatSearchResultTime = (dateText) => {
 
 const getMessagePreview = (item) => {
   if (!item) return ''
+  const searchShare = parseSearchShare(item.body || '')
+  if (searchShare) return `#검색공유 ${searchShare.title}`
   if (item.message_type === 'sticker') return item.body || '이모티콘'
   if (item.message_type === 'image') {
     return isChatStickerImagePath(item.image_path) ? '이모티콘' : '사진'
@@ -104,6 +107,8 @@ const getMessagePreview = (item) => {
 
 const getMessageCopyText = (item) => {
   if (!item) return ''
+  const searchShare = parseSearchShare(item.body || '')
+  if (searchShare) return `${searchShare.title}\n${searchShare.snippet}\n${searchShare.link}`
   if (item.message_type === 'image') {
     return isChatStickerImagePath(item.image_path) ? '이모티콘' : (item.image_name || item.body || '사진')
   }
@@ -178,6 +183,11 @@ export default function ChatRoomPage() {
   const [stickerSaveScope, setStickerSaveScope] = useState('personal')
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
+  const [searchShareOpen, setSearchShareOpen] = useState(false)
+  const [searchShareQuery, setSearchShareQuery] = useState('')
+  const [searchShareResults, setSearchShareResults] = useState([])
+  const [searchShareLoading, setSearchShareLoading] = useState(false)
+  const [searchShareError, setSearchShareError] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -187,6 +197,12 @@ export default function ChatRoomPage() {
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
+  const pendingHashQuery = useMemo(() => {
+    const trimmed = message.trim()
+    if (!trimmed.startsWith('#')) return ''
+    return trimmed.replace(/^#+\s*/, '').trim()
+  }, [message])
+  const showHashSearchPrompt = isActive && pendingHashQuery.length > 0 && !searchShareOpen
 
   const otherMember = useMemo(() => room?.other_member || { name: '회원' }, [room])
   const personalStickerPageCount = useMemo(() => getCustomStickerPageCount(customStickers.length), [customStickers.length])
@@ -523,7 +539,8 @@ export default function ChatRoomPage() {
   }
 
   const startLongPress = (event, item) => {
-    if (event.target.closest('a, button')) return
+    const interactiveTarget = event.target.closest('a, button, input, textarea, select')
+    if (interactiveTarget && !interactiveTarget.classList.contains('chat-image-lightbox-trigger')) return
     clearLongPress()
     longPressTimerRef.current = window.setTimeout(() => openMessageActions(item), 520)
   }
@@ -680,6 +697,7 @@ export default function ChatRoomPage() {
   }
 
   const toggleStickerPanel = () => {
+    setSearchShareOpen(false)
     setStickerOpen((current) => !current)
     window.requestAnimationFrame(() => messageInputRef.current?.focus())
   }
@@ -700,6 +718,67 @@ export default function ChatRoomPage() {
     setHasMoreMessages(latestMessages.length === chatMessagePageSize)
     setViewingSearchContext(false)
     window.setTimeout(() => scheduleScrollToBottom({ behavior: 'auto' }), 80)
+  }
+
+  const runSearchShare = async (query = searchShareQuery) => {
+    const keyword = query.trim()
+    if (!keyword) return
+
+    setSearchShareLoading(true)
+    setSearchShareError('')
+    try {
+      setSearchShareResults(await searchNaver(keyword))
+    } catch (err) {
+      setSearchShareError(err.message)
+      setSearchShareResults([])
+    } finally {
+      setSearchShareLoading(false)
+    }
+  }
+
+  const openSearchShare = () => {
+    if (!pendingHashQuery) return
+    setStickerOpen(false)
+    setSearchShareOpen(true)
+    setSearchShareQuery(pendingHashQuery)
+    setSearchShareResults([])
+    setSearchShareError('')
+    runSearchShare(pendingHashQuery)
+  }
+
+  const closeSearchShare = () => {
+    setSearchShareOpen(false)
+    setSearchShareLoading(false)
+    setSearchShareError('')
+    window.requestAnimationFrame(() => messageInputRef.current?.focus())
+  }
+
+  const handleSearchShareSubmit = (event) => {
+    event.preventDefault()
+    runSearchShare()
+  }
+
+  const handleShareSearchResult = async (result) => {
+    if (!isActive) return
+
+    setSending(true)
+    setError('')
+    try {
+      const currentReplyTarget = replyTarget
+      const sentMessage = await sendChatMessage(roomId, serializeSearchShare(result), 'text', { replyToMessageId: replyTarget?.id || null })
+      await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
+      setMessage('')
+      setReplyTarget(null)
+      setSearchShareOpen(false)
+      setSearchShareResults([])
+      setSearchShareError('')
+      if (messageInputRef.current) messageInputRef.current.style.height = ''
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSending(false)
+      window.requestAnimationFrame(() => messageInputRef.current?.focus())
+    }
   }
 
   const sendTextMessage = async () => {
@@ -728,6 +807,7 @@ export default function ChatRoomPage() {
     if (event.target.closest('a, button, input, textarea, select')) return
     document.activeElement?.blur?.()
     setStickerOpen(false)
+    setSearchShareOpen(false)
   }
 
   const handleSticker = async (sticker) => {
@@ -933,6 +1013,24 @@ export default function ChatRoomPage() {
   }
 
   const renderMessageBody = (item, isImageMessage, isCustomStickerImage) => {
+    const searchShare = parseSearchShare(item.body || '')
+    if (searchShare) {
+      return (
+        <a
+          className="chat-search-share-card"
+          href={searchShare.link}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span>#검색공유</span>
+          <strong>{searchShare.title}</strong>
+          {searchShare.snippet && <em>{searchShare.snippet}</em>}
+          <small>{searchShare.source || '검색 결과'} ↗</small>
+        </a>
+      )
+    }
+
     if (isImageMessage && item.image_url) {
       if (isCustomStickerImage) {
         return <img src={item.image_url} alt={item.image_name || '커스텀 이모티콘'} />
@@ -952,7 +1050,7 @@ export default function ChatRoomPage() {
         <MemberAvatar name={otherMember.name} imageUrl={otherMember.avatar_url} size="sm" previewable />
         <div>
           <strong>{otherMember.name}</strong>
-          <span>{isActive ? '실시간 채팅 중' : isRequested ? '채팅 요청 중' : '종료됨'}</span>
+          <span>{isActive ? '채팅 중' : isRequested ? '채팅 요청 중' : '종료됨'}</span>
         </div>
         <button
           type="button"
@@ -1070,6 +1168,20 @@ export default function ChatRoomPage() {
             </div>
             <button type="button" onClick={() => setReplyTarget(null)} aria-label="답장 취소">×</button>
           </div>
+        )}
+        {showHashSearchPrompt && (
+          <button
+            type="button"
+            className="chat-hash-search-prompt"
+            onMouseDown={keepComposerFocus}
+            onTouchStart={keepComposerFocus}
+            onPointerDown={keepComposerFocus}
+            onClick={openSearchShare}
+          >
+            <span>#</span>
+            <strong>네이버 검색으로 공유하기</strong>
+            <em>{pendingHashQuery}</em>
+          </button>
         )}
         <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
@@ -1217,6 +1329,55 @@ export default function ChatRoomPage() {
           전송
         </button>
       </form>
+      {searchShareOpen && (
+        <div className="chat-search-share-overlay" onClick={closeSearchShare}>
+          <section className="chat-search-share-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="chat-search-share-head">
+              <div>
+                <p className="eyebrow"># SEARCH</p>
+                <h2># 검색</h2>
+              </div>
+              <button type="button" onClick={closeSearchShare} aria-label="검색 닫기">×</button>
+            </div>
+            <form className="chat-search-share-form" onSubmit={handleSearchShareSubmit}>
+              <input
+                value={searchShareQuery}
+                onChange={(event) => setSearchShareQuery(event.target.value)}
+                placeholder="검색어를 입력하세요"
+                autoFocus
+              />
+              <button type="submit" disabled={searchShareLoading || !searchShareQuery.trim()}>
+                {searchShareLoading ? '검색 중' : '검색'}
+              </button>
+            </form>
+            <p className="chat-search-share-helper">검색 결과는 공유 전 미리보기만 표시돼요.</p>
+            {searchShareError && <p className="chat-search-share-error">{searchShareError}</p>}
+            <div className="chat-search-share-results">
+              {searchShareLoading && [0, 1, 2].map((item) => (
+                <div className="chat-search-share-skeleton" key={item} />
+              ))}
+              {!searchShareLoading && searchShareResults.map((result) => (
+                <article className="chat-search-share-result" key={`${result.link}-${result.title}`}>
+                  <div>
+                    <strong>{result.title}</strong>
+                    {result.snippet && <p>{result.snippet}</p>}
+                    <span>{result.source || result.link}</span>
+                  </div>
+                  <div className="chat-search-share-result-actions">
+                    <a href={result.link} target="_blank" rel="noreferrer">보기</a>
+                    <button type="button" onClick={() => handleShareSearchResult(result)} disabled={sending}>
+                      공유
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {!searchShareLoading && !searchShareError && searchShareResults.length === 0 && (
+                <p className="chat-search-share-empty">검색 결과가 없습니다.</p>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
       {actionMessage && (
         <div className="chat-action-overlay" onClick={() => setActionMessage(null)}>
           <div className="chat-action-menu" onClick={(event) => event.stopPropagation()}>

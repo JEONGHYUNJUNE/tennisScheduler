@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { getProfile } from '../services/authService'
 
@@ -13,21 +13,36 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const profileRef = useRef(null)
 
   const refreshProfile = useCallback(async (nextSession) => {
     const resolvedSession = nextSession ?? (await supabase.auth.getSession()).data.session
-    setLoading(true)
+    const currentProfile = profileRef.current
+    const isSameUser = currentProfile?.auth_user_id && currentProfile.auth_user_id === resolvedSession?.user?.id
     setSession(resolvedSession)
-    setProfile(null)
+
     if (!resolvedSession?.user) {
+      profileRef.current = null
+      setProfile(null)
       setLoading(false)
       return
     }
+
+    if (isSameUser) {
+      setLoading(false)
+    } else {
+      profileRef.current = null
+      setProfile(null)
+      setLoading(true)
+    }
+
     try {
-      setProfile(await getProfile(resolvedSession.user))
+      const nextProfile = await getProfile(resolvedSession.user)
+      profileRef.current = nextProfile
+      setProfile(nextProfile)
     } catch (error) {
       console.error('회원 프로필 조회 실패:', error)
-      setProfile(null)
+      setProfile((currentProfile) => currentProfile || null)
     } finally {
       setLoading(false)
     }

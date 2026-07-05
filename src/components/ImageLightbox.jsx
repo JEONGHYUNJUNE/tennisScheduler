@@ -91,7 +91,7 @@ export default function ImageLightbox({ src, alt = '첨부 이미지', className
         onContextMenu={(event) => event.stopPropagation()}
       >
         <img src={src} alt={alt} />
-        <figcaption>이미지를 저장하려면 아래 버튼을 눌러주세요.</figcaption>
+        <figcaption>저장하려면 이미지를 꾹 누르거나 아래 버튼을 눌러주세요.</figcaption>
       </figure>
       <button type="button" className="image-lightbox-save" onClick={handleSave} disabled={saving}>
         {saving ? '준비 중...' : '기기에 저장'}

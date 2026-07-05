@@ -4,7 +4,7 @@ import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { getChatRooms, getRoomUnreadCount, isReusableChatStickerPath, subscribeToChatUpdates } from '../services/chatService'
+import { getChatRooms, getRoomUnreadCount, isReusableChatStickerPath, parseSearchShare, subscribeToChatUpdates } from '../services/chatService'
 
 const formatChatTime = (dateText) => {
   if (!dateText) return ''
@@ -22,6 +22,8 @@ function getRoomPreview(room) {
   if (room.last_message.message_type === 'image') {
     return room.last_message.image_path?.startsWith('chat-stickers/') || isReusableChatStickerPath(room.last_message.image_path) ? '이모티콘' : '사진'
   }
+  const searchShare = parseSearchShare(room.last_message.body || '')
+  if (searchShare) return `#검색공유 ${searchShare.title}`
   return room.last_message.body
 }
 

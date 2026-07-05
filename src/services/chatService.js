@@ -3,6 +3,7 @@ import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage 
 
 export const chatMessagePageSize = 100
 const reusableStickerFolder = 'chat-custom-stickers'
+const searchShareMarker = '#검색공유'
 
 const baseRoomSelectColumns = `
   id,
@@ -99,6 +100,34 @@ export const chatStickerOptions = [
   { label: '따봉', value: '👍' },
   { label: '하트웃음', value: '🥰' },
 ]
+
+export function serializeSearchShare(result) {
+  const title = String(result?.title || '').trim()
+  const snippet = String(result?.snippet || '').trim()
+  const link = String(result?.link || '').trim()
+  const source = String(result?.source || '').trim()
+  return [searchShareMarker, title, snippet, source, link].join('\n')
+}
+
+export function parseSearchShare(body = '') {
+  if (!body.startsWith(`${searchShareMarker}\n`)) return null
+  const [, title = '', snippet = '', source = '', link = ''] = body.split('\n')
+  if (!title.trim() || !link.trim()) return null
+  return {
+    title: title.trim(),
+    snippet: snippet.trim(),
+    source: source.trim() || getLinkHost(link.trim()),
+    link: link.trim(),
+  }
+}
+
+function getLinkHost(link) {
+  try {
+    return new URL(link).hostname.replace(/^www\./, '')
+  } catch {
+    return ''
+  }
+}
 
 export function isReusableChatStickerPath(imagePath = '') {
   return imagePath.startsWith(`${reusableStickerFolder}/`)
