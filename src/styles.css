@@ -827,20 +827,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .loading-state-card { min-width: min(320px, 100%); padding: 34px 32px 30px; border: 1px solid rgba(217,228,213,.88); border-radius: 28px; display: grid; justify-items: center; gap: 18px; background: rgba(255,253,248,.9); box-shadow: 0 24px 70px rgba(49,95,59,.16); backdrop-filter: blur(12px); }
 .loading-state p { margin: 0; font-size: .96rem; }
 .loading-state-screen p { font-size: 1rem; }
-.loading-state-ball { position: relative; width: 48px; height: 48px; border-radius: 50%; background: #d8ef48; box-shadow: inset -11px 0 0 rgba(255,255,255,.45), 0 12px 24px rgba(53,129,70,.22); animation: tennis-loading-bounce 1.05s ease-in-out infinite; }
-.loading-state-screen .loading-state-ball { width: 58px; height: 58px; box-shadow: inset -13px 0 0 rgba(255,255,255,.45), 0 14px 28px rgba(53,129,70,.24); }
-.loading-state-ball::before,
-.loading-state-ball::after { content: ""; position: absolute; top: 6px; width: 20px; height: 36px; border: 3px solid rgba(255,255,255,.86); border-left: 0; border-radius: 50%; }
-.loading-state-screen .loading-state-ball::before,
-.loading-state-screen .loading-state-ball::after { top: 7px; width: 24px; height: 44px; }
-.loading-state-ball::before { left: 7px; transform: rotate(13deg); }
-.loading-state-ball::after { right: 7px; transform: rotate(193deg); }
-.loading-state-screen .loading-state-ball::before { left: 8px; }
-.loading-state-screen .loading-state-ball::after { right: 8px; }
-@keyframes tennis-loading-bounce {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  45% { transform: translateY(-10px) rotate(28deg); }
-}
+.loading-state-logo { width: 76px; height: 76px; display: block; object-fit: contain; border-radius: 18px; filter: drop-shadow(0 12px 22px rgba(53,129,70,.16)); user-select: none; }
+.loading-state-screen .loading-state-logo { width: 92px; height: 92px; border-radius: 22px; filter: drop-shadow(0 14px 26px rgba(53,129,70,.18)); }
+.loading-state-inline .loading-state-logo { width: 58px; height: 58px; border-radius: 14px; filter: drop-shadow(0 9px 18px rgba(53,129,70,.13)); }
 @keyframes content-soft-rise {
   from { opacity: 0; translate: 0 12px; }
   to { opacity: 1; translate: 0 0; }

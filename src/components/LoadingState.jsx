@@ -1,7 +1,8 @@
 export default function LoadingState({ message = '불러오는 중입니다.', variant = 'page' }) {
+  const loaderSrc = `${import.meta.env.BASE_URL}ons-tennis-logo-fill-loader.gif`
   const content = (
     <>
-      <div className="loading-state-ball" aria-hidden="true" />
+      <img className="loading-state-logo" src={loaderSrc} alt="" aria-hidden="true" draggable="false" />
       <p>{message}</p>
     </>
   )
