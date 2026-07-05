@@ -3,21 +3,25 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 
 const maxCustomStickers = 24
+const maxRoomStickers = 24
 const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
 const customStickerPageSize = stickerPanelSlotCount
 const customStickerSize = 256
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
+const getCustomStickerMigrationKey = (memberId) => `ons-tennis-custom-chat-stickers-migrated:${memberId}`
 const getCustomStickerPageCount = (stickerCount) => {
   if (stickerCount < firstCustomStickerPageSize) return 1
   const remainingCustomStickers = Math.max(0, stickerCount - firstCustomStickerPageSize)
   const addButtonSlot = stickerCount < maxCustomStickers ? 1 : 0
   return 1 + Math.ceil((remainingCustomStickers + addButtonSlot) / customStickerPageSize)
 }
+
+const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || ''
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -167,8 +171,10 @@ export default function ChatRoomPage() {
   const [error, setError] = useState('')
   const [stickerOpen, setStickerOpen] = useState(false)
   const [customStickers, setCustomStickers] = useState([])
+  const [roomStickers, setRoomStickers] = useState([])
   const [customStickerPage, setCustomStickerPage] = useState(0)
   const [stickerEditor, setStickerEditor] = useState(null)
+  const [stickerSaveScope, setStickerSaveScope] = useState('personal')
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -182,29 +188,100 @@ export default function ChatRoomPage() {
   const isRequested = room?.status === 'requested'
 
   const otherMember = useMemo(() => room?.other_member || { name: '회원' }, [room])
-  const customStickerPageCount = useMemo(() => getCustomStickerPageCount(customStickers.length), [customStickers.length])
+  const personalStickerPageCount = useMemo(() => getCustomStickerPageCount(customStickers.length), [customStickers.length])
+  const customStickerPageCount = personalStickerPageCount + 1
+  const isRoomStickerPage = customStickerPage >= personalStickerPageCount
   const visibleCustomStickers = useMemo(() => {
+    if (isRoomStickerPage) return roomStickers
     if (customStickerPage === 0) {
       return customStickers.slice(0, firstCustomStickerPageSize)
     }
     const pageStart = firstCustomStickerPageSize + ((customStickerPage - 1) * customStickerPageSize)
     return customStickers.slice(pageStart, pageStart + customStickerPageSize)
-  }, [customStickerPage, customStickers])
+  }, [customStickerPage, customStickers, isRoomStickerPage, roomStickers])
 
   useEffect(() => {
+    let ignore = false
+
+    const readLocalStickers = () => {
+      try {
+        const saved = window.localStorage.getItem(getCustomStickerStorageKey(profile.id))
+        return saved ? JSON.parse(saved) : []
+      } catch {
+        return []
+      }
+    }
+
+    const migrateLocalStickers = async (localStickers) => {
+      if (!localStickers.length) return []
+      if (window.localStorage.getItem(getCustomStickerMigrationKey(profile.id)) === 'db-v1') return []
+
+      const migrated = []
+      for (const sticker of localStickers) {
+        try {
+          let stickerPayload = sticker
+          if (!stickerPayload.image_path && stickerPayload.dataUrl) {
+            const stickerFile = dataUrlToFile(stickerPayload.dataUrl, stickerPayload.name || 'custom-sticker.png', stickerPayload.mime || 'image/png')
+            const uploadedSticker = await uploadReusableChatSticker(profile.id, stickerFile)
+            stickerPayload = { ...stickerPayload, ...uploadedSticker }
+          }
+          if (stickerPayload.image_path) {
+            migrated.push(await saveCustomChatStickerRecord({ memberId: profile.id, sticker: stickerPayload }))
+          }
+        } catch {
+          // Keep loading the rest; localStorage remains as a fallback if one item fails.
+        }
+      }
+
+      window.localStorage.setItem(getCustomStickerMigrationKey(profile.id), 'db-v1')
+      return migrated
+    }
+
+    const loadStickers = async () => {
+      const localStickers = readLocalStickers()
+      if (!ignore && localStickers.length) setCustomStickers(localStickers)
+
+      try {
+        const stickerGroups = await getCustomChatStickers({ memberId: profile.id, roomId })
+        const migratedStickers = await migrateLocalStickers(localStickers)
+        const personalByPath = new Map()
+        ;[...stickerGroups.personal, ...migratedStickers].forEach((sticker) => {
+          personalByPath.set(sticker.image_path || sticker.id, sticker)
+        })
+
+        const nextPersonal = [...personalByPath.values()].slice(0, maxCustomStickers)
+        if (!ignore) {
+          setCustomStickers(nextPersonal)
+          setRoomStickers(stickerGroups.room.slice(0, maxRoomStickers))
+          window.localStorage.setItem(getCustomStickerStorageKey(profile.id), JSON.stringify(nextPersonal))
+        }
+      } catch {
+        if (!ignore) {
+          setCustomStickers(localStickers)
+          setRoomStickers([])
+        }
+      }
+    }
+
+    loadStickers()
+    return () => {
+      ignore = true
+    }
+  }, [profile.id, roomId])
+
+  const saveLocalPersonalStickers = useCallback((nextStickers) => {
     try {
-      const saved = window.localStorage.getItem(getCustomStickerStorageKey(profile.id))
-      setCustomStickers(saved ? JSON.parse(saved) : [])
+      window.localStorage.setItem(getCustomStickerStorageKey(profile.id), JSON.stringify(nextStickers))
     } catch {
-      setCustomStickers([])
+      // localStorage can be unavailable or full; DB remains the source of truth.
     }
   }, [profile.id])
 
   const saveCustomStickers = useCallback((nextStickers) => {
     const limited = nextStickers.slice(0, maxCustomStickers)
     setCustomStickers(limited)
-    window.localStorage.setItem(getCustomStickerStorageKey(profile.id), JSON.stringify(limited))
-  }, [profile.id])
+    saveLocalPersonalStickers(limited)
+  }, [saveLocalPersonalStickers])
 
   useEffect(() => {
     setCustomStickerPage((current) => Math.min(current, customStickerPageCount - 1))
@@ -681,8 +758,12 @@ export default function ChatRoomPage() {
       if (!stickerPayload.image_path) {
         const stickerFile = dataUrlToFile(sticker.dataUrl, sticker.name || 'custom-sticker.png', sticker.mime || 'image/png')
         const uploadedSticker = await uploadReusableChatSticker(profile.id, stickerFile)
-        stickerPayload = { ...stickerPayload, ...uploadedSticker }
-        saveCustomStickers(customStickers.map((item) => (item.id === sticker.id ? stickerPayload : item)))
+        stickerPayload = await saveCustomChatStickerRecord({ memberId: profile.id, roomId: sticker.room_id || null, sticker: { ...stickerPayload, ...uploadedSticker } })
+        if (sticker.room_id) {
+          setRoomStickers((current) => current.map((item) => (item.id === sticker.id ? stickerPayload : item)))
+        } else {
+          saveCustomStickers(customStickers.map((item) => (item.id === sticker.id ? stickerPayload : item)))
+        }
       }
 
       const sentMessage = await sendChatStickerReference(roomId, stickerPayload, { replyToMessageId: replyTarget?.id || null })
@@ -742,19 +823,25 @@ export default function ChatRoomPage() {
         return
       }
       const uploadedSticker = await uploadReusableChatSticker(profile.id, stickerFile)
-
-      const nextStickers = [
-        ...customStickers,
-        {
-          id: `${Date.now()}`,
+      const savedSticker = await saveCustomChatStickerRecord({
+        memberId: profile.id,
+        roomId: stickerSaveScope === 'room' ? roomId : null,
+        sticker: {
           name: stickerFile.name,
           mime: stickerFile.type,
           dataUrl,
           ...uploadedSticker,
         },
-      ]
-      saveCustomStickers(nextStickers)
-      setCustomStickerPage(getCustomStickerPageCount(nextStickers.length) - 1)
+      })
+
+      if (stickerSaveScope === 'room') {
+        setRoomStickers((current) => [...current, savedSticker].slice(0, maxRoomStickers))
+        setCustomStickerPage(personalStickerPageCount)
+      } else {
+        const nextStickers = [...customStickers, savedSticker].slice(0, maxCustomStickers)
+        saveCustomStickers(nextStickers)
+        setCustomStickerPage(getCustomStickerPageCount(nextStickers.length) - 1)
+      }
       setStickerEditor(null)
       setError('')
     } catch (err) {
@@ -762,12 +849,24 @@ export default function ChatRoomPage() {
     }
   }
 
-  const handleRemoveCustomSticker = (stickerId) => {
-    saveCustomStickers(customStickers.filter((sticker) => sticker.id !== stickerId))
+  const handleRemoveCustomSticker = async (sticker) => {
+    try {
+      await deleteCustomChatSticker(sticker.id)
+    } catch (err) {
+      setError(err.message)
+      return
+    }
+
+    if (sticker.room_id) {
+      setRoomStickers((current) => current.filter((item) => item.id !== sticker.id))
+    } else {
+      saveCustomStickers(customStickers.filter((item) => item.id !== sticker.id))
+    }
   }
 
   const openStickerEditor = () => {
     setStickerOpen(false)
+    setStickerSaveScope(isRoomStickerPage ? 'room' : 'personal')
     setStickerEditor({
       dataUrl: '',
       name: '',
@@ -1010,6 +1109,7 @@ export default function ChatRoomPage() {
           </button>
           {stickerOpen && (
             <div className="chat-sticker-panel">
+              {isRoomStickerPage && <div className="chat-sticker-section-label">이 채팅방 공유</div>}
               {customStickerPage === 0 && chatStickerOptions.map((sticker) => (
                 <button
                   type="button"
@@ -1033,22 +1133,24 @@ export default function ChatRoomPage() {
                     onClick={() => handleCustomSticker(sticker)}
                     aria-label="커스텀 이모티콘 보내기"
                   >
-                    <img src={sticker.dataUrl} alt="" />
+                    <img src={getStickerImageSrc(sticker)} alt="" />
                   </button>
-                  <button
-                    type="button"
-                    className="chat-custom-sticker-remove"
-                    onMouseDown={keepComposerFocus}
-                    onTouchStart={keepComposerFocus}
-                    onPointerDown={keepComposerFocus}
-                    onClick={() => handleRemoveCustomSticker(sticker.id)}
-                    aria-label="커스텀 이모티콘 삭제"
-                  >
-                    ×
-                  </button>
+                  {(!sticker.room_id || sticker.owner_member_id === profile.id) && (
+                    <button
+                      type="button"
+                      className="chat-custom-sticker-remove"
+                      onMouseDown={keepComposerFocus}
+                      onTouchStart={keepComposerFocus}
+                      onPointerDown={keepComposerFocus}
+                      onClick={() => handleRemoveCustomSticker(sticker)}
+                      aria-label="커스텀 이모티콘 삭제"
+                    >
+                      ×
+                    </button>
+                  )}
                 </span>
               ))}
-              {customStickerPage === customStickerPageCount - 1 && customStickers.length < maxCustomStickers && (
+              {!isRoomStickerPage && customStickerPage === personalStickerPageCount - 1 && customStickers.length < maxCustomStickers && (
                 <button
                   type="button"
                   className="chat-sticker-add-button"
@@ -1056,7 +1158,20 @@ export default function ChatRoomPage() {
                   onTouchStart={keepComposerFocus}
                   onPointerDown={keepComposerFocus}
                   onClick={openStickerEditor}
-                  aria-label="이모티콘 만들기"
+                  aria-label="개인 이모티콘 만들기"
+                >
+                  +
+                </button>
+              )}
+              {isRoomStickerPage && roomStickers.length < maxRoomStickers && (
+                <button
+                  type="button"
+                  className="chat-sticker-add-button"
+                  onMouseDown={keepComposerFocus}
+                  onTouchStart={keepComposerFocus}
+                  onPointerDown={keepComposerFocus}
+                  onClick={openStickerEditor}
+                  aria-label="채팅방 공유 이모티콘 만들기"
                 >
                   +
                 </button>
@@ -1129,6 +1244,22 @@ export default function ChatRoomPage() {
             <button type="button" className="chat-sticker-select-button" onClick={() => stickerFileInputRef.current?.click()}>
               {stickerEditor.dataUrl ? '다른 사진 선택' : '사진 또는 GIF 선택'}
             </button>
+            <div className="chat-sticker-scope-toggle" role="group" aria-label="이모티콘 저장 위치">
+              <button
+                type="button"
+                className={stickerSaveScope === 'personal' ? 'active' : ''}
+                onClick={() => setStickerSaveScope('personal')}
+              >
+                개인
+              </button>
+              <button
+                type="button"
+                className={stickerSaveScope === 'room' ? 'active' : ''}
+                onClick={() => setStickerSaveScope('room')}
+              >
+                이 채팅방
+              </button>
+            </div>
             <div className={`chat-sticker-preview ${!stickerEditor.dataUrl ? 'empty' : ''}`}>
               {stickerEditor.dataUrl ? (
                 <img

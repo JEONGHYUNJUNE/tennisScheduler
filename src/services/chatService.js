@@ -104,6 +104,20 @@ export function isReusableChatStickerPath(imagePath = '') {
   return imagePath.startsWith(`${reusableStickerFolder}/`)
 }
 
+function normalizeCustomSticker(sticker) {
+  return {
+    id: sticker.id,
+    owner_member_id: sticker.owner_member_id,
+    room_id: sticker.room_id || null,
+    image_path: sticker.image_path,
+    image_name: sticker.image_name || 'custom-sticker.png',
+    image_mime: sticker.image_mime || 'image/png',
+    image_url: getPostImageUrl(sticker.image_path),
+    name: sticker.image_name || 'custom-sticker.png',
+    mime: sticker.image_mime || 'image/png',
+  }
+}
+
 export async function getChatRooms(currentMemberId) {
   let { data, error } = await supabase
     .from('chat_rooms')
@@ -500,6 +514,94 @@ export async function uploadReusableChatSticker(memberId, stickerFile) {
   }
 }
 
+export async function getCustomChatStickers({ memberId, roomId }) {
+  const [personalResult, roomResult] = await Promise.all([
+    supabase
+      .from('chat_custom_stickers')
+      .select('id, owner_member_id, room_id, image_path, image_name, image_mime, created_at')
+      .eq('owner_member_id', memberId)
+      .is('room_id', null)
+      .order('created_at', { ascending: true }),
+    roomId
+      ? supabase
+        .from('chat_custom_stickers')
+        .select('id, owner_member_id, room_id, image_path, image_name, image_mime, created_at')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+  ])
+
+  if (personalResult.error) {
+    if (isMissingCustomStickerTableError(personalResult.error)) return { personal: [], room: [] }
+    throw personalResult.error
+  }
+  if (roomResult.error) {
+    if (isMissingCustomStickerTableError(roomResult.error)) return { personal: (personalResult.data || []).map(normalizeCustomSticker), room: [] }
+    throw roomResult.error
+  }
+
+  return {
+    personal: (personalResult.data || []).map(normalizeCustomSticker),
+    room: (roomResult.data || []).map(normalizeCustomSticker),
+  }
+}
+
+export async function saveCustomChatStickerRecord({ memberId, roomId = null, sticker }) {
+  const payload = {
+    owner_member_id: memberId,
+    room_id: roomId,
+    image_path: sticker.image_path,
+    image_name: sticker.image_name || sticker.name || 'custom-sticker.png',
+    image_mime: sticker.image_mime || sticker.mime || 'image/png',
+  }
+
+  const { data, error } = await supabase
+    .from('chat_custom_stickers')
+    .insert(payload)
+    .select('id, owner_member_id, room_id, image_path, image_name, image_mime, created_at')
+    .single()
+
+  if (error) {
+    if (isMissingCustomStickerTableError(error)) {
+      return {
+        ...payload,
+        id: sticker.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        image_url: getPostImageUrl(payload.image_path),
+        name: payload.image_name,
+        mime: payload.image_mime,
+      }
+    }
+    if (error.code === '23505') {
+      let query = supabase
+        .from('chat_custom_stickers')
+        .select('id, owner_member_id, room_id, image_path, image_name, image_mime, created_at')
+        .eq('owner_member_id', memberId)
+        .eq('image_path', payload.image_path)
+
+      query = roomId ? query.eq('room_id', roomId) : query.is('room_id', null)
+
+      const existing = await query.maybeSingle()
+      if (existing.error) throw existing.error
+      if (existing.data) return normalizeCustomSticker(existing.data)
+    }
+    throw error
+  }
+
+  return normalizeCustomSticker(data)
+}
+
+export async function deleteCustomChatSticker(stickerId) {
+  const { error } = await supabase
+    .from('chat_custom_stickers')
+    .delete()
+    .eq('id', stickerId)
+
+  if (error) {
+    if (isMissingCustomStickerTableError(error)) return
+    throw error
+  }
+}
+
 export async function sendChatStickerReference(roomId, stickerPayload, { replyToMessageId = null } = {}) {
   if (!stickerPayload?.image_path) throw new Error('이모티콘 이미지가 저장되지 않았습니다.')
 
@@ -659,6 +761,10 @@ function isRoomScopedChatImagePath(roomId, imagePath = '') {
 
 function isMissingUnreadCountFunctionError(error) {
   return ['42883', 'PGRST202'].includes(error.code) || /get_unread_one_to_one_chat_count/.test(error.message || '')
+}
+
+function isMissingCustomStickerTableError(error) {
+  return ['42P01', 'PGRST205', 'PGRST204'].includes(error.code) || /chat_custom_stickers/.test(error.message || '')
 }
 
 async function hydrateRoomPreview(room, memberId) {
