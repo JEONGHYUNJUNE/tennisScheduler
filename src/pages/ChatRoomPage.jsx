@@ -1165,7 +1165,6 @@ export default function ChatRoomPage() {
         )}
         {loadingOlder && <p className="chat-system-message">이전 대화를 불러오는 중입니다.</p>}
         {error && <p className="error chat-inline-error">{error}</p>}
-        <div className="chat-message-top-spacer" aria-hidden="true" />
         {messages.map((item) => {
           const mine = item.sender_member_id === profile.id
           if (item.message_type === 'system') {
