@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
+import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
 import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, serializeSearchShare, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
@@ -1280,7 +1281,7 @@ export default function ChatRoomPage() {
             disabled={!isActive || sending}
             aria-label="이모티콘"
           >
-            <span className="chat-sticker-face-icon" aria-hidden="true" />
+            <img className="chat-sticker-face-icon" src={chatStickerFaceIcon} alt="" aria-hidden="true" />
           </button>
           {stickerOpen && (
             <div className="chat-sticker-panel">

@@ -623,9 +623,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-composer textarea { min-height: 42px; max-height: 96px; border: 1px solid rgba(132,162,132,.34); border-radius: 21px; padding: 10px 15px; background: white; line-height: 1.35; resize: none; overflow: auto; }
 .chat-tool-button,
 .chat-sticker-button { width: 40px; height: 40px; border: 1px solid rgba(63,116,75,.18); border-radius: 50%; display: grid; place-items: center; color: var(--green-800); background: rgba(237,246,234,.88); font-size: 1.25rem; font-weight: 950; }
-.chat-sticker-face-icon { position: relative; width: 19px; height: 19px; border: 2px solid currentColor; border-radius: 50%; display: block; }
-.chat-sticker-face-icon::before { content: ''; position: absolute; left: 4px; top: 5px; width: 3px; height: 3px; border-radius: 50%; background: currentColor; box-shadow: 8px 0 0 currentColor; }
-.chat-sticker-face-icon::after { content: ''; position: absolute; left: 5px; top: 9px; width: 7px; height: 4px; border: 2px solid currentColor; border-top: 0; border-radius: 0 0 999px 999px; }
+.chat-sticker-face-icon { width: 22px; height: 22px; display: block; object-fit: contain; }
 .chat-sticker-wrap { position: relative; }
 .chat-sticker-panel { position: absolute; right: 0; bottom: calc(100% + 10px); width: 236px; max-height: min(430px, 68dvh); overflow: auto; border: 1px solid rgba(217,228,213,.9); border-radius: 18px; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: rgba(255,253,248,.98); box-shadow: 0 18px 44px rgba(37,48,38,.18); }
 .chat-sticker-panel button { height: 52px; border: 0; border-radius: 14px; background: rgba(237,246,234,.72); font-size: 1.55rem; }
