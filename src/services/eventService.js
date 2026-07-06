@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
+import { filterMentionsInText, saveMentions } from './mentionService'
 
 const missingGuestColumnCodes = new Set(['42703', 'PGRST204'])
 const missingLikeTableCodes = new Set(['42P01', 'PGRST205'])
@@ -11,6 +12,7 @@ const eventCommentSelectColumns = `
   id,
   event_id,
   member_id,
+  parent_comment_id,
   message,
   created_at,
   updated_at,
@@ -254,6 +256,7 @@ export async function getEvent(eventId) {
         id,
         event_id,
         member_id,
+        parent_comment_id,
         message,
         created_at,
         updated_at,
@@ -431,22 +434,29 @@ export async function deleteEvent(eventId) {
   await removePostImage(event?.memo_image_path)
 }
 
-export async function addEventComment(eventId, memberId, message) {
+export async function addEventComment(eventId, memberId, message, parentCommentId = null, mentions = []) {
   const { data, error } = await supabase
     .from('tennis_event_comments')
     .insert({
       event_id: eventId,
       member_id: memberId,
+      parent_comment_id: parentCommentId,
       message: message.trim(),
     })
     .select(eventCommentSelectColumns)
     .single()
 
   if (error) throw error
+  await saveMentions({
+    sourceType: 'tennis_event_comment',
+    sourceId: data.id,
+    actorMemberId: memberId,
+    mentions: filterMentionsInText(message, mentions),
+  })
   return normalizeEventComment(data)
 }
 
-export async function updateEventComment(commentId, message) {
+export async function updateEventComment(commentId, message, memberId = '', mentions = []) {
   const { data, error } = await supabase
     .from('tennis_event_comments')
     .update({ message: message.trim() })
@@ -455,6 +465,14 @@ export async function updateEventComment(commentId, message) {
     .single()
 
   if (error) throw error
+  if (memberId) {
+    await saveMentions({
+      sourceType: 'tennis_event_comment',
+      sourceId: commentId,
+      actorMemberId: memberId,
+      mentions: filterMentionsInText(message, mentions),
+    })
+  }
   return normalizeEventComment(data)
 }
 
@@ -507,7 +525,10 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
     creator_avatar_url: creator?.avatar_url || '',
     supports_guest_attendance: supportsGuestAttendance,
     tennis_attendances: attendances.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)),
-    comments: (event.tennis_event_comments || [])
+    comments: nestEventComments((event.tennis_event_comments || [])
+      .map(normalizeEventComment)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))),
+    flat_comments: (event.tennis_event_comments || [])
       .map(normalizeEventComment)
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)),
   }
@@ -516,9 +537,25 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
 function normalizeEventComment(comment) {
   return {
     ...comment,
+    parent_comment_id: comment.parent_comment_id || null,
+    replies: [],
     member_name: comment.otmember?.display_name || comment.otmember?.username || '회원',
     member_avatar_url: comment.otmember?.avatar_url || '',
   }
+}
+
+function nestEventComments(comments) {
+  const byId = new Map(comments.map((comment) => [comment.id, { ...comment, replies: [] }]))
+  const roots = []
+
+  comments.forEach((comment) => {
+    const current = byId.get(comment.id)
+    const parent = comment.parent_comment_id ? byId.get(comment.parent_comment_id) : null
+    if (parent) parent.replies.push(current)
+    else roots.push(current)
+  })
+
+  return roots
 }
 
 function isMissingGuestColumnError(error) {

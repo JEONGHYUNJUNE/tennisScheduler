@@ -8,6 +8,7 @@ type NotificationRecord = {
   recipient_member_id: string
   actor_member_id: string | null
   event_id: string | null
+  tennis_event_comment_id?: string | null
   free_opinion_id?: string | null
   free_opinion_comment_id?: string | null
   tennis_diary_entry_id?: string | null
@@ -84,7 +85,7 @@ async function resolveNotification(payload: Record<string, unknown>) {
 
   const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, tennis_event_comment_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
 
@@ -141,7 +142,12 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
 }
 
 function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
-  if (notification.event_id) return `${appUrl}/#/events/${notification.event_id}`
+  if (notification.event_id) {
+    const params = new URLSearchParams()
+    if (notification.tennis_event_comment_id) params.set('comment', notification.tennis_event_comment_id)
+    const query = params.toString()
+    return `${appUrl}/#/events/${notification.event_id}${query ? `?${query}` : ''}`
+  }
   if (
     notification.type === 'free_opinion_created' ||
     notification.type === 'free_opinion_comment_created' ||
@@ -197,6 +203,9 @@ function getNotificationBody(notification: NotificationRecord) {
   if (
     notification.type !== 'free_opinion_comment_created' &&
     notification.type !== 'free_opinion_comment_reply_created' &&
+    notification.type !== 'tennis_event_comment_created' &&
+    notification.type !== 'tennis_event_comment_reply_created' &&
+    notification.type !== 'tennis_event_comment_mention' &&
     notification.type !== 'tennis_diary_comment_created' &&
     notification.type !== 'tennis_diary_comment_reply_created' &&
     notification.type !== 'free_opinion_mention' &&

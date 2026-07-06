@@ -4,8 +4,11 @@ import EmptyState from '../components/EmptyState'
 import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
+import MentionText from '../components/MentionText'
+import MentionTextarea from '../components/MentionTextarea'
 import { useAuth } from '../contexts/AuthContext'
 import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventCommentLikeSummaries, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventCommentLike, toggleEventLike, updateEventComment } from '../services/eventService'
+import { getMembers } from '../services/memberService'
 
 const emptyGuestForm = {
   guest_name: '',
@@ -56,9 +59,16 @@ export default function EventDetailPage() {
   const [likeSummary, setLikeSummary] = useState({ count: 0, likedByMe: false })
   const [commentLikes, setCommentLikes] = useState({})
   const [commentMessage, setCommentMessage] = useState('')
+  const [commentMentions, setCommentMentions] = useState([])
+  const [mentionCandidates, setMentionCandidates] = useState([])
+  const [replyingCommentId, setReplyingCommentId] = useState(null)
+  const [replyInputs, setReplyInputs] = useState({})
+  const [replyMentions, setReplyMentions] = useState({})
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editCommentMessage, setEditCommentMessage] = useState('')
+  const [editCommentMentions, setEditCommentMentions] = useState([])
   const [submittingComment, setSubmittingComment] = useState(false)
+  const [submittingReplyCommentId, setSubmittingReplyCommentId] = useState(null)
   const [savingCommentId, setSavingCommentId] = useState(null)
   const [deletingCommentId, setDeletingCommentId] = useState(null)
   const linkedCommentId = searchParams.get('comment')
@@ -69,16 +79,22 @@ export default function EventDetailPage() {
         setEvent(data)
         const summaries = await getEventLikeSummaries([data.id], profile.id)
         setLikeSummary(summaries[data.id] ?? { count: 0, likedByMe: false })
-        setCommentLikes(await getEventCommentLikeSummaries((data.comments || []).map((comment) => comment.id), profile.id))
+        setCommentLikes(await getEventCommentLikeSummaries((data.flat_comments || data.comments || []).map((comment) => comment.id), profile.id))
       })
       .catch((err) => setError(err.message))
   }, [eventId, profile.id])
+
+  useEffect(() => {
+    getMembers()
+      .then((members) => setMentionCandidates(members.filter((member) => member.is_active !== false && member.id !== profile.id)))
+      .catch(() => setMentionCandidates([]))
+  }, [profile.id])
 
   const reload = async () => {
     try {
       const nextEvent = await getEvent(eventId)
       setEvent(nextEvent)
-      setCommentLikes(await getEventCommentLikeSummaries((nextEvent.comments || []).map((comment) => comment.id), profile.id))
+      setCommentLikes(await getEventCommentLikeSummaries((nextEvent.flat_comments || nextEvent.comments || []).map((comment) => comment.id), profile.id))
     } catch (err) {
       setError(err.message)
     }
@@ -100,6 +116,7 @@ export default function EventDetailPage() {
   const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
   const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []
   const comments = event.comments || []
+  const totalCommentCount = (event.flat_comments || comments).length
   const myAttendance = event.tennis_attendances?.find((item) => item.member_id === profile.id)
   const canManageEvent = isAdmin || event.created_by === profile.id
   const isPastEvent = event.event_date < getTodayDateText()
@@ -206,8 +223,9 @@ export default function EventDetailPage() {
     setError('')
 
     try {
-      await addEventComment(event.id, profile.id, trimmedMessage)
+      await addEventComment(event.id, profile.id, trimmedMessage, null, commentMentions)
       setCommentMessage('')
+      setCommentMentions([])
       await reload()
     } catch (err) {
       setError(`${err.message} SQL 023번을 실행했는지 확인해 주세요.`)
@@ -219,12 +237,14 @@ export default function EventDetailPage() {
   const startCommentEdit = (comment) => {
     setEditingCommentId(comment.id)
     setEditCommentMessage(comment.message)
+    setEditCommentMentions([])
     setError('')
   }
 
   const cancelCommentEdit = () => {
     setEditingCommentId(null)
     setEditCommentMessage('')
+    setEditCommentMentions([])
   }
 
   const handleCommentUpdate = async (submitEvent, comment) => {
@@ -236,7 +256,7 @@ export default function EventDetailPage() {
     setError('')
 
     try {
-      await updateEventComment(comment.id, trimmedMessage)
+      await updateEventComment(comment.id, trimmedMessage, profile.id, editCommentMentions)
       cancelCommentEdit()
       await reload()
     } catch (err) {
@@ -255,12 +275,155 @@ export default function EventDetailPage() {
     try {
       await deleteEventComment(comment.id)
       if (editingCommentId === comment.id) cancelCommentEdit()
+      if (replyingCommentId === comment.id) setReplyingCommentId(null)
       await reload()
     } catch (err) {
       setError(`${err.message} SQL 023번을 실행했는지 확인해 주세요.`)
     } finally {
       setDeletingCommentId(null)
     }
+  }
+
+  const handleReplySubmit = async (submitEvent, parentComment) => {
+    submitEvent.preventDefault()
+    const trimmedMessage = (replyInputs[parentComment.id] || '').trim()
+    if (!trimmedMessage) return
+
+    setSubmittingReplyCommentId(parentComment.id)
+    setError('')
+
+    try {
+      await addEventComment(event.id, profile.id, trimmedMessage, parentComment.id, replyMentions[parentComment.id] || [])
+      setReplyInputs((current) => ({ ...current, [parentComment.id]: '' }))
+      setReplyMentions((current) => ({ ...current, [parentComment.id]: [] }))
+      setReplyingCommentId(null)
+      await reload()
+    } catch (err) {
+      setError(`${err.message} SQL 041번을 실행했는지 확인해 주세요.`)
+    } finally {
+      setSubmittingReplyCommentId(null)
+    }
+  }
+
+  const renderComment = (comment, isReply = false) => {
+    const canManageComment = isAdmin || comment.member_id === profile.id
+    const isCommentEditing = editingCommentId === comment.id
+
+    return (
+      <article
+        className={`opinion-comment ${isReply ? 'opinion-reply' : ''} ${canManageComment && !isCommentEditing ? 'manageable' : ''} ${linkedCommentId === comment.id ? 'linked-opinion-comment' : ''}`}
+        id={`event-comment-${comment.id}`}
+        key={comment.id}
+      >
+        <div className="opinion-comment-meta">
+          <div className="opinion-comment-author">
+            <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" previewable />
+            <strong>{comment.member_name}</strong>
+          </div>
+          <time>{formatCommentTime(comment.created_at)}</time>
+        </div>
+
+        {isCommentEditing ? (
+          <form className="opinion-comment-edit-form" onSubmit={(submitEvent) => handleCommentUpdate(submitEvent, comment)}>
+            <MentionTextarea
+              candidates={mentionCandidates}
+              maxLength={300}
+              rows="2"
+              value={editCommentMessage}
+              onChange={setEditCommentMessage}
+              onMentionsChange={setEditCommentMentions}
+            />
+            <div className="opinion-edit-actions">
+              <span>{editCommentMessage.length} / 300</span>
+              <button className="secondary-button" type="button" onClick={cancelCommentEdit}>
+                취소
+              </button>
+              <button className="primary-button" disabled={savingCommentId === comment.id || !editCommentMessage.trim()}>
+                {savingCommentId === comment.id ? '저장 중...' : '저장'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p><MentionText text={comment.message} /></p>
+        )}
+
+        <div className="opinion-comment-quick-actions">
+          <button
+            className={`comment-heart-button ${commentLikes[comment.id]?.likedByMe ? 'liked' : ''}`}
+            type="button"
+            onClick={() => handleCommentLike(comment)}
+            aria-label={commentLikes[comment.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
+          >
+            <span>♥</span>
+            <strong>{commentLikes[comment.id]?.count || 0}</strong>
+          </button>
+          {!isReply && !isCommentEditing && (
+            <button
+              className="comment-reply-toggle"
+              type="button"
+              onClick={() => setReplyingCommentId(replyingCommentId === comment.id ? null : comment.id)}
+            >
+              답글
+            </button>
+          )}
+        </div>
+
+        {canManageComment && !isCommentEditing && (
+          <div className="opinion-comment-actions">
+            <button
+              className="opinion-icon-button edit"
+              type="button"
+              onClick={() => startCommentEdit(comment)}
+              aria-label="댓글 수정"
+              title="수정"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M13.8 5.2 18.8 10.2" />
+                <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
+                <path d="M4 20h16" />
+              </svg>
+            </button>
+            <button
+              className="opinion-icon-button delete"
+              type="button"
+              onClick={() => handleCommentDelete(comment)}
+              disabled={deletingCommentId === comment.id}
+              aria-label="댓글 삭제"
+              title="삭제"
+            >
+              <span aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {comment.replies?.length > 0 && (
+          <div className="opinion-reply-list">
+            {comment.replies.map((reply) => renderComment(reply, true))}
+          </div>
+        )}
+
+        {replyingCommentId === comment.id && (
+          <form className="opinion-reply-form" onSubmit={(submitEvent) => handleReplySubmit(submitEvent, comment)}>
+            <MentionTextarea
+              autoFocus
+              candidates={mentionCandidates}
+              maxLength={300}
+              multiline={false}
+              placeholder={`${comment.member_name}님에게 답글 남기기`}
+              value={replyInputs[comment.id] || ''}
+              onChange={(value) => setReplyInputs((current) => ({ ...current, [comment.id]: value }))}
+              onMentionsChange={(updater) => setReplyMentions((current) => ({
+                ...current,
+                [comment.id]: typeof updater === 'function' ? updater(current[comment.id] || []) : updater,
+              }))}
+            />
+            <button className="secondary-button" disabled={submittingReplyCommentId === comment.id || !(replyInputs[comment.id] || '').trim()}>
+              {submittingReplyCommentId === comment.id ? '등록 중...' : '등록'}
+            </button>
+          </form>
+        )}
+      </article>
+    )
   }
 
   return (
@@ -458,91 +621,12 @@ export default function EventDetailPage() {
       </section>
       <section className="detail-card event-comments-card">
         <div className="opinion-comments-head">
-          <strong>댓글 {comments.length}</strong>
+          <strong>댓글 {totalCommentCount}</strong>
         </div>
 
         {comments.length > 0 ? (
           <div className="opinion-comment-list">
-            {comments.map((comment) => {
-              const canManageComment = isAdmin || comment.member_id === profile.id
-              const isCommentEditing = editingCommentId === comment.id
-
-              return (
-                <article
-                  className={`opinion-comment ${canManageComment && !isCommentEditing ? 'manageable' : ''} ${linkedCommentId === comment.id ? 'linked-opinion-comment' : ''}`}
-                  id={`event-comment-${comment.id}`}
-                  key={comment.id}
-                >
-                  <div className="opinion-comment-meta">
-                    <div className="opinion-comment-author">
-                      <MemberAvatar name={comment.member_name} imageUrl={comment.member_avatar_url} size="sm" previewable />
-                      <strong>{comment.member_name}</strong>
-                    </div>
-                    <time>{formatCommentTime(comment.created_at)}</time>
-                  </div>
-
-                  {isCommentEditing ? (
-                    <form className="opinion-comment-edit-form" onSubmit={(submitEvent) => handleCommentUpdate(submitEvent, comment)}>
-                      <textarea
-                        maxLength={300}
-                        rows="2"
-                        value={editCommentMessage}
-                        onChange={(changeEvent) => setEditCommentMessage(changeEvent.target.value)}
-                      />
-                      <div className="opinion-edit-actions">
-                        <span>{editCommentMessage.length} / 300</span>
-                        <button className="secondary-button" type="button" onClick={cancelCommentEdit}>
-                          취소
-                        </button>
-                        <button className="primary-button" disabled={savingCommentId === comment.id || !editCommentMessage.trim()}>
-                          {savingCommentId === comment.id ? '저장 중...' : '저장'}
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <p>{comment.message}</p>
-                  )}
-
-                  <button
-                    className={`comment-heart-button ${commentLikes[comment.id]?.likedByMe ? 'liked' : ''}`}
-                    type="button"
-                    onClick={() => handleCommentLike(comment)}
-                    aria-label={commentLikes[comment.id]?.likedByMe ? '댓글 하트 취소' : '댓글 하트'}
-                  >
-                    <span>♥</span>
-                    <strong>{commentLikes[comment.id]?.count || 0}</strong>
-                  </button>
-
-                  {canManageComment && !isCommentEditing && (
-                    <div className="opinion-comment-actions">
-                      <button
-                        className="opinion-icon-button edit"
-                        type="button"
-                        onClick={() => startCommentEdit(comment)}
-                        aria-label="댓글 수정"
-                        title="수정"
-                      >
-                        <svg aria-hidden="true" viewBox="0 0 24 24">
-                          <path d="M13.8 5.2 18.8 10.2" />
-                          <path d="M4.5 19.5 9.2 18.4 19.4 8.2a2.1 2.1 0 0 0 0-3L18.8 4.6a2.1 2.1 0 0 0-3 0L5.6 14.8 4.5 19.5Z" />
-                          <path d="M4 20h16" />
-                        </svg>
-                      </button>
-                      <button
-                        className="opinion-icon-button delete"
-                        type="button"
-                        onClick={() => handleCommentDelete(comment)}
-                        disabled={deletingCommentId === comment.id}
-                        aria-label="댓글 삭제"
-                        title="삭제"
-                      >
-                        <span aria-hidden="true" />
-                      </button>
-                    </div>
-                  )}
-                </article>
-              )
-            })}
+            {comments.map((comment) => renderComment(comment))}
           </div>
         ) : (
           <EmptyState
@@ -553,11 +637,14 @@ export default function EventDetailPage() {
         )}
 
         <form className="opinion-comment-form event-comment-form" onSubmit={handleCommentSubmit}>
-          <input
+          <MentionTextarea
+            candidates={mentionCandidates}
             maxLength={300}
+            multiline={false}
             placeholder="댓글을 입력하세요."
             value={commentMessage}
-            onChange={(changeEvent) => setCommentMessage(changeEvent.target.value)}
+            onChange={setCommentMessage}
+            onMentionsChange={setCommentMentions}
           />
           <button className="secondary-button" disabled={submittingComment || !commentMessage.trim()}>
             {submittingComment ? '등록 중...' : '저장'}
