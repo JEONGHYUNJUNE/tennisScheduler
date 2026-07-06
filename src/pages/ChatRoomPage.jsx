@@ -28,8 +28,7 @@ const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || 
 
 function isMobileSoftKeyboardDevice() {
   if (typeof navigator === 'undefined') return false
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
-    (navigator.maxTouchPoints > 1 && window.matchMedia?.('(pointer: coarse)').matches)
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
 }
 
 function readSearchShareDraft(roomId) {
@@ -744,8 +743,10 @@ export default function ChatRoomPage() {
   }
 
   const handleMessageKeyDown = (event) => {
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent?.isComposing) return
-    if (isMobileSoftKeyboardDevice()) return
+    if (event.key !== 'Enter' || event.nativeEvent?.isComposing) return
+    const isMobile = isMobileSoftKeyboardDevice()
+    const shouldSend = isMobile ? event.shiftKey : !event.shiftKey
+    if (!shouldSend) return
 
     event.preventDefault()
     sendTextMessage()
