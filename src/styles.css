@@ -594,6 +594,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message-meta em { color: var(--green-800); font-style: normal; font-weight: 950; }
 .chat-message time { color: inherit; font: inherit; }
 .chat-message > div img { max-width: min(260px, 64vw); max-height: 280px; border-radius: 18px; display: block; object-fit: cover; box-shadow: 0 10px 24px rgba(49,95,59,.12); }
+.chat-message-video { width: min(300px, 68vw); max-height: 340px; border-radius: 18px; display: block; background: #101411; box-shadow: 0 10px 24px rgba(49,95,59,.12); overflow: hidden; }
 .chat-image-lightbox-trigger { border: 0; border-radius: 18px; padding: 0; background: transparent; cursor: zoom-in; }
 .chat-search-share-card { width: min(280px, 68vw); border: 1px solid rgba(63,116,75,.14); border-radius: 18px; padding: 12px 13px; display: grid; gap: 6px; color: #1f2b22; background: rgba(255,255,255,.96); box-shadow: 0 10px 24px rgba(49,95,59,.12); text-decoration: none; }
 .chat-message.mine .chat-search-share-card { color: white; border-color: rgba(255,255,255,.22); background: linear-gradient(145deg, var(--green-700), #3f8a51); box-shadow: 0 10px 24px rgba(49,95,59,.18); }

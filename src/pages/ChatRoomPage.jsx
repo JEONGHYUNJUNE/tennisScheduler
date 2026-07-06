@@ -5,11 +5,13 @@ import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, serializeSearchShare, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
 const maxRoomStickers = 24
+const maxChatVideoSize = 30 * 1024 * 1024
+const maxChatVideoDuration = 60
 const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
 const customStickerPageSize = stickerPanelSlotCount
@@ -127,6 +129,7 @@ const getMessagePreview = (item) => {
   const searchShare = parseSearchShare(item.body || '')
   if (searchShare) return `#검색공유 ${searchShare.title}`
   if (item.message_type === 'sticker') return item.body || '이모티콘'
+  if (item.message_type === 'video') return '동영상'
   if (item.message_type === 'image') {
     return isChatStickerImagePath(item.image_path) ? '이모티콘' : '사진'
   }
@@ -137,6 +140,7 @@ const getMessageCopyText = (item) => {
   if (!item) return ''
   const searchShare = parseSearchShare(item.body || '')
   if (searchShare) return `${searchShare.title}\n${searchShare.snippet}\n${searchShare.link}`
+  if (item.message_type === 'video') return item.image_name || item.body || '동영상'
   if (item.message_type === 'image') {
     return isChatStickerImagePath(item.image_path) ? '이모티콘' : (item.image_name || item.body || '사진')
   }
@@ -146,6 +150,21 @@ const getMessageCopyText = (item) => {
 const isChatStickerImagePath = (imagePath = '') => (
   imagePath.startsWith('chat-stickers/') || isReusableChatStickerPath(imagePath)
 )
+
+const getVideoDuration = (file) => new Promise((resolve, reject) => {
+  const video = document.createElement('video')
+  const url = URL.createObjectURL(file)
+  video.preload = 'metadata'
+  video.onloadedmetadata = () => {
+    URL.revokeObjectURL(url)
+    resolve(video.duration || 0)
+  }
+  video.onerror = () => {
+    URL.revokeObjectURL(url)
+    reject(new Error('동영상 정보를 확인하지 못했습니다.'))
+  }
+  video.src = url
+})
 
 const getMessageAuthor = (item, profileId) => {
   if (!item) return '회원'
@@ -1023,7 +1042,7 @@ export default function ChatRoomPage() {
     })
   }
 
-  const handleImageChange = async (event) => {
+  const handleMediaChange = async (event) => {
     const file = event.target.files?.[0] || null
     event.target.value = ''
     if (!file || !isActive) return
@@ -1032,7 +1051,17 @@ export default function ChatRoomPage() {
     setError('')
     try {
       const currentReplyTarget = replyTarget
-      const sentMessage = await sendChatImage(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
+      let sentMessage
+      if (file.type.startsWith('image/')) {
+        sentMessage = await sendChatImage(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
+      } else if (file.type.startsWith('video/')) {
+        if (file.size > maxChatVideoSize) throw new Error('동영상은 30MB 이하만 보낼 수 있습니다.')
+        const duration = await getVideoDuration(file)
+        if (duration > maxChatVideoDuration + 0.5) throw new Error('동영상은 1분 이하만 보낼 수 있습니다.')
+        sentMessage = await sendChatVideo(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
+      } else {
+        throw new Error('사진 또는 동영상 파일만 보낼 수 있습니다.')
+      }
       await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setReplyTarget(null)
     } catch (err) {
@@ -1092,6 +1121,18 @@ export default function ChatRoomPage() {
           {searchShare.snippet && <em>{searchShare.snippet}</em>}
           <small>{searchShare.source || '검색 결과'} ↗</small>
         </a>
+      )
+    }
+
+    if (item.message_type === 'video' && item.image_url) {
+      return (
+        <video
+          className="chat-message-video"
+          src={item.image_url}
+          controls
+          playsInline
+          preload="metadata"
+        />
       )
     }
 
@@ -1247,7 +1288,7 @@ export default function ChatRoomPage() {
             <em>{pendingHashQuery}</em>
           </button>
         )}
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} hidden />
+        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
         <button
           type="button"
@@ -1257,7 +1298,7 @@ export default function ChatRoomPage() {
           onPointerDown={keepComposerFocus}
           onClick={() => fileInputRef.current?.click()}
           disabled={!isActive || sending}
-          aria-label="사진 보내기"
+          aria-label="사진 또는 동영상 보내기"
         >
           +
         </button>

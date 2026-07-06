@@ -4,6 +4,7 @@ import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage 
 export const chatMessagePageSize = 100
 const reusableStickerFolder = 'chat-custom-stickers'
 const searchShareMarker = '#검색공유'
+const maxChatVideoSize = 30 * 1024 * 1024
 
 const baseRoomSelectColumns = `
   id,
@@ -457,6 +458,65 @@ export async function sendChatImage(roomId, memberId, imageFile, { replyToMessag
   return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
 }
 
+export async function sendChatVideo(roomId, memberId, videoFile, { replyToMessageId = null } = {}) {
+  if (!videoFile?.type?.startsWith('video/')) throw new Error('동영상 파일만 첨부할 수 있습니다.')
+  if (videoFile.size > maxChatVideoSize) throw new Error('동영상은 30MB 이하만 보낼 수 있습니다.')
+
+  const extension = videoFile.name.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || 'mp4'
+  const safeName = videoFile.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'video'
+  const videoPath = `chats/${roomId}/${memberId}/${Date.now()}-${safeName}.${extension}`
+  const { error: uploadError } = await supabase.storage
+    .from(postImageBucketName)
+    .upload(videoPath, videoFile, {
+      cacheControl: '31536000',
+      contentType: videoFile.type || 'video/mp4',
+      upsert: false,
+    })
+
+  if (uploadError) throw uploadError
+
+  const videoPayload = {
+    image_path: videoPath,
+    image_name: videoFile.name,
+    image_mime: videoFile.type || 'video/mp4',
+  }
+  const payload = {
+    room_id: roomId,
+    message_type: 'video',
+    body: videoFile.name,
+    ...videoPayload,
+  }
+  if (replyToMessageId) payload.reply_to_message_id = replyToMessageId
+
+  let { data, error } = await supabase
+    .from('chat_messages')
+    .insert(payload)
+    .select(messageWithReplyIdSelectColumns)
+    .single()
+
+  if (isMissingReplyNoticeSchemaError(error)) {
+    const fallback = await supabase
+      .from('chat_messages')
+      .insert({
+        room_id: roomId,
+        message_type: 'video',
+        body: videoFile.name,
+        ...videoPayload,
+      })
+      .select(baseMessageSelectColumns)
+      .single()
+    data = fallback.data
+    error = fallback.error
+  }
+
+  if (error) {
+    await removePostImage(videoPayload.image_path)
+    throw error
+  }
+
+  return hydrateSentMessage(normalizeMessage(data), replyToMessageId)
+}
+
 export async function sendChatStickerImage(roomId, memberId, stickerFile, { replyToMessageId = null } = {}) {
   if (!stickerFile?.type?.startsWith('image/')) throw new Error('이미지 파일만 이모티콘으로 보낼 수 있습니다.')
   if (stickerFile.size > 2 * 1024 * 1024) throw new Error('커스텀 이모티콘은 2MB 이하만 보낼 수 있습니다.')
@@ -676,7 +736,7 @@ export async function endChatRoom(roomId) {
     .from('chat_messages')
     .select('image_path')
     .eq('room_id', roomId)
-    .eq('message_type', 'image')
+    .in('message_type', ['image', 'video'])
 
   if (imageError) throw imageError
 
