@@ -4,7 +4,8 @@ import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage 
 export const chatMessagePageSize = 100
 const reusableStickerFolder = 'chat-custom-stickers'
 const searchShareMarker = '#검색공유'
-const maxChatVideoSize = 30 * 1024 * 1024
+const maxChatVideoSize = 50 * 1024 * 1024
+const videoFileExtensionPattern = /\.(mp4|mov|m4v|webm|3gp|3gpp|3g2|3gpp2)$/i
 
 const baseRoomSelectColumns = `
   id,
@@ -459,8 +460,9 @@ export async function sendChatImage(roomId, memberId, imageFile, { replyToMessag
 }
 
 export async function sendChatVideo(roomId, memberId, videoFile, { replyToMessageId = null } = {}) {
-  if (!videoFile?.type?.startsWith('video/')) throw new Error('동영상 파일만 첨부할 수 있습니다.')
-  if (videoFile.size > maxChatVideoSize) throw new Error('동영상은 30MB 이하만 보낼 수 있습니다.')
+  const isVideoFile = videoFile?.type?.startsWith('video/') || videoFileExtensionPattern.test(videoFile?.name || '')
+  if (!isVideoFile) throw new Error('동영상 파일만 첨부할 수 있습니다.')
+  if (videoFile.size > maxChatVideoSize) throw new Error('동영상은 50MB 이하만 보낼 수 있습니다.')
 
   const extension = videoFile.name.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || 'mp4'
   const safeName = videoFile.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'video'

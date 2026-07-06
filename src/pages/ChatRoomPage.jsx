@@ -10,8 +10,9 @@ import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
 const maxRoomStickers = 24
-const maxChatVideoSize = 30 * 1024 * 1024
+const maxChatVideoSize = 50 * 1024 * 1024
 const maxChatVideoDuration = 60
+const videoFileExtensionPattern = /\.(mp4|mov|m4v|webm|3gp|3gpp|3g2|3gpp2)$/i
 const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
 const customStickerPageSize = stickerPanelSlotCount
@@ -151,16 +152,26 @@ const isChatStickerImagePath = (imagePath = '') => (
   imagePath.startsWith('chat-stickers/') || isReusableChatStickerPath(imagePath)
 )
 
+const isVideoFile = (file) => file?.type?.startsWith('video/') || videoFileExtensionPattern.test(file?.name || '')
+
 const getVideoDuration = (file) => new Promise((resolve, reject) => {
   const video = document.createElement('video')
   const url = URL.createObjectURL(file)
+  const cleanup = () => {
+    window.clearTimeout(timer)
+    URL.revokeObjectURL(url)
+  }
+  const timer = window.setTimeout(() => {
+    cleanup()
+    resolve(0)
+  }, 4000)
   video.preload = 'metadata'
   video.onloadedmetadata = () => {
-    URL.revokeObjectURL(url)
+    cleanup()
     resolve(video.duration || 0)
   }
   video.onerror = () => {
-    URL.revokeObjectURL(url)
+    cleanup()
     reject(new Error('동영상 정보를 확인하지 못했습니다.'))
   }
   video.src = url
@@ -1054,8 +1065,8 @@ export default function ChatRoomPage() {
       let sentMessage
       if (file.type.startsWith('image/')) {
         sentMessage = await sendChatImage(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
-      } else if (file.type.startsWith('video/')) {
-        if (file.size > maxChatVideoSize) throw new Error('동영상은 30MB 이하만 보낼 수 있습니다.')
+      } else if (isVideoFile(file)) {
+        if (file.size > maxChatVideoSize) throw new Error('동영상은 50MB 이하만 보낼 수 있습니다.')
         const duration = await getVideoDuration(file)
         if (duration > maxChatVideoDuration + 0.5) throw new Error('동영상은 1분 이하만 보낼 수 있습니다.')
         sentMessage = await sendChatVideo(roomId, profile.id, file, { replyToMessageId: replyTarget?.id || null })
