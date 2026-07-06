@@ -28,9 +28,8 @@ const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || 
 
 function isMobileSoftKeyboardDevice() {
   if (typeof navigator === 'undefined') return false
-  const userAgent = navigator.userAgent || ''
-  const isTouchPrimary = window.matchMedia?.('(pointer: coarse)').matches === true
-  return /Android|iPhone|iPad|iPod/i.test(userAgent) || (isTouchPrimary && /Mobile/i.test(userAgent))
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+    (navigator.maxTouchPoints > 1 && window.matchMedia?.('(pointer: coarse)').matches)
 }
 
 function readSearchShareDraft(roomId) {
@@ -189,12 +188,10 @@ export default function ChatRoomPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const listRef = useRef(null)
-  const composerRef = useRef(null)
   const fileInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
   const messageInputRef = useRef(null)
   const longPressTimerRef = useRef(null)
-  const isComposingRef = useRef(false)
   const shouldScrollToBottomRef = useRef(true)
   const scrollCorrectionTimersRef = useRef([])
   const [room, setRoom] = useState(null)
@@ -539,28 +536,6 @@ export default function ChatRoomPage() {
     scheduleScrollToBottom()
   }, [messages.length, scheduleScrollToBottom])
 
-  useEffect(() => {
-    const keepFocusedComposerAnchored = () => {
-      const composer = composerRef.current
-      const activeElement = document.activeElement
-      if (!composer || !activeElement || !composer.contains(activeElement)) return
-      scheduleScrollToBottom({ behavior: 'auto' })
-    }
-
-    const visualViewport = window.visualViewport
-    visualViewport?.addEventListener('resize', keepFocusedComposerAnchored)
-    visualViewport?.addEventListener('scroll', keepFocusedComposerAnchored)
-    window.addEventListener('resize', keepFocusedComposerAnchored)
-    window.addEventListener('focusin', keepFocusedComposerAnchored)
-
-    return () => {
-      visualViewport?.removeEventListener('resize', keepFocusedComposerAnchored)
-      visualViewport?.removeEventListener('scroll', keepFocusedComposerAnchored)
-      window.removeEventListener('resize', keepFocusedComposerAnchored)
-      window.removeEventListener('focusin', keepFocusedComposerAnchored)
-    }
-  }, [scheduleScrollToBottom])
-
   const loadOlderMessages = useCallback(async () => {
     if (!hasMoreMessages || loadingOlder || messages.length === 0) return
 
@@ -768,17 +743,8 @@ export default function ChatRoomPage() {
     resizeMessageInput(event.target)
   }
 
-  const handleMessageCompositionStart = () => {
-    isComposingRef.current = true
-  }
-
-  const handleMessageCompositionEnd = () => {
-    isComposingRef.current = false
-  }
-
   const handleMessageKeyDown = (event) => {
-    const isEnterKey = event.key === 'Enter' || event.code === 'Enter' || event.keyCode === 13
-    if (!isEnterKey || event.shiftKey || isComposingRef.current) return
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent?.isComposing) return
     if (isMobileSoftKeyboardDevice()) return
 
     event.preventDefault()
@@ -1255,7 +1221,7 @@ export default function ChatRoomPage() {
         </button>
       )}
 
-      <form className="chat-composer" ref={composerRef} onSubmit={handleSubmit}>
+      <form className="chat-composer" onSubmit={handleSubmit}>
         {replyTarget && (
           <div className="chat-reply-composer">
             <div>
@@ -1298,12 +1264,9 @@ export default function ChatRoomPage() {
           value={message}
           placeholder={isActive ? '메시지를 입력하세요.' : '상대가 입장하면 대화할 수 있어요.'}
           onChange={handleMessageChange}
-          onCompositionStart={handleMessageCompositionStart}
-          onCompositionEnd={handleMessageCompositionEnd}
           onKeyDown={handleMessageKeyDown}
           disabled={!isActive}
           rows={1}
-          enterKeyHint={isMobileSoftKeyboardDevice() ? 'enter' : 'send'}
         />
         <div className="chat-sticker-wrap">
           <button
