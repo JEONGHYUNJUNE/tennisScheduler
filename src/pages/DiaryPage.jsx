@@ -753,10 +753,10 @@ export default function DiaryPage() {
   const { date } = useParams()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const selectedDate = date || ''
   const linkedEntryId = searchParams.get('entry')
   const linkedCommentId = searchParams.get('comment')
   const calendarOnly = searchParams.get('view') === 'calendar'
+  const selectedDate = date || (!calendarOnly && !linkedEntryId ? todayText : '')
   const [monthDate, setMonthDate] = useState(() => {
     const base = selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()
     return new Date(base.getFullYear(), base.getMonth(), 1)
@@ -774,9 +774,9 @@ export default function DiaryPage() {
   const canShowDayList = Boolean(selectedDate)
 
   useEffect(() => {
-    if (selectedDate || linkedEntryId || calendarOnly) return
+    if (date || linkedEntryId || calendarOnly) return
     navigate(`/diary/${todayText}`, { replace: true })
-  }, [calendarOnly, linkedEntryId, navigate, selectedDate])
+  }, [calendarOnly, date, linkedEntryId, navigate])
 
   const loadMonth = useCallback(async () => {
     const nextSummary = await getDiaryMonthSummary(monthDate.getFullYear(), monthDate.getMonth() + 1)
