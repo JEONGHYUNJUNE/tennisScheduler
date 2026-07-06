@@ -177,6 +177,24 @@ const getVideoDuration = (file) => new Promise((resolve, reject) => {
   video.src = url
 })
 
+const createImageElement = (src) => new Promise((resolve, reject) => {
+  const image = new Image()
+  image.onload = () => resolve(image)
+  image.onerror = () => reject(new Error('사진을 불러오지 못했습니다.'))
+  image.src = src
+})
+
+const canvasToImageFile = (canvas, name) => new Promise((resolve, reject) => {
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      reject(new Error('편집한 사진을 만들지 못했습니다.'))
+      return
+    }
+    const safeName = name.replace(/\.[^.]+$/, '') || 'chat-photo'
+    resolve(new File([blob], `${safeName}-edited.jpg`, { type: 'image/jpeg' }))
+  }, 'image/jpeg', 0.88)
+})
+
 const getMessageAuthor = (item, profileId) => {
   if (!item) return '회원'
   if (item.sender_member_id === profileId) return '나'
@@ -218,8 +236,12 @@ export default function ChatRoomPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const listRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const photoInputRef = useRef(null)
+  const photoCameraInputRef = useRef(null)
+  const videoInputRef = useRef(null)
+  const videoCameraInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
+  const imageEditorCanvasRef = useRef(null)
   const messageInputRef = useRef(null)
   const longPressTimerRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
@@ -239,6 +261,10 @@ export default function ChatRoomPage() {
   const [customStickerPage, setCustomStickerPage] = useState(0)
   const [stickerEditor, setStickerEditor] = useState(null)
   const [stickerSaveScope, setStickerSaveScope] = useState('personal')
+  const [attachmentSheetOpen, setAttachmentSheetOpen] = useState(false)
+  const [imageEditor, setImageEditor] = useState(null)
+  const [imageEditorLoaded, setImageEditorLoaded] = useState(false)
+  const [imageEditorPointer, setImageEditorPointer] = useState(null)
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
   const [searchShareOpen, setSearchShareOpen] = useState(false)
@@ -261,6 +287,59 @@ export default function ChatRoomPage() {
     return trimmed.replace(/^#+\s*/, '').trim()
   }, [message])
   const showHashSearchPrompt = isActive && pendingHashQuery.length > 0 && !searchShareOpen
+
+  const redrawImageEditor = useCallback(async (editor = imageEditor) => {
+    const canvas = imageEditorCanvasRef.current
+    if (!canvas || !editor?.url) return
+
+    const image = await createImageElement(editor.url)
+    const maxSide = 1100
+    const scaleToFit = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight))
+    const canvasWidth = Math.max(1, Math.round(image.naturalWidth * scaleToFit))
+    const canvasHeight = Math.max(1, Math.round(image.naturalHeight * scaleToFit))
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
+
+    const context = canvas.getContext('2d')
+    context.clearRect(0, 0, canvasWidth, canvasHeight)
+    context.fillStyle = '#fff'
+    context.fillRect(0, 0, canvasWidth, canvasHeight)
+
+    const editorScale = editor.scale || 1
+    const drawWidth = canvasWidth * editorScale
+    const drawHeight = canvasHeight * editorScale
+    const drawX = (canvasWidth - drawWidth) / 2 + (editor.offsetX || 0) * canvasWidth
+    const drawY = (canvasHeight - drawHeight) / 2 + (editor.offsetY || 0) * canvasHeight
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+
+    ;(editor.strokes || []).forEach((stroke) => {
+      if (!stroke.points?.length) return
+      context.strokeStyle = stroke.color || '#e33d2f'
+      context.lineWidth = stroke.size || 7
+      context.lineCap = 'round'
+      context.lineJoin = 'round'
+      context.beginPath()
+      stroke.points.forEach((point, index) => {
+        if (index === 0) context.moveTo(point.x * canvasWidth, point.y * canvasHeight)
+        else context.lineTo(point.x * canvasWidth, point.y * canvasHeight)
+      })
+      context.stroke()
+    })
+
+    setImageEditorLoaded(true)
+  }, [imageEditor])
+
+  useEffect(() => {
+    if (!imageEditor) return
+    let cancelled = false
+    setImageEditorLoaded(false)
+    redrawImageEditor(imageEditor).catch((err) => {
+      if (!cancelled) setError(err.message)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [imageEditor, redrawImageEditor])
 
   const otherMember = useMemo(() => room?.other_member || { name: '회원' }, [room])
   const personalStickerPageCount = useMemo(() => getCustomStickerPageCount(customStickers.length), [customStickers.length])
@@ -1053,11 +1132,8 @@ export default function ChatRoomPage() {
     })
   }
 
-  const handleMediaChange = async (event) => {
-    const file = event.target.files?.[0] || null
-    event.target.value = ''
+  const sendMediaFile = async (file, { edited = false } = {}) => {
     if (!file || !isActive) return
-
     setSending(true)
     setError('')
     try {
@@ -1075,12 +1151,138 @@ export default function ChatRoomPage() {
       }
       await appendSentMessage({ ...sentMessage, reply_to: sentMessage.reply_to || currentReplyTarget })
       setReplyTarget(null)
+      if (edited) setImageEditor(null)
+      return true
     } catch (err) {
       setError(err.message)
+      return false
     } finally {
       setSending(false)
       window.requestAnimationFrame(() => messageInputRef.current?.focus())
     }
+  }
+
+  const openImageEditor = (file) => {
+    const url = URL.createObjectURL(file)
+    if (imageEditor?.url) URL.revokeObjectURL(imageEditor.url)
+    setAttachmentSheetOpen(false)
+    setStickerOpen(false)
+    setImageEditor({
+      file,
+      url,
+      name: file.name,
+      editing: false,
+      mode: 'move',
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      color: '#e33d2f',
+      brushSize: 7,
+      strokes: [],
+    })
+  }
+
+  const handleMediaChange = async (event) => {
+    const file = event.target.files?.[0] || null
+    event.target.value = ''
+    if (!file || !isActive) return
+
+    if (file.type.startsWith('image/')) {
+      openImageEditor(file)
+      return
+    }
+
+    setAttachmentSheetOpen(false)
+    await sendMediaFile(file)
+  }
+
+  const closeImageEditor = () => {
+    if (imageEditor?.url) URL.revokeObjectURL(imageEditor.url)
+    setImageEditor(null)
+    setImageEditorLoaded(false)
+    setImageEditorPointer(null)
+  }
+
+  const getCanvasPoint = (event) => {
+    const canvas = imageEditorCanvasRef.current
+    if (!canvas) return null
+    const rect = canvas.getBoundingClientRect()
+    const clientX = event.clientX ?? event.touches?.[0]?.clientX
+    const clientY = event.clientY ?? event.touches?.[0]?.clientY
+    if (clientX == null || clientY == null) return null
+    return {
+      x: Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (clientY - rect.top) / rect.height)),
+    }
+  }
+
+  const startImageEditorPointer = (event) => {
+    if (!imageEditorLoaded || !imageEditor?.editing) return
+    event.preventDefault()
+    const point = getCanvasPoint(event)
+    if (!point) return
+
+    if (imageEditor.mode === 'draw') {
+      setImageEditorPointer({ mode: 'draw' })
+      setImageEditor((current) => ({
+        ...current,
+        strokes: [
+          ...(current?.strokes || []),
+          { color: current?.color || '#e33d2f', size: current?.brushSize || 7, points: [point] },
+        ],
+      }))
+      return
+    }
+
+    setImageEditorPointer({
+      mode: 'move',
+      startX: point.x,
+      startY: point.y,
+      offsetX: imageEditor.offsetX || 0,
+      offsetY: imageEditor.offsetY || 0,
+    })
+  }
+
+  const moveImageEditorPointer = (event) => {
+    if (!imageEditorPointer) return
+    event.preventDefault()
+    const point = getCanvasPoint(event)
+    if (!point) return
+
+    if (imageEditorPointer.mode === 'move') {
+      setImageEditor((current) => ({
+        ...current,
+        offsetX: imageEditorPointer.offsetX + point.x - imageEditorPointer.startX,
+        offsetY: imageEditorPointer.offsetY + point.y - imageEditorPointer.startY,
+      }))
+      return
+    }
+
+    setImageEditor((current) => {
+      const strokes = [...(current?.strokes || [])]
+      const lastStroke = strokes.at(-1)
+      if (!lastStroke) return current
+      strokes[strokes.length - 1] = {
+        ...lastStroke,
+        points: [...lastStroke.points, point],
+      }
+      return { ...current, strokes }
+    })
+  }
+
+  const undoImageStroke = () => {
+    setImageEditor((current) => ({
+      ...current,
+      strokes: (current?.strokes || []).slice(0, -1),
+    }))
+  }
+
+  const sendEditedImage = async () => {
+    const canvas = imageEditorCanvasRef.current
+    if (!canvas || !imageEditor) return
+    const editedFile = await canvasToImageFile(canvas, imageEditor.name)
+    const sent = await sendMediaFile(editedFile, { edited: true })
+    if (sent && imageEditor.url) URL.revokeObjectURL(imageEditor.url)
   }
 
   const handleEnd = async () => {
@@ -1299,7 +1501,10 @@ export default function ChatRoomPage() {
             <em>{pendingHashQuery}</em>
           </button>
         )}
-        <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaChange} hidden />
+        <input ref={photoInputRef} type="file" accept="image/*" onChange={handleMediaChange} hidden />
+        <input ref={photoCameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleMediaChange} hidden />
+        <input ref={videoInputRef} type="file" accept="video/*" onChange={handleMediaChange} hidden />
+        <input ref={videoCameraInputRef} type="file" accept="video/*" capture="environment" onChange={handleMediaChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
         <button
           type="button"
@@ -1307,7 +1512,10 @@ export default function ChatRoomPage() {
           onMouseDown={keepComposerFocus}
           onTouchStart={keepComposerFocus}
           onPointerDown={keepComposerFocus}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            setStickerOpen(false)
+            setAttachmentSheetOpen((current) => !current)
+          }}
           disabled={!isActive || sending}
           aria-label="사진 또는 동영상 보내기"
         >
@@ -1446,6 +1654,133 @@ export default function ChatRoomPage() {
           전송
         </button>
       </form>
+      {attachmentSheetOpen && (
+        <div className="chat-attachment-overlay" onClick={() => setAttachmentSheetOpen(false)}>
+          <section className="chat-attachment-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="chat-attachment-head">
+              <div>
+                <p className="eyebrow">ATTACH</p>
+                <h2>보낼 항목 선택</h2>
+              </div>
+              <button type="button" onClick={() => setAttachmentSheetOpen(false)} aria-label="첨부 닫기">×</button>
+            </div>
+            <div className="chat-attachment-grid">
+              <button type="button" onClick={() => photoInputRef.current?.click()}>
+                <span>사진</span>
+                <strong>사진 선택</strong>
+              </button>
+              <button type="button" onClick={() => photoCameraInputRef.current?.click()}>
+                <span>촬영</span>
+                <strong>사진 찍기</strong>
+              </button>
+              <button type="button" onClick={() => videoInputRef.current?.click()}>
+                <span>영상</span>
+                <strong>동영상 선택</strong>
+              </button>
+              <button type="button" onClick={() => videoCameraInputRef.current?.click()}>
+                <span>녹화</span>
+                <strong>동영상 찍기</strong>
+              </button>
+            </div>
+            <p></p>
+          </section>
+        </div>
+      )}
+      {imageEditor && (
+        <div className="chat-photo-editor-overlay" role="dialog" aria-modal="true" aria-labelledby="chat-photo-editor-title">
+          <section className="chat-photo-editor-modal">
+            <div className="chat-photo-editor-head">
+              <div>
+                <p className="eyebrow">PHOTO</p>
+                <h2 id="chat-photo-editor-title">사진 편집기</h2>
+              </div>
+              <button type="button" onClick={closeImageEditor} aria-label="사진 편집기 닫기">×</button>
+            </div>
+            <div className="chat-photo-editor-stage">
+              {!imageEditorLoaded && <span>사진을 준비하는 중입니다.</span>}
+              <canvas
+                ref={imageEditorCanvasRef}
+                className={imageEditor.editing ? 'editing' : ''}
+                onPointerDown={startImageEditorPointer}
+                onPointerMove={moveImageEditorPointer}
+                onPointerUp={() => setImageEditorPointer(null)}
+                onPointerCancel={() => setImageEditorPointer(null)}
+                onPointerLeave={() => setImageEditorPointer(null)}
+              />
+            </div>
+            {imageEditor.editing && (
+              <div className="chat-photo-editor-tools">
+                <div className="chat-photo-mode-toggle" role="group" aria-label="사진 편집 모드">
+                  <button
+                    type="button"
+                    className={imageEditor.mode === 'move' ? 'active' : ''}
+                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'move' }))}
+                  >
+                    이동
+                  </button>
+                  <button
+                    type="button"
+                    className={imageEditor.mode === 'draw' ? 'active' : ''}
+                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'draw' }))}
+                  >
+                    펜
+                  </button>
+                </div>
+                <label>
+                  확대
+                  <input
+                    type="range"
+                    min="1"
+                    max="2.2"
+                    step="0.05"
+                    value={imageEditor.scale}
+                    onChange={(event) => setImageEditor((current) => ({ ...current, scale: Number(event.target.value) }))}
+                  />
+                </label>
+                {imageEditor.mode === 'draw' && (
+                  <>
+                    <label>
+                      굵기
+                      <input
+                        type="range"
+                        min="3"
+                        max="18"
+                        step="1"
+                        value={imageEditor.brushSize}
+                        onChange={(event) => setImageEditor((current) => ({ ...current, brushSize: Number(event.target.value) }))}
+                      />
+                    </label>
+                    <div className="chat-photo-color-row" role="group" aria-label="펜 색상">
+                      {['#e33d2f', '#27864f', '#1e67d8', '#f0b429', '#111111', '#ffffff'].map((color) => (
+                        <button
+                          type="button"
+                          key={color}
+                          className={imageEditor.color === color ? 'active' : ''}
+                          style={{ backgroundColor: color }}
+                          onClick={() => setImageEditor((current) => ({ ...current, color }))}
+                          aria-label={`${color} 펜 색상`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <div className="chat-photo-editor-actions">
+              <button type="button" onClick={sendEditedImage} disabled={sending || !imageEditorLoaded}>
+                {sending ? '전송 중' : '전송'}
+              </button>
+              <button type="button" onClick={() => setImageEditor((current) => ({ ...current, editing: !current.editing }))}>
+                {imageEditor.editing ? '편집 닫기' : '편집'}
+              </button>
+              {imageEditor.editing && (
+                <button type="button" onClick={undoImageStroke} disabled={!imageEditor.strokes.length}>되돌리기</button>
+              )}
+              <button type="button" onClick={closeImageEditor}>취소</button>
+            </div>
+          </section>
+        </div>
+      )}
       {searchShareOpen && (
         <div className="chat-search-share-overlay" onClick={closeSearchShare}>
           <section className="chat-search-share-sheet" onClick={(event) => event.stopPropagation()}>

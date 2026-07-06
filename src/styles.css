@@ -659,6 +659,42 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-sticker-editor-actions button:last-child { color: white; background: var(--green-700); }
 .chat-sticker-editor-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .chat-send-button { min-height: 40px; border: 0; border-radius: 999px; padding: 0 14px; color: white; background: var(--green-700); font-weight: 950; }
+.chat-attachment-overlay,
+.chat-photo-editor-overlay { position: fixed; z-index: 31000; inset: 0; padding: 16px; display: grid; align-items: end; background: rgba(18,31,21,.22); backdrop-filter: blur(6px); }
+.chat-attachment-sheet,
+.chat-photo-editor-modal { width: min(520px, 100%); margin: 0 auto; border: 1px solid rgba(217,228,213,.92); border-radius: 26px 26px 20px 20px; padding: 18px; display: grid; gap: 14px; background: rgba(255,253,248,.98); box-shadow: 0 26px 80px rgba(18,31,21,.24); animation: modal-sheet-up .2s cubic-bezier(.2,.8,.22,1) both; }
+.chat-attachment-head,
+.chat-photo-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.chat-attachment-head .eyebrow,
+.chat-photo-editor-head .eyebrow { margin: 0 0 3px; color: var(--warm); font-size: .7rem; letter-spacing: .18em; }
+.chat-attachment-head h2,
+.chat-photo-editor-head h2 { margin: 0; color: var(--green-900); font-size: 1.3rem; }
+.chat-attachment-head > button,
+.chat-photo-editor-head > button { width: 40px; height: 40px; border: 1px solid rgba(63,116,75,.16); border-radius: 50%; color: var(--green-800); background: white; font-size: 1.35rem; line-height: 1; }
+.chat-attachment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.chat-attachment-grid button { min-height: 86px; border: 1px solid rgba(217,228,213,.9); border-radius: 18px; padding: 14px; display: grid; align-content: center; justify-items: start; gap: 6px; color: inherit; background: linear-gradient(135deg, rgba(237,246,234,.86), rgba(255,253,248,.98)); text-align: left; box-shadow: 0 10px 22px rgba(49,95,59,.08); }
+.chat-attachment-grid span { border-radius: 999px; padding: 3px 8px; color: var(--green-800); background: rgba(255,255,255,.84); font-size: .7rem; font-weight: 950; }
+.chat-attachment-grid strong { color: var(--green-900); font-size: .95rem; font-weight: 950; }
+.chat-attachment-sheet p { margin: 0; color: var(--muted); font-size: .78rem; font-weight: 850; line-height: 1.45; text-align: center; }
+.chat-photo-editor-overlay { align-items: center; }
+.chat-photo-editor-modal { max-height: min(86dvh, 740px); overflow: auto; }
+.chat-photo-editor-stage { position: relative; min-height: 240px; border-radius: 20px; display: grid; place-items: center; overflow: hidden; background: #111; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.chat-photo-editor-stage span { position: absolute; z-index: 1; color: rgba(255,255,255,.78); font-weight: 900; }
+.chat-photo-editor-stage canvas { width: 100%; max-height: min(54dvh, 460px); display: block; object-fit: contain; touch-action: none; cursor: default; }
+.chat-photo-editor-stage canvas.editing { cursor: grab; }
+.chat-photo-editor-tools { display: grid; gap: 9px; }
+.chat-photo-mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border: 1px solid rgba(63,116,75,.14); border-radius: 16px; background: rgba(237,246,234,.52); }
+.chat-photo-mode-toggle button { min-height: 34px; border: 0; border-radius: 12px; color: var(--muted); background: transparent; font-size: .82rem; font-weight: 950; }
+.chat-photo-mode-toggle button.active { color: white; background: var(--green-700); box-shadow: 0 8px 18px rgba(63,116,75,.18); }
+.chat-photo-editor-tools label { display: grid; grid-template-columns: 42px minmax(0, 1fr); align-items: center; gap: 9px; color: var(--muted); font-size: .78rem; font-weight: 900; }
+.chat-photo-editor-tools input { width: 100%; }
+.chat-photo-color-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.chat-photo-color-row button { height: 34px; border: 2px solid rgba(63,116,75,.12); border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.chat-photo-color-row button.active { border-color: var(--green-800); box-shadow: 0 0 0 3px rgba(63,116,75,.14); }
+.chat-photo-editor-actions { display: grid; grid-template-columns: 1.4fr 1fr auto auto; gap: 8px; }
+.chat-photo-editor-actions button { min-height: 42px; border: 1px solid rgba(63,116,75,.16); border-radius: 999px; color: var(--green-800); background: white; font-size: .86rem; font-weight: 950; }
+.chat-photo-editor-actions button:first-child { color: white; background: var(--green-700); box-shadow: 0 10px 24px rgba(49,95,59,.18); }
+.chat-photo-editor-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .chat-search-share-overlay { position: fixed; z-index: 31000; inset: 0; padding: 16px; display: grid; align-items: end; background: rgba(18,31,21,.18); backdrop-filter: blur(5px); }
 .chat-search-share-sheet { width: min(520px, 100%); max-height: min(78dvh, 620px); margin: 0 auto; border: 1px solid rgba(217,228,213,.92); border-radius: 26px 26px 20px 20px; padding: 18px; display: grid; gap: 12px; overflow: hidden; background: rgba(255,253,248,.98); box-shadow: 0 26px 80px rgba(18,31,21,.24); animation: modal-sheet-up .2s cubic-bezier(.2,.8,.22,1) both; }
 .chat-search-share-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
