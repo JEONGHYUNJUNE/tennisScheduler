@@ -26,6 +26,12 @@ const getCustomStickerPageCount = (stickerCount) => {
 
 const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || ''
 
+function isMobileSoftKeyboardDevice() {
+  if (typeof navigator === 'undefined') return false
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') ||
+    (navigator.maxTouchPoints > 1 && window.matchMedia?.('(pointer: coarse)').matches)
+}
+
 function readSearchShareDraft(roomId) {
   try {
     const saved = window.sessionStorage.getItem(getSearchShareDraftKey(roomId))
@@ -737,6 +743,14 @@ export default function ChatRoomPage() {
     resizeMessageInput(event.target)
   }
 
+  const handleMessageKeyDown = (event) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent?.isComposing) return
+    if (isMobileSoftKeyboardDevice()) return
+
+    event.preventDefault()
+    sendTextMessage()
+  }
+
   const toggleStickerPanel = () => {
     setSearchShareOpen(false)
     setStickerOpen((current) => !current)
@@ -1250,6 +1264,7 @@ export default function ChatRoomPage() {
           value={message}
           placeholder={isActive ? '메시지를 입력하세요.' : '상대가 입장하면 대화할 수 있어요.'}
           onChange={handleMessageChange}
+          onKeyDown={handleMessageKeyDown}
           disabled={!isActive}
           rows={1}
         />
