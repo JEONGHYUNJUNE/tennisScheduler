@@ -1280,7 +1280,7 @@ export default function ChatRoomPage() {
             disabled={!isActive || sending}
             aria-label="이모티콘"
           >
-            ☺
+            <span className="chat-sticker-face-icon" aria-hidden="true" />
           </button>
           {stickerOpen && (
             <div className="chat-sticker-panel">
