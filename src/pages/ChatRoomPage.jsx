@@ -237,9 +237,7 @@ export default function ChatRoomPage() {
   const { profile } = useAuth()
   const listRef = useRef(null)
   const photoInputRef = useRef(null)
-  const photoCameraInputRef = useRef(null)
   const videoInputRef = useRef(null)
-  const videoCameraInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
   const imageEditorCanvasRef = useRef(null)
   const messageInputRef = useRef(null)
@@ -1502,9 +1500,7 @@ export default function ChatRoomPage() {
           </button>
         )}
         <input ref={photoInputRef} type="file" accept="image/*" onChange={handleMediaChange} hidden />
-        <input ref={photoCameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleMediaChange} hidden />
         <input ref={videoInputRef} type="file" accept="video/*" onChange={handleMediaChange} hidden />
-        <input ref={videoCameraInputRef} type="file" accept="video/*" capture="environment" onChange={handleMediaChange} hidden />
         <input ref={stickerFileInputRef} type="file" accept="image/*" onChange={handleStickerFileChange} hidden />
         <button
           type="button"
@@ -1669,20 +1665,12 @@ export default function ChatRoomPage() {
                 <span>사진</span>
                 <strong>사진 선택</strong>
               </button>
-              <button type="button" onClick={() => photoCameraInputRef.current?.click()}>
-                <span>촬영</span>
-                <strong>사진 찍기</strong>
-              </button>
               <button type="button" onClick={() => videoInputRef.current?.click()}>
                 <span>영상</span>
                 <strong>동영상 선택</strong>
               </button>
-              <button type="button" onClick={() => videoCameraInputRef.current?.click()}>
-                <span>녹화</span>
-                <strong>동영상 찍기</strong>
-              </button>
             </div>
-            <p></p>
+            <p>사진은 전송 전에 간단히 편집할 수 있어요.</p>
           </section>
         </div>
       )}
@@ -1776,7 +1764,6 @@ export default function ChatRoomPage() {
               {imageEditor.editing && (
                 <button type="button" onClick={undoImageStroke} disabled={!imageEditor.strokes.length}>되돌리기</button>
               )}
-              <button type="button" onClick={closeImageEditor}>취소</button>
             </div>
           </section>
         </div>
