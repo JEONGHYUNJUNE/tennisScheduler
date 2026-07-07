@@ -6,6 +6,7 @@ import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
+import DxInsightModal from '../features/dxInsight/DxInsightModal'
 import { signOut } from '../services/authService'
 import { getMyUpcomingEvents } from '../services/eventService'
 import { createInquiry, deleteInquiry, deleteInquiryReply, getAdminInquiries, getMyInquiries, replyToInquiry } from '../services/inquiryService'
@@ -52,6 +53,9 @@ export default function MyPage() {
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [diaryGroupOpen, setDiaryGroupOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
+  // DX Insight easter egg entrypoint. Remove this state/ref and the handlers below to detach the feature.
+  const [dxInsightOpen, setDxInsightOpen] = useState(false)
+  const dxInsightPressTimerRef = useRef(null)
 
   useEffect(() => {
     if (!profile?.id) return undefined
@@ -92,6 +96,28 @@ export default function MyPage() {
     navigate('/login')
   }
 
+  // DX Insight easter egg entrypoint: long-press "테니스 시작일" for 5 seconds.
+  // Related files for clean removal:
+  // - src/features/dxInsight/DxInsightModal.jsx
+  // - src/features/dxInsight/dxInsight.css
+  // - src/data/dxInsightQuizBank.js
+  const cancelDxInsightPress = useCallback(() => {
+    if (dxInsightPressTimerRef.current) {
+      window.clearTimeout(dxInsightPressTimerRef.current)
+      dxInsightPressTimerRef.current = null
+    }
+  }, [])
+
+  const startDxInsightPress = useCallback(() => {
+    cancelDxInsightPress()
+    dxInsightPressTimerRef.current = window.setTimeout(() => {
+      setDxInsightOpen(true)
+      dxInsightPressTimerRef.current = null
+    }, 5000)
+  }, [cancelDxInsightPress])
+
+  useEffect(() => cancelDxInsightPress, [cancelDxInsightPress])
+
   return (
     <section className="my-page-shell">
       <div className="my-page-card">
@@ -111,7 +137,19 @@ export default function MyPage() {
           <div><dt>이름</dt><dd>{profile?.name || '-'}</dd></div>
           <div><dt>아이디</dt><dd>{profile?.user_id || '-'}</dd></div>
           <div><dt>권한</dt><dd>{profile?.role || 'member'}</dd></div>
-          <div><dt>테니스 시작일</dt><dd>{profile?.tennis_start_date || '-'}</dd></div>
+          {/* DX Insight easter egg trigger. Remove this wrapped dt handler block when removing the feature. */}
+          <div>
+            <dt
+              className="dx-insight-trigger"
+              onPointerDown={startDxInsightPress}
+              onPointerUp={cancelDxInsightPress}
+              onPointerCancel={cancelDxInsightPress}
+              onPointerLeave={cancelDxInsightPress}
+            >
+              테니스 시작일
+            </dt>
+            <dd>{profile?.tennis_start_date || '-'}</dd>
+          </div>
           <div><dt>구력</dt><dd>{formatTennisExperience(profile?.tennis_start_date)}</dd></div>
         </dl>
 
@@ -212,10 +250,13 @@ export default function MyPage() {
           }}
         />
       )}
+
+      {dxInsightOpen && (
+        <DxInsightModal onClose={() => setDxInsightOpen(false)} />
+      )}
     </section>
   )
 }
-
 function AvatarModal({ profile, onClose, onSaved }) {
   const cropStageSize = 236
   const outputSize = 512
