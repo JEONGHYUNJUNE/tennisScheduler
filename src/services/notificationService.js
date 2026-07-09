@@ -3,7 +3,11 @@ import { supabase } from '../lib/supabase'
 const missingNotificationTableCodes = new Set(['42P01', '42703'])
 
 const selfActionNotificationTypes = new Set(['attendance_created', 'attendance_cancelled'])
-const hiddenMenuNotificationTypes = new Set(['chat_requested', 'chat_message_created'])
+const hiddenMenuNotificationTypes = new Set([
+  'chat_requested',
+  'chat_message_created',
+  'chat_message_reaction_created',
+])
 const readNotificationVisibleDays = 30
 const maxVisibleNotifications = 20
 const notificationSelectColumns = 'id, type, title, message, event_id, free_opinion_id, free_opinion_comment_id, tennis_event_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, inquiry_id, inquiry_reply_id, actor_member_id, is_read, created_at'

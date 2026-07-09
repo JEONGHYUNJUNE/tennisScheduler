@@ -615,6 +615,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message img,
 .chat-message a { -webkit-user-drag: none; user-drag: none; }
 .chat-message.sticker-image > div img { width: 76px; height: 76px; border-radius: 0; object-fit: contain; background: transparent; box-shadow: none; }
+.chat-message .chat-message-reactions b img,
+.chat-message.sticker-image .chat-message-reactions b img { width: 22px; height: 22px; max-width: 22px; max-height: 22px; border-radius: 6px; object-fit: contain; background: transparent; box-shadow: none; }
 .chat-composer { position: relative; z-index: 3; padding: 12px 14px; border-top: 1px solid rgba(217,228,213,.9); display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px auto; gap: 8px; align-items: center; background: rgba(255,253,248,.96); backdrop-filter: blur(14px); }
 .chat-reply-composer { grid-column: 1 / -1; min-width: 0; border: 1px solid rgba(63,116,75,.22); border-left: 5px solid var(--green-700); border-radius: 16px; padding: 10px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 30px; align-items: center; gap: 10px; background: rgba(228,242,223,.96); box-shadow: 0 10px 22px rgba(49,95,59,.10); }
 .chat-reply-composer div { min-width: 0; display: grid; gap: 2px; }

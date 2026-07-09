@@ -197,9 +197,20 @@ set search_path = ''
 as $$
 declare
   message_record public.chat_messages%rowtype;
+  room_record public.chat_rooms%rowtype;
+  recipient_seen_at timestamptz;
   actor_name text;
   preview text;
   reaction_label text;
+  default_member_name text := convert_from(decode('ed9a8cec9b90', 'hex'), 'UTF8');
+  sticker_text text := convert_from(decode('ec9db4ebaaa8ed8bb0ecbd98', 'hex'), 'UTF8');
+  image_text text := convert_from(decode('ec82aceca784', 'hex'), 'UTF8');
+  video_text text := convert_from(decode('eb8f99ec9881ec8381', 'hex'), 'UTF8');
+  fallback_message_text text := convert_from(decode('eba994ec8b9ceca780', 'hex'), 'UTF8');
+  notification_title_text text := convert_from(decode('ec838820ecb184ed8c8520ebb098ec9d91ec9db420ec9e88ec8ab5eb8b88eb8ba42e', 'hex'), 'UTF8');
+  actor_suffix_text text := convert_from(decode('eb8b98ec9db42022', 'hex'), 'UTF8');
+  reaction_prefix_text text := convert_from(decode('2220eba790ec979020', 'hex'), 'UTF8');
+  reaction_suffix_text text := convert_from(decode('20ebb098ec9d91ec9d8420eb82a8eab2bcec8ab5eb8b88eb8ba42e', 'hex'), 'UTF8');
 begin
   select *
   into message_record
@@ -212,7 +223,29 @@ begin
     return new;
   end if;
 
-  select coalesce(member.display_name, member.username, '회원')
+  select *
+  into room_record
+  from public.chat_rooms room
+  where room.id = message_record.room_id;
+
+  if room_record.id is null or room_record.status <> 'active' then
+    return new;
+  end if;
+
+  if message_record.sender_member_id not in (room_record.requester_member_id, room_record.recipient_member_id) then
+    return new;
+  end if;
+
+  recipient_seen_at := case
+    when message_record.sender_member_id = room_record.requester_member_id then room_record.requester_last_seen_at
+    else room_record.recipient_last_seen_at
+  end;
+
+  if recipient_seen_at is not null and recipient_seen_at >= now() - interval '45 seconds' then
+    return new;
+  end if;
+
+  select coalesce(member.display_name, member.username, default_member_name)
   into actor_name
   from public.otmember member
   where member.id = new.member_id;
@@ -222,14 +255,14 @@ begin
       and (
         message_record.image_path like 'chat-stickers/%'
         or message_record.image_path like 'chat-custom-stickers/%'
-      ) then '이모티콘'
-    when message_record.message_type = 'image' then '사진'
-    when message_record.message_type = 'video' then '동영상'
+      ) then sticker_text
+    when message_record.message_type = 'image' then image_text
+    when message_record.message_type = 'video' then video_text
     when char_length(message_record.body) > 10 then substring(message_record.body from 1 for 10) || '…'
     else message_record.body
   end;
   reaction_label := case
-    when new.reaction like 'sticker:%' then '이모티콘'
+    when new.reaction like 'sticker:%' then sticker_text
     else new.reaction
   end;
 
@@ -246,8 +279,8 @@ begin
     new.member_id,
     message_record.room_id,
     'chat_message_reaction_created',
-    '새 채팅 반응이 있습니다.',
-    coalesce(actor_name, '회원') || '님이 "' || coalesce(preview, '메시지') || '" 말에 ' || reaction_label || ' 반응을 남겼습니다.'
+    notification_title_text,
+    coalesce(actor_name, default_member_name) || actor_suffix_text || coalesce(preview, fallback_message_text) || reaction_prefix_text || reaction_label || reaction_suffix_text
   );
 
   return new;

@@ -64,7 +64,8 @@ const getNotificationLink = (notification) => {
   }
   if (
     notification.type === 'chat_requested' ||
-    notification.type === 'chat_message_created'
+    notification.type === 'chat_message_created' ||
+    notification.type === 'chat_message_reaction_created'
   ) {
     return notification.chat_room_id ? `/chats/${notification.chat_room_id}` : '/chats'
   }

@@ -801,18 +801,27 @@ export async function setChatMessageReaction(messageId, reaction) {
 }
 
 export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged, onReactionChanged }) {
-  const channel = supabase
-    .channel(`chat-room:${roomId}`)
+  const suffix = `${Date.now()}:${Math.random().toString(36).slice(2)}`
+  const messageChannel = supabase
+    .channel(`chat-room-messages:${roomId}:${suffix}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
       (payload) => onMessage?.(payload.new),
     )
+    .subscribe()
+
+  const roomChannel = supabase
+    .channel(`chat-room-state:${roomId}:${suffix}`)
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'chat_rooms', filter: `id=eq.${roomId}` },
       (payload) => onRoomChanged?.(payload.new),
     )
+    .subscribe()
+
+  const reactionChannel = supabase
+    .channel(`chat-room-reactions:${roomId}:${suffix}`)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'chat_message_reactions' },
@@ -821,7 +830,9 @@ export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged, onReacti
     .subscribe()
 
   return () => {
-    supabase.removeChannel(channel)
+    supabase.removeChannel(messageChannel)
+    supabase.removeChannel(roomChannel)
+    supabase.removeChannel(reactionChannel)
   }
 }
 
