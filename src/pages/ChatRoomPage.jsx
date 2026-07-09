@@ -573,6 +573,10 @@ export default function ChatRoomPage() {
       { key: 'basic', label: '기본', items: emojiItems },
     ].filter((group) => group.items.length > 0)
   }, [customStickers, roomStickers])
+  const activePhotoEditorStickerGroup = useMemo(() => {
+    if (!photoEditorStickerGroups.length) return null
+    return photoEditorStickerGroups.find((group) => group.key === imageEditor?.selectedStickerGroup) || photoEditorStickerGroups[0]
+  }, [imageEditor?.selectedStickerGroup, photoEditorStickerGroups])
   const reactionStickerOptions = useMemo(() => {
     const stickerMap = new Map()
     roomStickers.forEach((sticker) => {
@@ -1475,6 +1479,7 @@ export default function ChatRoomPage() {
       textDraft: '',
       stickers: [],
       selectedStickerId: null,
+      selectedStickerGroup: 'personal',
     })
   }
 
@@ -2240,7 +2245,12 @@ export default function ChatRoomPage() {
                   <button
                     type="button"
                     className={imageEditor.mode === 'sticker' ? 'active' : ''}
-                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'sticker', selectedTextId: null }))}
+                    onClick={() => setImageEditor((current) => ({
+                      ...current,
+                      mode: 'sticker',
+                      selectedTextId: null,
+                      selectedStickerGroup: current?.selectedStickerGroup || photoEditorStickerGroups[0]?.key || 'personal',
+                    }))}
                   >
                     스티커
                   </button>
@@ -2298,29 +2308,36 @@ export default function ChatRoomPage() {
                 )}
                 {imageEditor.mode === 'sticker' && (
                   <div className="chat-photo-sticker-tools">
-                    {photoEditorStickerGroups.length > 0 ? (
-                      <div className="chat-photo-sticker-grid" role="list" aria-label="사진에 추가할 스티커">
+                    {photoEditorStickerGroups.length > 0 && (
+                      <div className="chat-photo-sticker-tabs" role="tablist" aria-label="스티커 종류">
                         {photoEditorStickerGroups.map((group) => (
-                          <div className="chat-photo-sticker-section" key={group.key}>
-                            <strong>{group.label}</strong>
-                            <div>
-                              {group.items.map((sticker) => (
-                                <button
-                                  type="button"
-                                  key={sticker.key}
-                                  onClick={() => addImageEditorSticker(sticker)}
-                                  aria-label={`${sticker.label} 추가`}
-                                >
-                                  {sticker.kind === 'emoji' ? (
-                                    <span>{sticker.value}</span>
-                                  ) : (
-                                    <img src={sticker.src} alt="" />
-                                  )}
-                                  {sticker.scope === 'room' && <em>공용</em>}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                          <button
+                            type="button"
+                            key={group.key}
+                            className={activePhotoEditorStickerGroup?.key === group.key ? 'active' : ''}
+                            onClick={() => setImageEditor((current) => ({ ...current, selectedStickerGroup: group.key }))}
+                          >
+                            {group.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {activePhotoEditorStickerGroup ? (
+                      <div className="chat-photo-sticker-strip" role="list" aria-label={`${activePhotoEditorStickerGroup.label} 스티커`}>
+                        {activePhotoEditorStickerGroup.items.map((sticker) => (
+                          <button
+                            type="button"
+                            key={sticker.key}
+                            onClick={() => addImageEditorSticker(sticker)}
+                            aria-label={`${sticker.label} 추가`}
+                          >
+                            {sticker.kind === 'emoji' ? (
+                              <span>{sticker.value}</span>
+                            ) : (
+                              <img src={sticker.src} alt="" />
+                            )}
+                            {sticker.scope === 'room' && <em>공용</em>}
+                          </button>
                         ))}
                       </div>
                     ) : (
