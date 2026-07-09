@@ -1715,6 +1715,15 @@ export default function ChatRoomPage() {
     }))
   }
 
+  const updateSelectedImageTextSize = (size) => {
+    setImageEditor((current) => ({
+      ...current,
+      texts: (current?.texts || []).map((text) => (
+        text.id === current?.selectedTextId ? { ...text, size } : text
+      )),
+    }))
+  }
+
   const removeSelectedImageText = () => {
     setImageEditor((current) => ({
       ...current,
@@ -2331,6 +2340,17 @@ export default function ChatRoomPage() {
                           placeholder="선택한 텍스트 수정"
                         />
                         <button type="button" onClick={removeSelectedImageText}>삭제</button>
+                        <label className="chat-photo-text-size">
+                          크기
+                          <input
+                            type="range"
+                            min="14"
+                            max="72"
+                            step="1"
+                            value={(imageEditor.texts || []).find((text) => text.id === imageEditor.selectedTextId)?.size || 32}
+                            onChange={(event) => updateSelectedImageTextSize(Number(event.target.value))}
+                          />
+                        </label>
                       </div>
                     )}
                   </div>
