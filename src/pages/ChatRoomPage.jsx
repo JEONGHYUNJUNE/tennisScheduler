@@ -90,15 +90,20 @@ function getPhotoEditorTextHit(editor, point, canvas) {
 
 function getPhotoEditorStickerHit(editor, point) {
   const imagePoint = canvasPointToImagePoint(point, editor)
+  const frame = getPhotoEditorImageFrame(editor)
+  const baseScale = Math.min(frame.width, frame.height)
   const stickers = editor?.stickers || []
   for (let index = stickers.length - 1; index >= 0; index -= 1) {
     const sticker = stickers[index]
     const size = sticker.size || 0.24
+    const aspect = sticker.aspect || 1
+    const width = size * baseScale / frame.width
+    const height = (size * baseScale / aspect) / frame.height
     if (
       imagePoint.x >= sticker.x &&
-      imagePoint.x <= sticker.x + size &&
+      imagePoint.x <= sticker.x + width &&
       imagePoint.y >= sticker.y &&
-      imagePoint.y <= sticker.y + size
+      imagePoint.y <= sticker.y + height
     ) {
       return { sticker, imagePoint }
     }
@@ -465,10 +470,12 @@ export default function ChatRoomPage() {
       if (!sticker.src && !sticker.value) continue
       try {
         const size = sticker.size || 0.24
+        const aspect = sticker.aspect || 1
+        const baseSize = size * Math.min(drawWidth, drawHeight)
         const x = drawX + sticker.x * drawWidth
         const y = drawY + sticker.y * drawHeight
-        const width = size * drawWidth
-        const height = size * drawHeight
+        const width = baseSize
+        const height = baseSize / aspect
         if (sticker.kind === 'emoji') {
           const fontSize = Math.min(width, height) * 0.86
           context.font = `${fontSize}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`
@@ -1623,10 +1630,15 @@ export default function ChatRoomPage() {
           stickers: (current?.stickers || []).map((sticker) => {
             if (sticker.id !== imageEditorPointer.stickerId) return sticker
             const size = sticker.size || 0.24
+            const aspect = sticker.aspect || 1
+            const frame = getPhotoEditorImageFrame(current)
+            const baseScale = Math.min(frame.width, frame.height)
+            const width = size * baseScale / frame.width
+            const height = (size * baseScale / aspect) / frame.height
             return {
               ...sticker,
-              x: Math.min(1 - size, Math.max(0, imageEditorPointer.stickerX + imagePoint.x - imageEditorPointer.startX)),
-              y: Math.min(1 - size, Math.max(0, imageEditorPointer.stickerY + imagePoint.y - imageEditorPointer.startY)),
+              x: Math.min(1 - width, Math.max(0, imageEditorPointer.stickerX + imagePoint.x - imageEditorPointer.startX)),
+              y: Math.min(1 - height, Math.max(0, imageEditorPointer.stickerY + imagePoint.y - imageEditorPointer.startY)),
             }
           }),
         }
@@ -1711,8 +1723,19 @@ export default function ChatRoomPage() {
     }))
   }
 
-  const addImageEditorSticker = (stickerOption) => {
+  const addImageEditorSticker = async (stickerOption) => {
     if (!stickerOption?.src && !stickerOption?.value) return
+    let aspect = 1
+    if (stickerOption.src) {
+      try {
+        const stickerImage = await createImageElement(stickerOption.src)
+        aspect = stickerImage.naturalWidth && stickerImage.naturalHeight
+          ? stickerImage.naturalWidth / stickerImage.naturalHeight
+          : 1
+      } catch {
+        aspect = 1
+      }
+    }
     const id = `sticker-${Date.now()}`
     setImageEditor((current) => ({
       ...current,
@@ -1727,6 +1750,7 @@ export default function ChatRoomPage() {
           src: stickerOption.src,
           value: stickerOption.value,
           label: stickerOption.label || '스티커',
+          aspect,
           size: 0.24,
           x: 0.38,
           y: 0.38,
@@ -1748,11 +1772,16 @@ export default function ChatRoomPage() {
       ...current,
       stickers: (current?.stickers || []).map((sticker) => {
         if (sticker.id !== current?.selectedStickerId) return sticker
+        const aspect = sticker.aspect || 1
+        const frame = getPhotoEditorImageFrame(current)
+        const baseScale = Math.min(frame.width, frame.height)
+        const width = size * baseScale / frame.width
+        const height = (size * baseScale / aspect) / frame.height
         return {
           ...sticker,
           size,
-          x: Math.min(1 - size, Math.max(0, sticker.x)),
-          y: Math.min(1 - size, Math.max(0, sticker.y)),
+          x: Math.min(1 - width, Math.max(0, sticker.x)),
+          y: Math.min(1 - height, Math.max(0, sticker.y)),
         }
       }),
     }))
