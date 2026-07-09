@@ -589,7 +589,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message.sticker .chat-message-text { padding: 10px 12px; font-size: 2rem; line-height: 1; background: rgba(255,255,255,.84); }
 .chat-message.mine.sticker .chat-message-text { background: rgba(237,246,234,.95); color: #1f2b22; }
 .chat-message.sticker .chat-reply-bubble .chat-message-text { padding: 0; background: transparent; color: inherit; }
-.chat-message-reactions { margin-top: -1px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; animation: reaction-pop .2s cubic-bezier(.2,.8,.22,1) both; }
+.chat-message-reactions { margin-top: -1px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; animation: reaction-pop .34s cubic-bezier(.18,1.45,.32,1) both; transform-origin: center; }
 .chat-message.mine .chat-message-reactions { justify-content: flex-end; }
 .chat-message-reactions span { min-height: 25px; border: 1px solid rgba(217,228,213,.9); border-radius: 999px; padding: 3px 7px; display: inline-flex; align-items: center; gap: 3px; background: rgba(255,255,255,.96); box-shadow: 0 7px 16px rgba(49,95,59,.10); }
 .chat-message-reactions span.mine { border-color: rgba(63,116,75,.22); background: rgba(237,246,234,.98); }
@@ -742,8 +742,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-action-menu button { min-height: 44px; border: 1px solid rgba(63,116,75,.14); border-radius: 16px; color: var(--green-800); background: white; font-weight: 950; }
 .chat-action-menu button:disabled { opacity: .5; }
 @keyframes reaction-pop {
-  from { opacity: 0; transform: translateY(-5px) scale(.88); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(-8px) scale(.35); }
+  68% { opacity: 1; transform: translateY(0) scale(1.22); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 .ranking-list { display: grid; gap: 12px; }
 .ranking-item { padding: 18px 20px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 8px; display: grid; grid-template-columns: 48px minmax(0, 1fr) 92px; gap: 16px; align-items: center; background: rgba(255, 253, 248, .9); box-shadow: 0 10px 24px rgba(49, 95, 59, .07); }

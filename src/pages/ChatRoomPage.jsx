@@ -5,7 +5,7 @@ import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
@@ -251,6 +251,30 @@ function mergeMessages(messages, nextMessages) {
   return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
 }
 
+function applyOptimisticReaction(message, member, reaction) {
+  if (!message?.id || !member?.id) return message
+  const isStickerReaction = isChatStickerReaction(reaction)
+  const now = new Date().toISOString()
+
+  return {
+    ...message,
+    reactions: [
+      ...(message.reactions || []).filter((item) => item.member_id !== member.id),
+      {
+        message_id: message.id,
+        member_id: member.id,
+        reaction,
+        reaction_image_url: isStickerReaction ? getChatReactionImageUrl(reaction) : '',
+        is_sticker_reaction: isStickerReaction,
+        created_at: now,
+        updated_at: now,
+        member_name: member.name || '회원',
+        member_avatar_url: member.avatar_url || '',
+      },
+    ],
+  }
+}
+
 export default function ChatRoomPage() {
   const { roomId } = useParams()
   const navigate = useNavigate()
@@ -378,12 +402,12 @@ export default function ChatRoomPage() {
   }, [customStickerPage, customStickers, isRoomStickerPage, roomStickers])
   const reactionStickerOptions = useMemo(() => {
     const stickerMap = new Map()
-    ;[...customStickers, ...roomStickers].forEach((sticker) => {
+    roomStickers.forEach((sticker) => {
       if (!sticker?.image_path || stickerMap.has(sticker.image_path)) return
       stickerMap.set(sticker.image_path, sticker)
     })
-    return [...stickerMap.values()].slice(0, 12)
-  }, [customStickers, roomStickers])
+    return [...stickerMap.values()].slice(0, 30)
+  }, [roomStickers])
 
   useEffect(() => {
     const draft = readSearchShareDraft(roomId)
@@ -869,18 +893,27 @@ export default function ChatRoomPage() {
   const handleReaction = async (reaction) => {
     if (!actionMessage) return
 
+    const targetMessage = actionMessage
+    setActionMessage(null)
+    setMessages((current) => mergeMessages(
+      current,
+      [applyOptimisticReaction(targetMessage, profile, reaction)],
+    ))
     setSending(true)
     setError('')
     try {
-      await setChatMessageReaction(actionMessage.id, reaction)
-      const hydratedMessage = await getChatMessage(actionMessage.id)
+      await setChatMessageReaction(targetMessage.id, reaction)
+      const hydratedMessage = await getChatMessage(targetMessage.id)
       if (hydratedMessage) {
         setMessages((current) => mergeMessages(current, [hydratedMessage]))
       }
-      setActionMessage(null)
     } catch (err) {
       console.error(err)
       setError('반응을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      const hydratedMessage = await getChatMessage(targetMessage.id).catch(() => null)
+      if (hydratedMessage) {
+        setMessages((current) => mergeMessages(current, [hydratedMessage]))
+      }
     } finally {
       setSending(false)
     }

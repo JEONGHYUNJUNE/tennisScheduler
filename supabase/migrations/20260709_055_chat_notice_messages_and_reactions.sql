@@ -13,6 +13,15 @@ drop constraint if exists chat_message_reactions_reaction_check;
 create index if not exists chat_message_reactions_member_idx
 on public.chat_message_reactions(member_id, updated_at desc);
 
+alter table public.chat_message_reactions replica identity full;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.chat_message_reactions;
+exception
+  when duplicate_object then null;
+end $$;
+
 alter table public.chat_message_reactions enable row level security;
 
 drop policy if exists "participants can read chat message reactions" on public.chat_message_reactions;
