@@ -5,7 +5,7 @@ import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getCustomChatStickers, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
@@ -201,6 +201,26 @@ const getMessageAuthor = (item, profileId) => {
   return item.sender_name || '회원'
 }
 
+const getReactionGroups = (reactions = []) => {
+  const groupMap = new Map()
+  reactions.forEach((reaction) => {
+    if (!reaction?.reaction) return
+    const group = groupMap.get(reaction.reaction) || {
+      reaction: reaction.reaction,
+      imageUrl: reaction.reaction_image_url || '',
+      isSticker: reaction.is_sticker_reaction || isChatStickerReaction(reaction.reaction),
+      count: 0,
+      names: [],
+      members: [],
+    }
+    group.count += 1
+    group.names.push(reaction.member_name || '회원')
+    group.members.push(reaction.member_id)
+    groupMap.set(reaction.reaction, group)
+  })
+  return [...groupMap.values()]
+}
+
 function mergeRoomPresence(room, updates, profileId) {
   if (!room || !updates) return room
   const nextRoom = { ...room, ...updates }
@@ -244,6 +264,7 @@ export default function ChatRoomPage() {
   const longPressTimerRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
   const scrollCorrectionTimersRef = useRef([])
+  const loadedMessageIdsRef = useRef(new Set())
   const [room, setRoom] = useState(null)
   const [messages, setMessages] = useState([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
@@ -285,6 +306,10 @@ export default function ChatRoomPage() {
     return trimmed.replace(/^#+\s*/, '').trim()
   }, [message])
   const showHashSearchPrompt = isActive && pendingHashQuery.length > 0 && !searchShareOpen
+
+  useEffect(() => {
+    loadedMessageIdsRef.current = new Set(messages.map((item) => item.id).filter(Boolean))
+  }, [messages])
 
   const redrawImageEditor = useCallback(async (editor = imageEditor) => {
     const canvas = imageEditorCanvasRef.current
@@ -351,6 +376,14 @@ export default function ChatRoomPage() {
     const pageStart = firstCustomStickerPageSize + ((customStickerPage - 1) * customStickerPageSize)
     return customStickers.slice(pageStart, pageStart + customStickerPageSize)
   }, [customStickerPage, customStickers, isRoomStickerPage, roomStickers])
+  const reactionStickerOptions = useMemo(() => {
+    const stickerMap = new Map()
+    ;[...customStickers, ...roomStickers].forEach((sticker) => {
+      if (!sticker?.image_path || stickerMap.has(sticker.image_path)) return
+      stickerMap.set(sticker.image_path, sticker)
+    })
+    return [...stickerMap.values()].slice(0, 12)
+  }, [customStickers, roomStickers])
 
   useEffect(() => {
     const draft = readSearchShareDraft(roomId)
@@ -597,6 +630,16 @@ export default function ChatRoomPage() {
           setRoom((current) => current ? { ...current, notice_message: null } : current)
         }
       },
+      onReactionChanged: (payload) => {
+        const messageId = payload.new?.message_id || payload.old?.message_id
+        if (!messageId || !loadedMessageIdsRef.current.has(messageId)) return
+        getChatMessage(messageId)
+          .then((hydratedMessage) => {
+            if (!hydratedMessage) return
+            setMessages((current) => mergeMessages(current, [hydratedMessage]))
+          })
+          .catch((err) => setError(err.message))
+      },
     })
   }, [appendMessages, isNearMessageBottom, load, markRead, profile.id, roomId, viewingSearchContext])
 
@@ -806,6 +849,25 @@ export default function ChatRoomPage() {
         ...mergeRoomPresence(current, updates, profile.id),
         notice_message: actionMessage,
       }))
+      setActionMessage(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleReaction = async (reaction) => {
+    if (!actionMessage) return
+
+    setSending(true)
+    setError('')
+    try {
+      await setChatMessageReaction(actionMessage.id, reaction)
+      const hydratedMessage = await getChatMessage(actionMessage.id)
+      if (hydratedMessage) {
+        setMessages((current) => mergeMessages(current, [hydratedMessage]))
+      }
       setActionMessage(null)
     } catch (err) {
       setError(err.message)
@@ -1426,6 +1488,7 @@ export default function ChatRoomPage() {
           }
           const isCustomStickerImage = item.message_type === 'image' && isChatStickerImagePath(item.image_path)
           const isImageMessage = item.message_type === 'image'
+          const reactionGroups = getReactionGroups(item.reactions)
           const isReadByOther = mine &&
             room?.other_last_read_at &&
             new Date(room.other_last_read_at) >= new Date(item.created_at)
@@ -1455,8 +1518,26 @@ export default function ChatRoomPage() {
                   </div>
                 )}
                 {!item.reply_to && renderMessageBody(item, isImageMessage, isCustomStickerImage)}
+                {reactionGroups.length > 0 && (
+                  <div className="chat-message-reactions" aria-label="메시지 반응">
+                    {reactionGroups.map((group) => (
+                      <span
+                        className={group.members.includes(profile.id) ? 'mine' : ''}
+                        key={group.reaction}
+                        title={group.names.join(', ')}
+                      >
+                        <b>
+                          {group.isSticker && group.imageUrl ? (
+                            <img src={group.imageUrl} alt="" />
+                          ) : group.reaction}
+                        </b>
+                        {group.count > 1 && <em>{group.count}</em>}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <span className="chat-message-meta">
-                  {isReadByOther && <em>읽음</em>}
+                  {mine && !isReadByOther && <em>1</em>}
                   <time>{formatMessageTime(item.created_at)}</time>
                 </span>
               </div>
@@ -1824,6 +1905,31 @@ export default function ChatRoomPage() {
               <strong>{getMessageAuthor(actionMessage, profile.id)}</strong>
               <span>{getMessagePreview(actionMessage)}</span>
             </p>
+            <div className="chat-action-reactions" aria-label="반응 남기기">
+              {chatReactionOptions.map((reaction) => (
+                <button
+                  type="button"
+                  key={reaction.value}
+                  onClick={() => handleReaction(reaction.value)}
+                  disabled={sending}
+                  aria-label={`${reaction.label} 반응`}
+                >
+                  {reaction.value}
+                </button>
+              ))}
+              {reactionStickerOptions.map((sticker) => (
+                <button
+                  type="button"
+                  className="sticker-reaction-button"
+                  key={sticker.image_path}
+                  onClick={() => handleReaction(getChatStickerReactionValue(sticker))}
+                  disabled={sending}
+                  aria-label="이모티콘 반응"
+                >
+                  <img src={getStickerImageSrc(sticker)} alt="" />
+                </button>
+              ))}
+            </div>
             <button type="button" onClick={handleReplyToMessage}>답장</button>
             <button type="button" onClick={handleSetNotice} disabled={sending}>공지</button>
             <button type="button" onClick={handleCopyMessage}>복사</button>

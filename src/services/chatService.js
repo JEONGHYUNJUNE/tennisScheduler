@@ -3,6 +3,7 @@ import { getPostImageUrl, postImageBucketName, removePostImage, uploadPostImage 
 
 export const chatMessagePageSize = 100
 const reusableStickerFolder = 'chat-custom-stickers'
+const stickerReactionPrefix = 'sticker:'
 const searchShareMarker = '#검색공유'
 const maxChatVideoSize = 50 * 1024 * 1024
 const videoFileExtensionPattern = /\.(mp4|mov|m4v|webm|3gp|3gpp|3g2|3gpp2)$/i
@@ -102,6 +103,29 @@ export const chatStickerOptions = [
   { label: '따봉', value: '👍' },
   { label: '하트웃음', value: '🥰' },
 ]
+
+export const chatReactionOptions = [
+  { label: '하트', value: '❤️' },
+  { label: '따봉', value: '👍' },
+  { label: '확인', value: '✅' },
+  { label: '웃음', value: '😄' },
+  { label: '놀람', value: '😮' },
+  { label: '슬픔', value: '😢' },
+]
+
+export function getChatStickerReactionValue(sticker) {
+  if (!sticker?.image_path) return ''
+  return `${stickerReactionPrefix}${sticker.image_path}`
+}
+
+export function getChatReactionImageUrl(reaction = '') {
+  if (!reaction.startsWith(stickerReactionPrefix)) return ''
+  return getPostImageUrl(reaction.slice(stickerReactionPrefix.length))
+}
+
+export function isChatStickerReaction(reaction = '') {
+  return reaction.startsWith(stickerReactionPrefix)
+}
 
 export function serializeSearchShare(result) {
   const title = String(result?.title || '').trim()
@@ -246,7 +270,7 @@ export async function getChatMessages(roomId, { before = null, limit = chatMessa
     throw error
   }
 
-  return hydrateMessageReplies((data || []).map(normalizeMessage).reverse())
+  return hydrateChatMessages((data || []).map(normalizeMessage).reverse())
 }
 
 export async function getChatMessage(messageId) {
@@ -280,7 +304,7 @@ export async function getChatMessage(messageId) {
   }
 
   if (!data) return null
-  const [message] = await hydrateMessageReplies([normalizeMessage(data)])
+  const [message] = await hydrateChatMessages([normalizeMessage(data)])
   return message
 }
 
@@ -302,7 +326,7 @@ export async function searchChatMessages(roomId, keyword, { limit = 30 } = {}) {
     throw error
   }
 
-  return hydrateMessageReplies((data || []).map(normalizeMessage))
+  return hydrateChatMessages((data || []).map(normalizeMessage))
 }
 
 export async function getChatMessagesAround(roomId, createdAt, { limit = 50 } = {}) {
@@ -333,7 +357,7 @@ export async function getChatMessagesAround(roomId, createdAt, { limit = 50 } = 
 
   const olderMessages = (olderResult.data || []).map(normalizeMessage).reverse()
   const newerMessages = (newerResult.data || []).map(normalizeMessage)
-  return hydrateMessageReplies(mergeMessageRows([...olderMessages, ...newerMessages]))
+  return hydrateChatMessages(mergeMessageRows([...olderMessages, ...newerMessages]))
 }
 
 export async function requestChat(recipientMemberId) {
@@ -764,7 +788,19 @@ export async function setChatRoomNotice(roomId, messageId) {
   return data
 }
 
-export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged }) {
+export async function setChatMessageReaction(messageId, reaction) {
+  const { data, error } = await supabase
+    .rpc('set_chat_message_reaction', {
+      target_message_id: messageId,
+      target_reaction: reaction,
+    })
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged, onReactionChanged }) {
   const channel = supabase
     .channel(`chat-room:${roomId}`)
     .on(
@@ -776,6 +812,11 @@ export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged }) {
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'chat_rooms', filter: `id=eq.${roomId}` },
       (payload) => onRoomChanged?.(payload.new),
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'chat_message_reactions' },
+      (payload) => onReactionChanged?.(payload),
     )
     .subscribe()
 
@@ -919,6 +960,54 @@ async function hydrateMessageReplies(messages) {
   }))
 }
 
+async function hydrateChatMessages(messages) {
+  const withReplies = await hydrateMessageReplies(messages)
+  const messageIds = withReplies.map((message) => message.id).filter(Boolean)
+  if (messageIds.length === 0) return withReplies
+
+  const { data, error } = await supabase
+    .from('chat_message_reactions')
+    .select(`
+      message_id,
+      member_id,
+      reaction,
+      created_at,
+      updated_at,
+      member:otmember!chat_message_reactions_member_id_fkey(id, username, display_name, avatar_url)
+    `)
+    .in('message_id', messageIds)
+    .order('updated_at', { ascending: true })
+
+  if (error) {
+    if (['42P01', 'PGRST200', 'PGRST205'].includes(error.code) || /chat_message_reactions/i.test(error.message || '')) {
+      return withReplies.map((message) => ({ ...message, reactions: [] }))
+    }
+    throw error
+  }
+
+  const reactionMap = new Map()
+  ;(data || []).forEach((reaction) => {
+    const list = reactionMap.get(reaction.message_id) || []
+    list.push({
+      message_id: reaction.message_id,
+      member_id: reaction.member_id,
+      reaction: reaction.reaction,
+      reaction_image_url: getChatReactionImageUrl(reaction.reaction),
+      is_sticker_reaction: isChatStickerReaction(reaction.reaction),
+      created_at: reaction.created_at,
+      updated_at: reaction.updated_at,
+      member_name: reaction.member?.display_name || reaction.member?.username || '회원',
+      member_avatar_url: reaction.member?.avatar_url || '',
+    })
+    reactionMap.set(reaction.message_id, list)
+  })
+
+  return withReplies.map((message) => ({
+    ...message,
+    reactions: reactionMap.get(message.id) || [],
+  }))
+}
+
 async function getUnreadMessageCount(room, memberId) {
   if (!room || room.status !== 'active') return 0
 
@@ -975,6 +1064,7 @@ function normalizeMessage(message) {
     image_path: message.image_path || '',
     image_name: message.image_name || '',
     image_url: getPostImageUrl(message.image_path),
+    reactions: message.reactions || [],
     reply_to: message.reply_to ? normalizeMessage(message.reply_to) : null,
   }
 }

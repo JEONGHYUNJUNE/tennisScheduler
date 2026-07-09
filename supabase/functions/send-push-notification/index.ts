@@ -192,7 +192,8 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
   }
   if (
     notification.type === 'chat_requested' ||
-    notification.type === 'chat_message_created'
+    notification.type === 'chat_message_created' ||
+    notification.type === 'chat_message_reaction_created'
   ) {
     return `${appUrl}/#/chats${notification.chat_room_id ? `/${notification.chat_room_id}` : ''}`
   }
