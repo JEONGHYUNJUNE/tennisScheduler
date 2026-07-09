@@ -844,14 +844,23 @@ export default function ChatRoomPage() {
     setSending(true)
     setError('')
     try {
-      const updates = await setChatRoomNotice(roomId, actionMessage.id)
+      const noticeTarget = actionMessage
+      const updates = await setChatRoomNotice(roomId, noticeTarget.id)
       setRoom((current) => ({
         ...mergeRoomPresence(current, updates, profile.id),
-        notice_message: actionMessage,
+        notice_message: noticeTarget,
       }))
+      const noticeMessage = await sendChatMessage(
+        roomId,
+        `${profile.name || '회원'}님이 공지로 등록했습니다.`,
+        'text',
+        { replyToMessageId: noticeTarget.id },
+      )
+      await appendSentMessage({ ...noticeMessage, reply_to: noticeMessage.reply_to || noticeTarget })
       setActionMessage(null)
     } catch (err) {
-      setError(err.message)
+      console.error(err)
+      setError('공지를 등록하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setSending(false)
     }
@@ -870,7 +879,8 @@ export default function ChatRoomPage() {
       }
       setActionMessage(null)
     } catch (err) {
-      setError(err.message)
+      console.error(err)
+      setError('반응을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setSending(false)
     }

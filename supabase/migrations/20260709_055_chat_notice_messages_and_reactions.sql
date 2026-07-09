@@ -82,17 +82,11 @@ set search_path = ''
 as $$
 declare
   actor_member_id uuid;
-  actor_name text;
 begin
   actor_member_id := public.current_otmember_id();
   if actor_member_id is null then
     raise exception '활성 회원 정보를 찾을 수 없습니다.';
   end if;
-
-  select coalesce(member.display_name, member.username, '회원')
-  into actor_name
-  from public.otmember member
-  where member.id = actor_member_id;
 
   if target_message_id is not null and not exists (
     select 1
@@ -115,16 +109,6 @@ begin
     and room.status <> 'ended'
     and actor_member_id in (room.requester_member_id, room.recipient_member_id);
 
-  if target_message_id is not null then
-    insert into public.chat_messages (room_id, message_type, body, reply_to_message_id)
-    values (
-      target_room_id,
-      'text',
-      coalesce(actor_name, '회원') || '님이 공지로 등록했습니다.',
-      target_message_id
-    );
-  end if;
-
   return query
   select room.id, room.status, room.requester_member_id, room.recipient_member_id,
          room.requested_at, room.activated_at, room.ended_at, room.updated_at,
@@ -139,16 +123,18 @@ $$;
 
 grant execute on function public.set_one_to_one_chat_notice(uuid, uuid) to authenticated;
 
-create or replace function public.set_chat_message_reaction(
+drop function if exists public.set_chat_message_reaction(uuid, text);
+
+create function public.set_chat_message_reaction(
   target_message_id uuid,
   target_reaction text
 )
 returns table (
-  message_id uuid,
-  member_id uuid,
-  reaction text,
-  created_at timestamptz,
-  updated_at timestamptz
+  reaction_message_id uuid,
+  reaction_member_id uuid,
+  reaction_value text,
+  reaction_created_at timestamptz,
+  reaction_updated_at timestamptz
 )
 language plpgsql
 security definer
@@ -157,7 +143,6 @@ as $$
 declare
   actor_member_id uuid;
   target_room_id uuid;
-  sticker_path text;
 begin
   actor_member_id := public.current_otmember_id();
   if actor_member_id is null then
@@ -182,22 +167,7 @@ begin
   if target_reaction in ('❤️', '👍', '✅', '😄', '😮', '😢') then
     null;
   elsif target_reaction like 'sticker:chat-custom-stickers/%' then
-    sticker_path := substring(target_reaction from char_length('sticker:') + 1);
-
-    if not exists (
-      select 1
-      from public.chat_custom_stickers sticker
-      where sticker.image_path = sticker_path
-        and (
-          sticker.owner_member_id = actor_member_id
-          or (
-            sticker.room_id = target_room_id
-            and public.is_chat_room_participant(sticker.room_id, actor_member_id)
-          )
-        )
-    ) then
-      raise exception '사용할 수 없는 이모티콘 반응입니다.';
-    end if;
+    null;
   else
     raise exception '사용할 수 없는 반응입니다.';
   end if;
