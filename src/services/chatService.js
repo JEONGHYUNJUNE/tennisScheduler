@@ -794,7 +794,7 @@ export async function setChatMessageReaction(messageId, reaction) {
       target_message_id: messageId,
       target_reaction: reaction,
     })
-    .single()
+    .maybeSingle()
 
   if (error) throw error
   return data

@@ -21,6 +21,17 @@ const customStickerSize = 256
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
 const getCustomStickerMigrationKey = (memberId) => `ons-tennis-custom-chat-stickers-migrated:${memberId}`
 const getSearchShareDraftKey = (roomId) => `ons-tennis-chat-search-share:${roomId}`
+const chatPhotoEditorColors = [
+  { value: '#111111', label: '검정' },
+  { value: '#ffffff', label: '흰색' },
+  { value: '#e33d2f', label: '빨강' },
+  { value: '#f97316', label: '주황' },
+  { value: '#f0b429', label: '노랑' },
+  { value: '#27864f', label: '초록' },
+  { value: '#1e67d8', label: '파랑' },
+  { value: '#7c3aed', label: '보라' },
+  { value: '#ec4899', label: '분홍' },
+]
 const getCustomStickerPageCount = (stickerCount) => {
   if (stickerCount < firstCustomStickerPageSize) return 1
   const remainingCustomStickers = Math.max(0, stickerCount - firstCustomStickerPageSize)
@@ -29,6 +40,71 @@ const getCustomStickerPageCount = (stickerCount) => {
 }
 
 const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || ''
+
+function getPhotoEditorImageFrame(editor) {
+  const scale = editor?.scale || 1
+  return {
+    x: (1 - scale) / 2 + (editor?.offsetX || 0),
+    y: (1 - scale) / 2 + (editor?.offsetY || 0),
+    width: scale,
+    height: scale,
+    scale,
+  }
+}
+
+function canvasPointToImagePoint(point, editor) {
+  const frame = getPhotoEditorImageFrame(editor)
+  return {
+    x: Math.min(1, Math.max(0, (point.x - frame.x) / frame.width)),
+    y: Math.min(1, Math.max(0, (point.y - frame.y) / frame.height)),
+  }
+}
+
+function getPhotoEditorTextHit(editor, point, canvas) {
+  const imagePoint = canvasPointToImagePoint(point, editor)
+  const context = canvas?.getContext('2d')
+  const frame = getPhotoEditorImageFrame(editor)
+  const drawWidth = Math.max(1, (canvas?.width || 1100) * frame.width)
+  const drawHeight = Math.max(1, (canvas?.height || 1100) * frame.height)
+  const texts = editor?.texts || []
+  for (let index = texts.length - 1; index >= 0; index -= 1) {
+    const text = texts[index]
+    const fontSize = (text.size || 32) * frame.scale
+    if (context) {
+      context.font = `800 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+    }
+    const measuredWidth = context?.measureText(text.value || '')?.width || (text.value || '').length * fontSize * 0.62
+    const width = Math.max(0.04, (measuredWidth + 16) / drawWidth)
+    const height = Math.max(0.03, (fontSize * 1.35 + 12) / drawHeight)
+    if (
+      imagePoint.x >= text.x - (8 / drawWidth) &&
+      imagePoint.x <= text.x + width &&
+      imagePoint.y >= text.y - (6 / drawHeight) &&
+      imagePoint.y <= text.y + height
+    ) {
+      return { text, imagePoint }
+    }
+  }
+  return { text: null, imagePoint }
+}
+
+function getPhotoEditorStickerHit(editor, point) {
+  const imagePoint = canvasPointToImagePoint(point, editor)
+  const stickers = editor?.stickers || []
+  for (let index = stickers.length - 1; index >= 0; index -= 1) {
+    const sticker = stickers[index]
+    const size = sticker.size || 0.24
+    if (
+      imagePoint.x >= sticker.x &&
+      imagePoint.x <= sticker.x + size &&
+      imagePoint.y >= sticker.y &&
+      imagePoint.y <= sticker.y + size
+    ) {
+      return { sticker, imagePoint }
+    }
+  }
+  return { sticker: null, imagePoint }
+}
 
 function isMobileSoftKeyboardDevice() {
   if (typeof navigator === 'undefined') return false
@@ -179,6 +255,7 @@ const getVideoDuration = (file) => new Promise((resolve, reject) => {
 
 const createImageElement = (src) => new Promise((resolve, reject) => {
   const image = new Image()
+  image.crossOrigin = 'anonymous'
   image.onload = () => resolve(image)
   image.onerror = () => reject(new Error('사진을 불러오지 못했습니다.'))
   image.src = src
@@ -251,15 +328,23 @@ function mergeMessages(messages, nextMessages) {
   return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
 }
 
-function applyOptimisticReaction(message, member, reaction) {
+function applyOptimisticReaction(message, member, reaction, { remove = false } = {}) {
   if (!message?.id || !member?.id) return message
+  const previousReactions = (message.reactions || []).filter((item) => item.member_id !== member.id)
+  if (remove) {
+    return {
+      ...message,
+      reactions: previousReactions,
+    }
+  }
+
   const isStickerReaction = isChatStickerReaction(reaction)
   const now = new Date().toISOString()
 
   return {
     ...message,
     reactions: [
-      ...(message.reactions || []).filter((item) => item.member_id !== member.id),
+      ...previousReactions,
       {
         message_id: message.id,
         member_id: member.id,
@@ -352,25 +437,82 @@ export default function ChatRoomPage() {
     context.fillStyle = '#fff'
     context.fillRect(0, 0, canvasWidth, canvasHeight)
 
-    const editorScale = editor.scale || 1
-    const drawWidth = canvasWidth * editorScale
-    const drawHeight = canvasHeight * editorScale
-    const drawX = (canvasWidth - drawWidth) / 2 + (editor.offsetX || 0) * canvasWidth
-    const drawY = (canvasHeight - drawHeight) / 2 + (editor.offsetY || 0) * canvasHeight
+    const frame = getPhotoEditorImageFrame(editor)
+    const editorScale = frame.scale
+    const drawWidth = canvasWidth * frame.width
+    const drawHeight = canvasHeight * frame.height
+    const drawX = canvasWidth * frame.x
+    const drawY = canvasHeight * frame.y
     context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
 
     ;(editor.strokes || []).forEach((stroke) => {
       if (!stroke.points?.length) return
       context.strokeStyle = stroke.color || '#e33d2f'
-      context.lineWidth = stroke.size || 7
+      context.lineWidth = (stroke.size || 7) * editorScale
       context.lineCap = 'round'
       context.lineJoin = 'round'
       context.beginPath()
       stroke.points.forEach((point, index) => {
-        if (index === 0) context.moveTo(point.x * canvasWidth, point.y * canvasHeight)
-        else context.lineTo(point.x * canvasWidth, point.y * canvasHeight)
+        const x = drawX + point.x * drawWidth
+        const y = drawY + point.y * drawHeight
+        if (index === 0) context.moveTo(x, y)
+        else context.lineTo(x, y)
       })
       context.stroke()
+    })
+
+    for (const sticker of editor.stickers || []) {
+      if (!sticker.src && !sticker.value) continue
+      try {
+        const size = sticker.size || 0.24
+        const x = drawX + sticker.x * drawWidth
+        const y = drawY + sticker.y * drawHeight
+        const width = size * drawWidth
+        const height = size * drawHeight
+        if (sticker.kind === 'emoji') {
+          const fontSize = Math.min(width, height) * 0.86
+          context.font = `${fontSize}px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`
+          context.textAlign = 'center'
+          context.textBaseline = 'middle'
+          context.fillText(sticker.value, x + width / 2, y + height / 2)
+          context.textAlign = 'start'
+        } else {
+          const stickerImage = await createImageElement(sticker.src)
+          context.drawImage(stickerImage, x, y, width, height)
+        }
+        if (editor.selectedStickerId === sticker.id && editor.mode === 'sticker') {
+          context.strokeStyle = 'rgba(255,255,255,.9)'
+          context.lineWidth = 2
+          context.setLineDash([8, 6])
+          context.strokeRect(x - 6, y - 6, width + 12, height + 12)
+          context.setLineDash([])
+        }
+      } catch {
+        // A failed sticker should not block editing or sending the photo.
+      }
+    }
+
+    ;(editor.texts || []).forEach((text) => {
+      if (!text.value) return
+      const fontSize = (text.size || 32) * editorScale
+      const x = drawX + text.x * drawWidth
+      const y = drawY + text.y * drawHeight
+      context.font = `800 ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
+      context.textBaseline = 'top'
+      context.lineJoin = 'round'
+      context.strokeStyle = 'rgba(0,0,0,.38)'
+      context.lineWidth = Math.max(3, fontSize * 0.12)
+      context.strokeText(text.value, x, y)
+      context.fillStyle = text.color || editor.color || '#e33d2f'
+      context.fillText(text.value, x, y)
+      if (editor.selectedTextId === text.id && editor.mode === 'text') {
+        const metrics = context.measureText(text.value)
+        context.strokeStyle = 'rgba(255,255,255,.9)'
+        context.lineWidth = 2
+        context.setLineDash([8, 6])
+        context.strokeRect(x - 6, y - 6, metrics.width + 12, fontSize * 1.28)
+        context.setLineDash([])
+      }
     })
 
     setImageEditorLoaded(true)
@@ -400,6 +542,37 @@ export default function ChatRoomPage() {
     const pageStart = firstCustomStickerPageSize + ((customStickerPage - 1) * customStickerPageSize)
     return customStickers.slice(pageStart, pageStart + customStickerPageSize)
   }, [customStickerPage, customStickers, isRoomStickerPage, roomStickers])
+  const photoEditorStickerGroups = useMemo(() => {
+    const emojiItems = chatStickerOptions.map((sticker) => ({
+        key: `emoji-${sticker.value}`,
+        kind: 'emoji',
+        value: sticker.value,
+        label: sticker.label || '이모지',
+    }))
+    const makeStickerItem = (sticker, scope) => {
+      const src = getStickerImageSrc(sticker)
+      const key = sticker?.image_path || sticker?.id || src
+      if (!src || !key) return null
+      return {
+        key,
+        kind: 'image',
+        src,
+        label: sticker.image_name || sticker.name || '스티커',
+        scope,
+      }
+    }
+    const personalItems = customStickers.map((sticker) => makeStickerItem(sticker, 'personal')).filter(Boolean)
+    const personalKeys = new Set(personalItems.map((sticker) => sticker.key))
+    const roomItems = roomStickers
+      .map((sticker) => makeStickerItem(sticker, 'room'))
+      .filter((sticker) => sticker && !personalKeys.has(sticker.key))
+
+    return [
+      { key: 'personal', label: '내 이모티콘', items: personalItems },
+      { key: 'room', label: '채팅방 공용', items: roomItems },
+      { key: 'basic', label: '기본', items: emojiItems },
+    ].filter((group) => group.items.length > 0)
+  }, [customStickers, roomStickers])
   const reactionStickerOptions = useMemo(() => {
     const stickerMap = new Map()
     roomStickers.forEach((sticker) => {
@@ -890,14 +1063,16 @@ export default function ChatRoomPage() {
     }
   }
 
-  const handleReaction = async (reaction) => {
-    if (!actionMessage) return
+  const saveReactionForMessage = async (targetMessage, reaction, { closeActionMenu = false } = {}) => {
+    if (!targetMessage) return
 
-    const targetMessage = actionMessage
-    setActionMessage(null)
+    const shouldRemoveReaction = (targetMessage.reactions || []).some(
+      (item) => item.member_id === profile.id && item.reaction === reaction,
+    )
+    if (closeActionMenu) setActionMessage(null)
     setMessages((current) => mergeMessages(
       current,
-      [applyOptimisticReaction(targetMessage, profile, reaction)],
+      [applyOptimisticReaction(targetMessage, profile, reaction, { remove: shouldRemoveReaction })],
     ))
     setSending(true)
     setError('')
@@ -917,6 +1092,19 @@ export default function ChatRoomPage() {
     } finally {
       setSending(false)
     }
+  }
+
+  const handleReaction = async (reaction) => {
+    if (!actionMessage) return
+    await saveReactionForMessage(actionMessage, reaction, { closeActionMenu: true })
+  }
+
+  const handleReactionChipClick = async (event, message, group) => {
+    event.preventDefault()
+    event.stopPropagation()
+    clearLongPress()
+    if (!group.members.includes(profile.id)) return
+    await saveReactionForMessage(message, group.reaction)
   }
 
   const handleCopyMessage = async () => {
@@ -1282,6 +1470,11 @@ export default function ChatRoomPage() {
       color: '#e33d2f',
       brushSize: 7,
       strokes: [],
+      texts: [],
+      selectedTextId: null,
+      textDraft: '',
+      stickers: [],
+      selectedStickerId: null,
     })
   }
 
@@ -1326,14 +1519,52 @@ export default function ChatRoomPage() {
     if (!point) return
 
     if (imageEditor.mode === 'draw') {
+      const imagePoint = canvasPointToImagePoint(point, imageEditor)
+      const editorScale = imageEditor.scale || 1
       setImageEditorPointer({ mode: 'draw' })
       setImageEditor((current) => ({
         ...current,
         strokes: [
           ...(current?.strokes || []),
-          { color: current?.color || '#e33d2f', size: current?.brushSize || 7, points: [point] },
+          { color: current?.color || '#e33d2f', size: (current?.brushSize || 7) / editorScale, points: [imagePoint] },
         ],
       }))
+      return
+    }
+
+    if (imageEditor.mode === 'text') {
+      const { text, imagePoint } = getPhotoEditorTextHit(imageEditor, point, imageEditorCanvasRef.current)
+      if (text) {
+        setImageEditorPointer({
+          mode: 'text',
+          textId: text.id,
+          startX: imagePoint.x,
+          startY: imagePoint.y,
+          textX: text.x,
+          textY: text.y,
+        })
+        setImageEditor((current) => ({ ...current, selectedTextId: text.id }))
+        return
+      }
+      setImageEditor((current) => ({ ...current, selectedTextId: null }))
+      return
+    }
+
+    if (imageEditor.mode === 'sticker') {
+      const { sticker, imagePoint } = getPhotoEditorStickerHit(imageEditor, point)
+      if (sticker) {
+        setImageEditorPointer({
+          mode: 'sticker',
+          stickerId: sticker.id,
+          startX: imagePoint.x,
+          startY: imagePoint.y,
+          stickerX: sticker.x,
+          stickerY: sticker.y,
+        })
+        setImageEditor((current) => ({ ...current, selectedStickerId: sticker.id }))
+        return
+      }
+      setImageEditor((current) => ({ ...current, selectedStickerId: null }))
       return
     }
 
@@ -1361,28 +1592,171 @@ export default function ChatRoomPage() {
       return
     }
 
+    if (imageEditorPointer.mode === 'text') {
+      setImageEditor((current) => {
+        const imagePoint = canvasPointToImagePoint(point, current)
+        return {
+          ...current,
+          texts: (current?.texts || []).map((text) => {
+            if (text.id !== imageEditorPointer.textId) return text
+            return {
+              ...text,
+              x: Math.min(1, Math.max(0, imageEditorPointer.textX + imagePoint.x - imageEditorPointer.startX)),
+              y: Math.min(1, Math.max(0, imageEditorPointer.textY + imagePoint.y - imageEditorPointer.startY)),
+            }
+          }),
+        }
+      })
+      return
+    }
+
+    if (imageEditorPointer.mode === 'sticker') {
+      setImageEditor((current) => {
+        const imagePoint = canvasPointToImagePoint(point, current)
+        return {
+          ...current,
+          stickers: (current?.stickers || []).map((sticker) => {
+            if (sticker.id !== imageEditorPointer.stickerId) return sticker
+            const size = sticker.size || 0.24
+            return {
+              ...sticker,
+              x: Math.min(1 - size, Math.max(0, imageEditorPointer.stickerX + imagePoint.x - imageEditorPointer.startX)),
+              y: Math.min(1 - size, Math.max(0, imageEditorPointer.stickerY + imagePoint.y - imageEditorPointer.startY)),
+            }
+          }),
+        }
+      })
+      return
+    }
+
     setImageEditor((current) => {
       const strokes = [...(current?.strokes || [])]
       const lastStroke = strokes.at(-1)
+      const imagePoint = canvasPointToImagePoint(point, current)
       if (!lastStroke) return current
       strokes[strokes.length - 1] = {
         ...lastStroke,
-        points: [...lastStroke.points, point],
+        points: [...lastStroke.points, imagePoint],
       }
       return { ...current, strokes }
     })
   }
 
-  const undoImageStroke = () => {
+  const undoImageEdit = () => {
     setImageEditor((current) => ({
       ...current,
-      strokes: (current?.strokes || []).slice(0, -1),
+      selectedTextId: current?.mode === 'text' ? null : current?.selectedTextId,
+      selectedStickerId: current?.mode === 'sticker' ? null : current?.selectedStickerId,
+      texts: current?.mode === 'text' && current?.selectedTextId
+        ? (current?.texts || []).filter((text) => text.id !== current.selectedTextId)
+        : (current?.texts || []),
+      stickers: current?.mode === 'sticker' && current?.selectedStickerId
+        ? (current?.stickers || []).filter((sticker) => sticker.id !== current.selectedStickerId)
+        : (current?.stickers || []),
+      strokes: current?.mode === 'text' && current?.selectedTextId
+        ? (current?.strokes || [])
+        : current?.mode === 'sticker' && current?.selectedStickerId
+          ? (current?.strokes || [])
+        : (current?.strokes || []).slice(0, -1),
+    }))
+  }
+
+  const addImageEditorText = () => {
+    const id = `text-${Date.now()}`
+    setImageEditor((current) => ({
+      ...current,
+      mode: 'text',
+      selectedTextId: id,
+      textDraft: '',
+      texts: [
+        ...(current?.texts || []),
+        {
+          id,
+          value: current?.textDraft?.trim() || '텍스트',
+          color: current?.color || '#e33d2f',
+          size: 32 / (current?.scale || 1),
+          x: 0.5,
+          y: 0.5,
+        },
+      ],
+    }))
+  }
+
+  const updateImageTextDraft = (value) => {
+    setImageEditor((current) => ({
+      ...current,
+      textDraft: value,
+    }))
+  }
+
+  const updateSelectedImageText = (value) => {
+    setImageEditor((current) => ({
+      ...current,
+      texts: (current?.texts || []).map((text) => (
+        text.id === current?.selectedTextId ? { ...text, value } : text
+      )),
+    }))
+  }
+
+  const removeSelectedImageText = () => {
+    setImageEditor((current) => ({
+      ...current,
+      selectedTextId: null,
+      texts: (current?.texts || []).filter((text) => text.id !== current?.selectedTextId),
+    }))
+  }
+
+  const addImageEditorSticker = (stickerOption) => {
+    if (!stickerOption?.src && !stickerOption?.value) return
+    const id = `sticker-${Date.now()}`
+    setImageEditor((current) => ({
+      ...current,
+      mode: 'sticker',
+      selectedStickerId: id,
+      selectedTextId: null,
+      stickers: [
+        ...(current?.stickers || []),
+        {
+          id,
+          kind: stickerOption.kind || 'image',
+          src: stickerOption.src,
+          value: stickerOption.value,
+          label: stickerOption.label || '스티커',
+          size: 0.24,
+          x: 0.38,
+          y: 0.38,
+        },
+      ],
+    }))
+  }
+
+  const removeSelectedImageSticker = () => {
+    setImageEditor((current) => ({
+      ...current,
+      selectedStickerId: null,
+      stickers: (current?.stickers || []).filter((sticker) => sticker.id !== current?.selectedStickerId),
+    }))
+  }
+
+  const updateSelectedImageStickerSize = (size) => {
+    setImageEditor((current) => ({
+      ...current,
+      stickers: (current?.stickers || []).map((sticker) => {
+        if (sticker.id !== current?.selectedStickerId) return sticker
+        return {
+          ...sticker,
+          size,
+          x: Math.min(1 - size, Math.max(0, sticker.x)),
+          y: Math.min(1 - size, Math.max(0, sticker.y)),
+        }
+      }),
     }))
   }
 
   const sendEditedImage = async () => {
     const canvas = imageEditorCanvasRef.current
     if (!canvas || !imageEditor) return
+    await redrawImageEditor({ ...imageEditor, selectedTextId: null, selectedStickerId: null })
     const editedFile = await canvasToImageFile(canvas, imageEditor.name)
     const sent = await sendMediaFile(editedFile, { edited: true })
     if (sent && imageEditor.url) URL.revokeObjectURL(imageEditor.url)
@@ -1563,20 +1937,39 @@ export default function ChatRoomPage() {
                 {!item.reply_to && renderMessageBody(item, isImageMessage, isCustomStickerImage)}
                 {reactionGroups.length > 0 && (
                   <div className="chat-message-reactions" aria-label="메시지 반응">
-                    {reactionGroups.map((group) => (
-                      <span
-                        className={group.members.includes(profile.id) ? 'mine' : ''}
-                        key={group.reaction}
-                        title={group.names.join(', ')}
-                      >
-                        <b>
-                          {group.isSticker && group.imageUrl ? (
-                            <img src={group.imageUrl} alt="" />
-                          ) : group.reaction}
-                        </b>
-                        {group.count > 1 && <em>{group.count}</em>}
-                      </span>
-                    ))}
+                    {reactionGroups.map((group) => {
+                      const isMyReaction = group.members.includes(profile.id)
+                      const content = (
+                        <>
+                          <b>
+                            {group.isSticker && group.imageUrl ? (
+                              <img src={group.imageUrl} alt="" />
+                            ) : group.reaction}
+                          </b>
+                          {group.count > 1 && <em>{group.count}</em>}
+                        </>
+                      )
+
+                      return isMyReaction ? (
+                        <button
+                          type="button"
+                          className="mine"
+                          key={group.reaction}
+                          title={`${group.names.join(', ')} · 탭하면 내 반응이 삭제됩니다.`}
+                          onClick={(event) => handleReactionChipClick(event, item, group)}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <span
+                          key={group.reaction}
+                          title={group.names.join(', ')}
+                        >
+                          {content}
+                        </span>
+                      )
+                    })}
                   </div>
                 )}
                 <span className="chat-message-meta">
@@ -1826,16 +2219,30 @@ export default function ChatRoomPage() {
                   <button
                     type="button"
                     className={imageEditor.mode === 'move' ? 'active' : ''}
-                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'move' }))}
+                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'move', selectedStickerId: null, selectedTextId: null }))}
                   >
                     이동
                   </button>
                   <button
                     type="button"
                     className={imageEditor.mode === 'draw' ? 'active' : ''}
-                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'draw' }))}
+                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'draw', selectedStickerId: null, selectedTextId: null }))}
                   >
                     펜
+                  </button>
+                  <button
+                    type="button"
+                    className={imageEditor.mode === 'text' ? 'active' : ''}
+                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'text' }))}
+                  >
+                    텍스트
+                  </button>
+                  <button
+                    type="button"
+                    className={imageEditor.mode === 'sticker' ? 'active' : ''}
+                    onClick={() => setImageEditor((current) => ({ ...current, mode: 'sticker', selectedTextId: null }))}
+                  >
+                    스티커
                   </button>
                 </div>
                 <label>
@@ -1862,19 +2269,98 @@ export default function ChatRoomPage() {
                         onChange={(event) => setImageEditor((current) => ({ ...current, brushSize: Number(event.target.value) }))}
                       />
                     </label>
-                    <div className="chat-photo-color-row" role="group" aria-label="펜 색상">
-                      {['#e33d2f', '#27864f', '#1e67d8', '#f0b429', '#111111', '#ffffff'].map((color) => (
-                        <button
-                          type="button"
-                          key={color}
-                          className={imageEditor.color === color ? 'active' : ''}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setImageEditor((current) => ({ ...current, color }))}
-                          aria-label={`${color} 펜 색상`}
-                        />
-                      ))}
-                    </div>
                   </>
+                )}
+                {imageEditor.mode === 'text' && (
+                  <div className="chat-photo-text-tools">
+                    <input
+                      type="text"
+                      value={imageEditor.textDraft || ''}
+                      onChange={(event) => updateImageTextDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') addImageEditorText()
+                      }}
+                      placeholder="추가할 텍스트 입력"
+                    />
+                    <button type="button" onClick={addImageEditorText}>추가</button>
+                    {imageEditor.selectedTextId && (
+                      <div className="chat-photo-selected-text-tools">
+                        <input
+                          type="text"
+                          value={(imageEditor.texts || []).find((text) => text.id === imageEditor.selectedTextId)?.value || ''}
+                          onChange={(event) => updateSelectedImageText(event.target.value)}
+                          placeholder="선택한 텍스트 수정"
+                        />
+                        <button type="button" onClick={removeSelectedImageText}>삭제</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {imageEditor.mode === 'sticker' && (
+                  <div className="chat-photo-sticker-tools">
+                    {photoEditorStickerGroups.length > 0 ? (
+                      <div className="chat-photo-sticker-grid" role="list" aria-label="사진에 추가할 스티커">
+                        {photoEditorStickerGroups.map((group) => (
+                          <div className="chat-photo-sticker-section" key={group.key}>
+                            <strong>{group.label}</strong>
+                            <div>
+                              {group.items.map((sticker) => (
+                                <button
+                                  type="button"
+                                  key={sticker.key}
+                                  onClick={() => addImageEditorSticker(sticker)}
+                                  aria-label={`${sticker.label} 추가`}
+                                >
+                                  {sticker.kind === 'emoji' ? (
+                                    <span>{sticker.value}</span>
+                                  ) : (
+                                    <img src={sticker.src} alt="" />
+                                  )}
+                                  {sticker.scope === 'room' && <em>공용</em>}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p>저장된 이모티콘이 없습니다.</p>
+                    )}
+                    {imageEditor.selectedStickerId && (
+                      <label className="chat-photo-sticker-size">
+                        크기
+                        <input
+                          type="range"
+                          min="0.12"
+                          max="0.48"
+                          step="0.01"
+                          value={(imageEditor.stickers || []).find((sticker) => sticker.id === imageEditor.selectedStickerId)?.size || 0.24}
+                          onChange={(event) => updateSelectedImageStickerSize(Number(event.target.value))}
+                        />
+                      </label>
+                    )}
+                    <button type="button" onClick={removeSelectedImageSticker} disabled={!imageEditor.selectedStickerId}>선택 삭제</button>
+                  </div>
+                )}
+                {imageEditor.mode !== 'sticker' && (
+                  <div className="chat-photo-color-row" role="group" aria-label="편집 색상">
+                    {chatPhotoEditorColors.map((color) => (
+                      <button
+                        type="button"
+                        key={color.value}
+                        className={imageEditor.color === color.value ? 'active' : ''}
+                        style={{ backgroundColor: color.value }}
+                        onClick={() => setImageEditor((current) => ({
+                          ...current,
+                          color: color.value,
+                          texts: (current?.texts || []).map((text) => (
+                            text.id === current?.selectedTextId ? { ...text, color: color.value } : text
+                          )),
+                        }))}
+                        aria-label={`${color.label} 색상`}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -1886,7 +2372,13 @@ export default function ChatRoomPage() {
                 {imageEditor.editing ? '편집 닫기' : '편집'}
               </button>
               {imageEditor.editing && (
-                <button type="button" onClick={undoImageStroke} disabled={!imageEditor.strokes.length}>되돌리기</button>
+                <button
+                  type="button"
+                  onClick={undoImageEdit}
+                  disabled={!imageEditor.strokes.length && !imageEditor.selectedTextId && !imageEditor.selectedStickerId}
+                >
+                  되돌리기
+                </button>
               )}
             </div>
           </section>

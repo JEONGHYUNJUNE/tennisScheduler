@@ -16,7 +16,7 @@
 .dx-insight-quiz { display: grid; gap: 14px; }
 .dx-insight-progress { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: .82rem; font-weight: 950; }
 .dx-insight-progress strong { color: var(--green-800); text-align: right; }
-.dx-insight-quiz h3 { margin: 0; color: var(--green-900); font-size: 1.12rem; line-height: 1.45; }
+.dx-insight-quiz h3 { margin: 0; color: var(--green-900); font-size: 1.12rem; line-height: 1.45; white-space: pre-line; }
 .dx-insight-options { display: grid; gap: 9px; }
 .dx-insight-options button { min-height: 56px; border: 1px solid rgba(217,228,213,.86); border-radius: 16px; padding: 10px 12px; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 10px; color: var(--text); background: rgba(255,255,255,.74); text-align: left; font-weight: 850; }
 .dx-insight-options b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: var(--green-800); background: rgba(237,246,234,.92); font-size: .8rem; }

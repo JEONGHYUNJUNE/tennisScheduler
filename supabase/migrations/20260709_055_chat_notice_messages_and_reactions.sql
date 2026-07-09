@@ -152,6 +152,7 @@ as $$
 declare
   actor_member_id uuid;
   target_room_id uuid;
+  existing_reaction text;
 begin
   actor_member_id := public.current_otmember_id();
   if actor_member_id is null then
@@ -179,6 +180,20 @@ begin
     null;
   else
     raise exception '사용할 수 없는 반응입니다.';
+  end if;
+
+  select reaction_row.reaction
+  into existing_reaction
+  from public.chat_message_reactions reaction_row
+  where reaction_row.message_id = target_message_id
+    and reaction_row.member_id = actor_member_id;
+
+  if existing_reaction = target_reaction then
+    delete from public.chat_message_reactions reaction_row
+    where reaction_row.message_id = target_message_id
+      and reaction_row.member_id = actor_member_id;
+
+    return;
   end if;
 
   insert into public.chat_message_reactions (message_id, member_id, reaction)
