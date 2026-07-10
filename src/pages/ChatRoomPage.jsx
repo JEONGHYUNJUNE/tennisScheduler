@@ -378,6 +378,7 @@ export default function ChatRoomPage() {
   const longPressTimerRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
   const scrollCorrectionTimersRef = useRef([])
+  const prependAnchorRef = useRef(null)
   const loadedMessageIdsRef = useRef(new Set())
   const [room, setRoom] = useState(null)
   const [messages, setMessages] = useState([])
@@ -732,6 +733,28 @@ export default function ChatRoomPage() {
     })
   }, [scrollToMessageBottom])
 
+  const getMessageElement = useCallback((messageId) => {
+    if (!messageId) return null
+    return listRef.current?.querySelector(`[data-message-id="${messageId}"]`) || null
+  }, [])
+
+  const restorePrependAnchor = useCallback((anchor = prependAnchorRef.current) => {
+    if (!anchor?.messageId) return false
+    const list = listRef.current
+    const element = getMessageElement(anchor.messageId)
+    if (!list || !element) return false
+
+    const nextTop = element.getBoundingClientRect().top
+    list.scrollTop += nextTop - anchor.top
+    return true
+  }, [getMessageElement])
+
+  const handleChatMediaLoad = useCallback(() => {
+    if (restorePrependAnchor()) return
+    if (!shouldScrollToBottomRef.current && !isNearMessageBottom()) return
+    scheduleScrollToBottom({ behavior: 'auto' })
+  }, [isNearMessageBottom, restorePrependAnchor, scheduleScrollToBottom])
+
   const load = useCallback(async () => {
     setError('')
     try {
@@ -899,27 +922,33 @@ export default function ChatRoomPage() {
   const loadOlderMessages = useCallback(async () => {
     if (!hasMoreMessages || loadingOlder || messages.length === 0) return
 
-    const list = listRef.current
-    const previousHeight = list?.scrollHeight || 0
-    const previousTop = list?.scrollTop || 0
+    const anchorMessageId = messages[0]?.id || null
+    const anchorElement = getMessageElement(anchorMessageId)
+    const anchor = anchorElement
+      ? { messageId: anchorMessageId, top: anchorElement.getBoundingClientRect().top }
+      : null
 
     setLoadingOlder(true)
     setError('')
     try {
       const olderMessages = await getChatMessages(roomId, { before: messages[0].created_at })
       shouldScrollToBottomRef.current = false
+      prependAnchorRef.current = anchor
       setMessages((current) => mergeMessages(olderMessages, current))
       setHasMoreMessages(olderMessages.length === chatMessagePageSize)
-      window.requestAnimationFrame(() => {
-        if (!listRef.current) return
-        listRef.current.scrollTop = listRef.current.scrollHeight - previousHeight + previousTop
+      window.requestAnimationFrame(() => restorePrependAnchor(anchor))
+      ;[80, 240, 520, 900].forEach((delay) => {
+        window.setTimeout(() => restorePrependAnchor(anchor), delay)
       })
+      window.setTimeout(() => {
+        if (prependAnchorRef.current === anchor) prependAnchorRef.current = null
+      }, 1400)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoadingOlder(false)
     }
-  }, [hasMoreMessages, loadingOlder, messages, roomId])
+  }, [getMessageElement, hasMoreMessages, loadingOlder, messages, restorePrependAnchor, roomId])
 
   const handleMessageScroll = () => {
     const list = listRef.current
@@ -1887,6 +1916,8 @@ export default function ChatRoomPage() {
           controls
           playsInline
           preload="metadata"
+          onLoadedMetadata={handleChatMediaLoad}
+          onLoadedData={handleChatMediaLoad}
         />
       )
     }
@@ -1896,7 +1927,12 @@ export default function ChatRoomPage() {
         return <img src={item.image_url} alt={item.image_name || '커스텀 이모티콘'} />
       }
       return (
-        <ImageLightbox src={item.image_url} alt={item.image_name || '채팅 이미지'} className="chat-image-lightbox-trigger" />
+        <ImageLightbox
+          src={item.image_url}
+          alt={item.image_name || '채팅 이미지'}
+          className="chat-image-lightbox-trigger"
+          onLoad={handleChatMediaLoad}
+        />
       )
     }
 

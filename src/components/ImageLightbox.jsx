@@ -33,7 +33,7 @@ function withBlobExtension(fileName, mimeType) {
   return `${fileName}.${extension}`
 }
 
-export default function ImageLightbox({ src, alt = '첨부 이미지', className = '', children }) {
+export default function ImageLightbox({ src, alt = '첨부 이미지', className = '', children, onLoad }) {
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [viewerTransform, setViewerTransform] = useState({ scale: 1, x: 0, y: 0 })
@@ -198,7 +198,7 @@ export default function ImageLightbox({ src, alt = '첨부 이미지', className
   return (
     <>
       <button type="button" className={className || 'image-lightbox-trigger'} onClick={() => setOpen(true)}>
-        {children || <img src={src} alt={alt} />}
+        {children || <img src={src} alt={alt} onLoad={onLoad} />}
       </button>
       {lightbox}
     </>
