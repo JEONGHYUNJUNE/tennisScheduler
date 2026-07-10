@@ -1504,6 +1504,26 @@ export default function ChatRoomPage() {
     await sendMediaFile(file)
   }
 
+  const handleMessagePaste = (event) => {
+    if (!isActive) return
+    const items = Array.from(event.clipboardData?.items || [])
+    const imageItem = items.find((item) => item.type?.startsWith('image/'))
+    if (!imageItem) return
+
+    const file = imageItem.getAsFile()
+    if (!file) return
+
+    event.preventDefault()
+    const extension = file.type === 'image/jpeg' ? 'jpg'
+      : file.type === 'image/webp' ? 'webp'
+        : file.type === 'image/gif' ? 'gif'
+          : 'png'
+    const pastedFile = new File([file], `clipboard-image-${Date.now()}.${extension}`, {
+      type: file.type || 'image/png',
+    })
+    openImageEditor(pastedFile)
+  }
+
   const closeImageEditor = () => {
     if (imageEditor?.url) URL.revokeObjectURL(imageEditor.url)
     setImageEditor(null)
@@ -2083,6 +2103,7 @@ export default function ChatRoomPage() {
           placeholder={isActive ? '메시지를 입력하세요.' : '상대가 입장하면 대화할 수 있어요.'}
           onChange={handleMessageChange}
           onKeyDown={handleMessageKeyDown}
+          onPaste={handleMessagePaste}
           disabled={!isActive}
           rows={1}
         />

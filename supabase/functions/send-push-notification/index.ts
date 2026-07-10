@@ -122,6 +122,7 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
   const appUrl = (Deno.env.get('APP_URL') || '').replace(/\/$/, '')
   const url = getNotificationUrl(appUrl, notification)
   const body = getNotificationBody(notification)
+  const notificationTag = getNotificationTag(notification)
 
   return webpush.sendNotification(
     {
@@ -136,9 +137,22 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
       body,
       url,
       notificationId: notification.id,
-      tag: `ot-${notification.id}`,
+      chatRoomId: notification.chat_room_id || null,
+      tag: notificationTag,
     }),
   )
+}
+
+function getNotificationTag(notification: NotificationRecord) {
+  if (
+    (notification.type === 'chat_message_created' ||
+      notification.type === 'chat_message_reaction_created') &&
+    notification.chat_room_id
+  ) {
+    return `chat-room-${notification.chat_room_id}`
+  }
+
+  return `ot-${notification.id}`
 }
 
 function getNotificationUrl(appUrl: string, notification: NotificationRecord) {

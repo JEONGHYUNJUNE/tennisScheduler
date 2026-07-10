@@ -21,6 +21,7 @@ self.addEventListener('push', (event) => {
     data: {
       url: payload.url || '/#/',
       notificationId: payload.notificationId || null,
+      chatRoomId: payload.chatRoomId || null,
     },
     tag: payload.tag || payload.notificationId || 'ons-tennis-notification',
     renotify: false,
@@ -30,12 +31,13 @@ self.addEventListener('push', (event) => {
 })
 
 self.addEventListener('notificationclick', (event) => {
+  const chatRoomId = event.notification.data?.chatRoomId || null
   event.notification.close()
 
   const targetUrl = new URL(event.notification.data?.url || '/#/', self.location.origin).href
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    closeRelatedChatNotifications(chatRoomId).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((clientList) => {
       const sameOriginClient = clientList.find((client) => new URL(client.url).origin === self.location.origin)
 
       if (sameOriginClient) {
@@ -55,3 +57,15 @@ self.addEventListener('notificationclick', (event) => {
     }),
   )
 })
+
+function closeRelatedChatNotifications(chatRoomId) {
+  if (!chatRoomId || !self.registration.getNotifications) return Promise.resolve()
+
+  return self.registration.getNotifications()
+    .then((notifications) => {
+      notifications.forEach((notification) => {
+        if (notification.data?.chatRoomId === chatRoomId) notification.close()
+      })
+    })
+    .catch(() => {})
+}
