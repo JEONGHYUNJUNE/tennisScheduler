@@ -30,7 +30,10 @@ self.addEventListener('push', (event) => {
     renotify: false,
   }
 
-  event.waitUntil(self.registration.showNotification(title, options))
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => refreshAppBadge(1)),
+  )
 })
 
 self.addEventListener('notificationclick', (event) => {
@@ -41,7 +44,7 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = new URL(event.notification.data?.url || '/#/', self.location.origin).href
 
   event.waitUntil(
-    closeRelatedChatNotifications(chatRoomId, tag).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((clientList) => {
+    closeRelatedChatNotifications(chatRoomId, tag).then(() => refreshAppBadge()).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((clientList) => {
       const sameOriginClient = clientList.find((client) => new URL(client.url).origin === self.location.origin)
 
       if (sameOriginClient) {
@@ -76,5 +79,25 @@ function closeRelatedChatNotifications(chatRoomId, tag) {
         }
       })
     })
+    .catch(() => {})
+}
+
+function refreshAppBadge(minimumCount = 0) {
+  if (!self.navigator?.setAppBadge) return Promise.resolve()
+
+  const setBadge = (count) => {
+    const nextCount = Math.max(count, minimumCount)
+    if (nextCount > 0) return self.navigator.setAppBadge(nextCount)
+    if (self.navigator.clearAppBadge) return self.navigator.clearAppBadge()
+    return self.navigator.setAppBadge(0)
+  }
+
+  if (!self.registration.getNotifications) {
+    return setBadge(minimumCount).catch(() => {})
+  }
+
+  return self.registration.getNotifications()
+    .then((notifications) => setBadge(notifications.length))
+    .catch(() => setBadge(minimumCount))
     .catch(() => {})
 }
