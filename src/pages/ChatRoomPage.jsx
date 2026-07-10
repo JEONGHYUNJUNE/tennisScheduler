@@ -735,7 +735,10 @@ export default function ChatRoomPage() {
   const load = useCallback(async () => {
     setError('')
     try {
-      const nextRoom = await getChatRoom(roomId, profile.id)
+      const [nextRoom, nextMessages] = await Promise.all([
+        getChatRoom(roomId, profile.id),
+        getChatMessages(roomId),
+      ])
       if (!nextRoom) {
         setRoom(null)
         setMessages([])
@@ -743,7 +746,6 @@ export default function ChatRoomPage() {
         return
       }
       setRoom(nextRoom)
-      const nextMessages = await getChatMessages(roomId)
       shouldScrollToBottomRef.current = true
       setMessages(nextMessages)
       setHasMoreMessages(nextMessages.length === chatMessagePageSize)
