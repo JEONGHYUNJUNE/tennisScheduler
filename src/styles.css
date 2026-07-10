@@ -585,6 +585,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message-text { margin: 0; border-radius: 18px; padding: 11px 13px; display: block; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 800; }
 .chat-message.theirs .chat-message-text { color: #1f2b22; background: white; border-bottom-left-radius: 6px; box-shadow: 0 8px 20px rgba(49,95,59,.08); }
 .chat-message.mine .chat-message-text { color: white; background: var(--green-700); border-bottom-right-radius: 6px; }
+.chat-message .chat-message-text.emoji-only { padding: 2px 4px; color: inherit; background: transparent; box-shadow: none; font-size: 3rem; line-height: 1.08; filter: drop-shadow(0 8px 14px rgba(37,48,38,.10)); }
+.chat-message.mine .chat-message-text.emoji-only,
+.chat-message.theirs .chat-message-text.emoji-only { color: inherit; background: transparent; border-radius: 0; box-shadow: none; }
 .chat-reply-bubble .chat-message-text { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .chat-message.sticker .chat-message-text { padding: 10px 12px; font-size: 2rem; line-height: 1; background: rgba(255,255,255,.84); }
 .chat-message.mine.sticker .chat-message-text { background: rgba(237,246,234,.95); color: #1f2b22; }

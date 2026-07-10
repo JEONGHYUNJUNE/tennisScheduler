@@ -229,6 +229,20 @@ const getMessageCopyText = (item) => {
   return item.body || ''
 }
 
+const singleEmojiPattern = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})(?:\uFE0F|\uFE0E)?(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})(?:\uFE0F|\uFE0E)?)*$/u
+
+function isSingleEmojiMessage(value = '') {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+
+  if (Intl.Segmenter) {
+    const segments = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed)]
+    return segments.length === 1 && singleEmojiPattern.test(segments[0].segment)
+  }
+
+  return [...trimmed].length <= 2 && singleEmojiPattern.test(trimmed)
+}
+
 const isChatStickerImagePath = (imagePath = '') => (
   imagePath.startsWith('chat-stickers/') || isReusableChatStickerPath(imagePath)
 )
@@ -1949,7 +1963,8 @@ export default function ChatRoomPage() {
       )
     }
 
-    return <span className="chat-message-text">{item.body}</span>
+    const emojiOnly = item.message_type === 'text' && isSingleEmojiMessage(item.body || '')
+    return <span className={`chat-message-text ${emojiOnly ? 'emoji-only' : ''}`}>{item.body}</span>
   }
 
   return (
