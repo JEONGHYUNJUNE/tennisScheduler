@@ -229,7 +229,8 @@ const getMessageCopyText = (item) => {
   return item.body || ''
 }
 
-const singleEmojiPattern = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})(?:\uFE0F|\uFE0E)?(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})(?:\uFE0F|\uFE0E)?)*$/u
+const emojiLikePattern = /\p{Emoji}/u
+const plainTextPattern = /[\p{Letter}\p{Number}]/u
 
 function isSingleEmojiMessage(value = '') {
   const trimmed = value.trim()
@@ -237,10 +238,11 @@ function isSingleEmojiMessage(value = '') {
 
   if (Intl.Segmenter) {
     const segments = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed)]
-    return segments.length === 1 && singleEmojiPattern.test(segments[0].segment)
+    const segment = segments[0]?.segment || ''
+    return segments.length === 1 && emojiLikePattern.test(segment) && !plainTextPattern.test(segment.replace(/\uFE0F|\uFE0E|\u200D/g, ''))
   }
 
-  return [...trimmed].length <= 2 && singleEmojiPattern.test(trimmed)
+  return emojiLikePattern.test(trimmed) && !plainTextPattern.test(trimmed.replace(/\uFE0F|\uFE0E|\u200D/g, ''))
 }
 
 const isChatStickerImagePath = (imagePath = '') => (
