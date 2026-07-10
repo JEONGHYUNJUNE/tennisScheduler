@@ -869,6 +869,14 @@ export async function getUnreadChatCount(memberId) {
   }).length
 }
 
+export async function getUnreadChatMessageCount(memberId) {
+  const rooms = await getChatRooms(memberId)
+  return rooms.reduce((total, room) => {
+    if (room.status === 'requested' && room.recipient_member_id === memberId) return total + 1
+    return total + getRoomUnreadCount(room, memberId)
+  }, 0)
+}
+
 export function getRoomUnreadCount(room, memberId) {
   if (!room || room.status !== 'active') return 0
   if (typeof room.unread_count === 'number') return room.unread_count

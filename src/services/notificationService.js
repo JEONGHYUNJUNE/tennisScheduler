@@ -61,3 +61,31 @@ export async function markNotificationsRead(notificationIds) {
     throw error
   }
 }
+
+export async function getUnreadNotificationCount(currentMemberId) {
+  const result = await supabase
+    .from('ot_notifications')
+    .select('id, type, actor_member_id, is_read')
+    .eq('is_read', false)
+    .limit(1000)
+
+  const { data, error } = result.error?.code === '42703'
+    ? await supabase
+      .from('ot_notifications')
+      .select('id, type, actor_member_id, is_read')
+      .eq('is_read', false)
+      .limit(1000)
+    : result
+
+  if (error) {
+    if (missingNotificationTableCodes.has(error.code)) return 0
+    throw error
+  }
+
+  return (data || []).filter((notification) => {
+    if (notification.actor_member_id === currentMemberId && selfActionNotificationTypes.has(notification.type)) {
+      return false
+    }
+    return !hiddenMenuNotificationTypes.has(notification.type)
+  }).length
+}

@@ -112,6 +112,7 @@ export default function NotificationMenu({ profile }) {
     if (unreadIds.length) {
       await markNotificationsRead(unreadIds)
       setNotifications((current) => current.map((notification) => ({ ...notification, is_read: true })))
+      window.dispatchEvent(new CustomEvent('ons-tennis-notification-unread-changed'))
     }
   }
 

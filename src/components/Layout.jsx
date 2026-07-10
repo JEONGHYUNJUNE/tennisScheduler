@@ -4,8 +4,10 @@ import NotificationMenu from './NotificationMenu'
 import PushNotificationButton from './PushNotificationButton'
 import UserMenu from './UserMenu'
 import { useAuth } from '../contexts/AuthContext'
-import { getUnreadChatCount, subscribeToChatUpdates } from '../services/chatService'
+import { getUnreadChatCount, getUnreadChatMessageCount, subscribeToChatUpdates } from '../services/chatService'
 import { getUnreadFreeOpinionCount, markFreeOpinionsRead } from '../services/freeOpinionService'
+import { clearAppBadge, updateAppBadge } from '../services/appBadgeService'
+import { getUnreadNotificationCount } from '../services/notificationService'
 import { signOut } from '../services/authService'
 import onsTennisLogo from '../assets/home-header-logo.png'
 
@@ -112,6 +114,8 @@ export default function Layout() {
   const shellRef = useRef(null)
   const [freeOpinionUnreadCount, setFreeOpinionUnreadCount] = useState(0)
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
+  const [chatUnreadMessageCount, setChatUnreadMessageCount] = useState(0)
+  const [generalNotificationUnreadCount, setGeneralNotificationUnreadCount] = useState(0)
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const chatUnreadRefreshTimerRef = useRef(null)
@@ -162,10 +166,19 @@ export default function Layout() {
 
     const loadChatCount = async () => {
       try {
-        const count = await getUnreadChatCount(profile.id)
-        if (!ignore) setChatUnreadCount(count)
+        const [roomCount, messageCount] = await Promise.all([
+          getUnreadChatCount(profile.id),
+          getUnreadChatMessageCount(profile.id),
+        ])
+        if (!ignore) {
+          setChatUnreadCount(roomCount)
+          setChatUnreadMessageCount(messageCount)
+        }
       } catch {
-        if (!ignore) setChatUnreadCount(0)
+        if (!ignore) {
+          setChatUnreadCount(0)
+          setChatUnreadMessageCount(0)
+        }
       }
     }
 
@@ -198,6 +211,50 @@ export default function Layout() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [profile?.id])
+
+  useEffect(() => {
+    if (!profile?.id) {
+      setGeneralNotificationUnreadCount(0)
+      clearAppBadge()
+      return undefined
+    }
+
+    let ignore = false
+
+    const loadNotificationCount = async () => {
+      try {
+        const count = await getUnreadNotificationCount(profile.id)
+        if (!ignore) setGeneralNotificationUnreadCount(count)
+      } catch {
+        if (!ignore) setGeneralNotificationUnreadCount(0)
+      }
+    }
+
+    const handleNotificationChanged = () => {
+      loadNotificationCount()
+    }
+
+    loadNotificationCount()
+    const timer = setInterval(loadNotificationCount, 120000)
+    window.addEventListener('ons-tennis-notification-unread-changed', handleNotificationChanged)
+    document.addEventListener('visibilitychange', handleNotificationChanged)
+
+    return () => {
+      ignore = true
+      clearInterval(timer)
+      window.removeEventListener('ons-tennis-notification-unread-changed', handleNotificationChanged)
+      document.removeEventListener('visibilitychange', handleNotificationChanged)
+    }
+  }, [profile?.id])
+
+  useEffect(() => {
+    if (!profile?.id) {
+      clearAppBadge()
+      return
+    }
+
+    updateAppBadge(chatUnreadMessageCount + generalNotificationUnreadCount)
+  }, [chatUnreadMessageCount, generalNotificationUnreadCount, profile?.id])
 
   useLayoutEffect(() => {
     if ('scrollRestoration' in window.history) {
