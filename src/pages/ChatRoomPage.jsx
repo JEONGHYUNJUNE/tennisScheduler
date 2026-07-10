@@ -379,6 +379,7 @@ export default function ChatRoomPage() {
   const shouldScrollToBottomRef = useRef(true)
   const scrollCorrectionTimersRef = useRef([])
   const prependAnchorRef = useRef(null)
+  const loadingOlderRef = useRef(false)
   const loadedMessageIdsRef = useRef(new Set())
   const [room, setRoom] = useState(null)
   const [messages, setMessages] = useState([])
@@ -749,6 +750,23 @@ export default function ChatRoomPage() {
     return true
   }, [getMessageElement])
 
+  const getTopVisibleMessageAnchor = useCallback(() => {
+    const list = listRef.current
+    if (!list) return null
+
+    const listTop = list.getBoundingClientRect().top
+    const elements = [...list.querySelectorAll('[data-message-id]')]
+    const element = elements.find((item) => item.getBoundingClientRect().bottom >= listTop + 1) || elements[0]
+    const messageId = element?.dataset?.messageId
+    if (!element || !messageId) return null
+
+    return {
+      messageId,
+      top: element.getBoundingClientRect().top,
+    }
+  }, [])
+
+
   const handleChatMediaLoad = useCallback(() => {
     if (restorePrependAnchor()) return
     if (!shouldScrollToBottomRef.current && !isNearMessageBottom()) return
@@ -920,14 +938,11 @@ export default function ChatRoomPage() {
   }, [messages.length, scheduleScrollToBottom])
 
   const loadOlderMessages = useCallback(async () => {
-    if (!hasMoreMessages || loadingOlder || messages.length === 0) return
+    if (!hasMoreMessages || loadingOlder || loadingOlderRef.current || messages.length === 0) return
 
-    const anchorMessageId = messages[0]?.id || null
-    const anchorElement = getMessageElement(anchorMessageId)
-    const anchor = anchorElement
-      ? { messageId: anchorMessageId, top: anchorElement.getBoundingClientRect().top }
-      : null
+    const anchor = getTopVisibleMessageAnchor()
 
+    loadingOlderRef.current = true
     setLoadingOlder(true)
     setError('')
     try {
@@ -937,16 +952,16 @@ export default function ChatRoomPage() {
       setMessages((current) => mergeMessages(olderMessages, current))
       setHasMoreMessages(olderMessages.length === chatMessagePageSize)
       window.requestAnimationFrame(() => restorePrependAnchor(anchor))
-      window.setTimeout(() => restorePrependAnchor(anchor), 120)
       window.setTimeout(() => {
         if (prependAnchorRef.current === anchor) prependAnchorRef.current = null
-      }, 320)
+      }, 1400)
     } catch (err) {
       setError(err.message)
     } finally {
+      loadingOlderRef.current = false
       setLoadingOlder(false)
     }
-  }, [getMessageElement, hasMoreMessages, loadingOlder, messages, restorePrependAnchor, roomId])
+  }, [getTopVisibleMessageAnchor, hasMoreMessages, loadingOlder, messages, restorePrependAnchor, roomId])
 
   const handleMessageScroll = () => {
     const list = listRef.current
