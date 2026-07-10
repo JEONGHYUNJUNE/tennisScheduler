@@ -937,12 +937,10 @@ export default function ChatRoomPage() {
       setMessages((current) => mergeMessages(olderMessages, current))
       setHasMoreMessages(olderMessages.length === chatMessagePageSize)
       window.requestAnimationFrame(() => restorePrependAnchor(anchor))
-      ;[80, 240, 520, 900].forEach((delay) => {
-        window.setTimeout(() => restorePrependAnchor(anchor), delay)
-      })
+      window.setTimeout(() => restorePrependAnchor(anchor), 120)
       window.setTimeout(() => {
         if (prependAnchorRef.current === anchor) prependAnchorRef.current = null
-      }, 1400)
+      }, 320)
     } catch (err) {
       setError(err.message)
     } finally {
