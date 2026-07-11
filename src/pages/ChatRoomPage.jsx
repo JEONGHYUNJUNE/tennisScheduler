@@ -9,7 +9,7 @@ import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOp
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
-const maxRoomStickers = 24
+const maxRoomStickers = 45
 const maxChatVideoSize = 50 * 1024 * 1024
 const maxChatVideoDuration = 60
 const chatDeleteWindowMs = 5 * 60 * 1000
