@@ -18,6 +18,8 @@ const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
 const customStickerPageSize = stickerPanelSlotCount
 const customStickerSize = 256
+const roomStickerPageSize = stickerPanelSlotCount
+const maxRoomStickerPages = 3
 
 const getCustomStickerStorageKey = (memberId) => `ons-tennis-custom-chat-stickers:${memberId}`
 const getCustomStickerMigrationKey = (memberId) => `ons-tennis-custom-chat-stickers-migrated:${memberId}`
@@ -38,6 +40,11 @@ const getCustomStickerPageCount = (stickerCount) => {
   const remainingCustomStickers = Math.max(0, stickerCount - firstCustomStickerPageSize)
   const addButtonSlot = stickerCount < maxCustomStickers ? 1 : 0
   return 1 + Math.ceil((remainingCustomStickers + addButtonSlot) / customStickerPageSize)
+}
+
+const getRoomStickerPageCount = (stickerCount) => {
+  const addButtonSlot = stickerCount < maxRoomStickers ? 1 : 0
+  return Math.max(1, Math.min(maxRoomStickerPages, Math.ceil((stickerCount + addButtonSlot) / roomStickerPageSize)))
 }
 
 const getStickerImageSrc = (sticker) => sticker.dataUrl || sticker.image_url || ''
@@ -567,16 +574,22 @@ export default function ChatRoomPage() {
 
   const otherMember = useMemo(() => room?.other_member || { name: '회원' }, [room])
   const personalStickerPageCount = useMemo(() => getCustomStickerPageCount(customStickers.length), [customStickers.length])
-  const customStickerPageCount = personalStickerPageCount + 1
+  const roomStickerPageCount = useMemo(() => getRoomStickerPageCount(roomStickers.length), [roomStickers.length])
+  const customStickerPageCount = personalStickerPageCount + roomStickerPageCount
   const isRoomStickerPage = customStickerPage >= personalStickerPageCount
+  const roomStickerPage = Math.max(0, customStickerPage - personalStickerPageCount)
+  const isLastRoomStickerPage = isRoomStickerPage && roomStickerPage >= roomStickerPageCount - 1
   const visibleCustomStickers = useMemo(() => {
-    if (isRoomStickerPage) return roomStickers
+    if (isRoomStickerPage) {
+      const pageStart = roomStickerPage * roomStickerPageSize
+      return roomStickers.slice(pageStart, pageStart + roomStickerPageSize)
+    }
     if (customStickerPage === 0) {
       return customStickers.slice(0, firstCustomStickerPageSize)
     }
     const pageStart = firstCustomStickerPageSize + ((customStickerPage - 1) * customStickerPageSize)
     return customStickers.slice(pageStart, pageStart + customStickerPageSize)
-  }, [customStickerPage, customStickers, isRoomStickerPage, roomStickers])
+  }, [customStickerPage, customStickers, isRoomStickerPage, roomStickerPage, roomStickers])
   const photoEditorStickerGroups = useMemo(() => {
     const emojiItems = chatStickerOptions.map((sticker) => ({
         key: `emoji-${sticker.value}`,
@@ -1533,8 +1546,9 @@ export default function ChatRoomPage() {
       })
 
       if (stickerSaveScope === 'room') {
-        setRoomStickers((current) => [...current, savedSticker].slice(0, maxRoomStickers))
-        setCustomStickerPage(personalStickerPageCount)
+        const nextRoomStickers = [...roomStickers, savedSticker].slice(0, maxRoomStickers)
+        setRoomStickers(nextRoomStickers)
+        setCustomStickerPage(personalStickerPageCount + getRoomStickerPageCount(nextRoomStickers.length) - 1)
       } else {
         const nextStickers = [...customStickers, savedSticker].slice(0, maxCustomStickers)
         saveCustomStickers(nextStickers)
@@ -2332,7 +2346,7 @@ export default function ChatRoomPage() {
                   +
                 </button>
               )}
-              {isRoomStickerPage && roomStickers.length < maxRoomStickers && (
+              {isLastRoomStickerPage && roomStickers.length < maxRoomStickers && (
                 <button
                   type="button"
                   className="chat-sticker-add-button"
