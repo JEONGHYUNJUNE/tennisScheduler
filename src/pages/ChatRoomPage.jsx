@@ -5,13 +5,14 @@ import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteChatMessage, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
 const maxRoomStickers = 24
 const maxChatVideoSize = 50 * 1024 * 1024
 const maxChatVideoDuration = 60
+const chatDeleteWindowMs = 5 * 60 * 1000
 const videoFileExtensionPattern = /\.(mp4|mov|m4v|webm|3gp|3gpp|3g2|3gpp2)$/i
 const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
@@ -116,6 +117,13 @@ function isMobileSoftKeyboardDevice() {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '')
 }
 
+function canDeleteChatMessage(message, profileId) {
+  if (!message || !profileId || message.sender_member_id !== profileId || message.message_type === 'system') return false
+  const createdAt = new Date(message.created_at).getTime()
+  if (!Number.isFinite(createdAt)) return false
+  return Date.now() - createdAt <= chatDeleteWindowMs
+}
+
 function readSearchShareDraft(roomId) {
   try {
     const saved = window.sessionStorage.getItem(getSearchShareDraftKey(roomId))
@@ -208,6 +216,7 @@ const formatSearchResultTime = (dateText) => {
 
 const getMessagePreview = (item) => {
   if (!item) return ''
+  if (item.deleted_at) return '이 메시지는 삭제되었습니다.'
   const searchShare = parseSearchShare(item.body || '')
   if (searchShare) return `#검색공유 ${searchShare.title}`
   if (item.message_type === 'sticker') return item.body || '이모티콘'
@@ -220,6 +229,7 @@ const getMessagePreview = (item) => {
 
 const getMessageCopyText = (item) => {
   if (!item) return ''
+  if (item.deleted_at) return ''
   const searchShare = parseSearchShare(item.body || '')
   if (searchShare) return `${searchShare.title}\n${searchShare.snippet}\n${searchShare.link}`
   if (item.message_type === 'video') return item.image_name || item.body || '동영상'
@@ -881,6 +891,35 @@ export default function ChatRoomPage() {
           markRead()
         })
         .catch((err) => setError(err.message)),
+      onMessageChanged: (payload) => {
+        const messageId = payload.new?.id || payload.old?.id
+        if (!messageId) return
+        if (payload.new?.deleted_at) {
+          setMessages((current) => current.map((message) => message.id === messageId
+            ? {
+              ...message,
+              body: '',
+              image_path: '',
+              image_name: '',
+              image_mime: '',
+              image_url: '',
+              deleted_at: payload.new.deleted_at,
+              deleted_by_member_id: payload.new.deleted_by_member_id || message.deleted_by_member_id,
+              reactions: [],
+            }
+            : message))
+          setRoom((current) => current?.notice_message_id === messageId
+            ? { ...current, notice_message_id: null, notice_message: null }
+            : current)
+          return
+        }
+        getChatMessage(messageId)
+          .then((hydratedMessage) => {
+            if (!hydratedMessage) return
+            setMessages((current) => mergeMessages(current, [hydratedMessage]))
+          })
+          .catch((err) => setError(err.message))
+      },
       onRoomChanged: (nextRoom) => {
         if (nextRoom.status === 'ended') {
           load()
@@ -997,7 +1036,7 @@ export default function ChatRoomPage() {
   }
 
   const openMessageActions = (item) => {
-    if (!item || item.message_type === 'system') return
+    if (!item || item.message_type === 'system' || item.deleted_at) return
     setStickerOpen(false)
     setActionMessage(item)
     window.navigator?.vibrate?.(8)
@@ -1206,6 +1245,49 @@ export default function ChatRoomPage() {
       setError('복사하지 못했습니다. 다시 시도해 주세요.')
     } finally {
       setActionMessage(null)
+    }
+  }
+
+  const handleDeleteMessage = async () => {
+    if (!canDeleteChatMessage(actionMessage, profile.id)) return
+
+    const confirmed = window.confirm('이 메시지를 모두에게서 삭제할까요?')
+    if (!confirmed) return
+
+    const targetId = actionMessage.id
+    const deletedAt = new Date().toISOString()
+    setSending(true)
+    setError('')
+    setActionMessage(null)
+    setMessages((current) => current.map((message) => message.id === targetId
+      ? {
+        ...message,
+        body: '',
+        image_path: '',
+        image_name: '',
+        image_mime: '',
+        image_url: '',
+        deleted_at: deletedAt,
+        deleted_by_member_id: profile.id,
+        reactions: [],
+      }
+      : message))
+    setRoom((current) => current?.notice_message_id === targetId
+      ? { ...current, notice_message_id: null, notice_message: null }
+      : current)
+
+    try {
+      await deleteChatMessage(targetId)
+      window.dispatchEvent(new CustomEvent('ons-tennis-chat-unread-changed'))
+    } catch (err) {
+      console.error(err)
+      setError('메시지를 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+      const restoredMessage = await getChatMessage(targetId).catch(() => null)
+      if (restoredMessage) {
+        setMessages((current) => mergeMessages(current, [restoredMessage]))
+      }
+    } finally {
+      setSending(false)
     }
   }
 
@@ -1919,6 +2001,10 @@ export default function ChatRoomPage() {
   }
 
   const renderMessageBody = (item, isImageMessage, isCustomStickerImage) => {
+    if (item.deleted_at) {
+      return <span className="chat-message-text deleted">이 메시지는 삭제되었습니다.</span>
+    }
+
     const searchShare = parseSearchShare(item.body || '')
     if (searchShare) {
       return (
@@ -2034,16 +2120,18 @@ export default function ChatRoomPage() {
           if (item.message_type === 'system') {
             return <p className="chat-system-message" key={item.id}>{item.body}</p>
           }
+          const isDeleted = Boolean(item.deleted_at)
           const isCustomStickerImage = item.message_type === 'image' && isChatStickerImagePath(item.image_path)
           const isImageMessage = item.message_type === 'image'
-          const reactionGroups = getReactionGroups(item.reactions)
+          const reactionGroups = isDeleted ? [] : getReactionGroups(item.reactions)
           const isReadByOther = mine &&
+            !isDeleted &&
             room?.other_last_read_at &&
             new Date(room.other_last_read_at) >= new Date(item.created_at)
 
           return (
             <article
-              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''}`}
+              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''} ${isDeleted ? 'deleted' : ''}`}
               key={item.id}
               data-message-id={item.id}
               onContextMenu={(event) => handleMessageContextMenu(event, item)}
@@ -2056,7 +2144,7 @@ export default function ChatRoomPage() {
             >
               {!mine && <MemberAvatar name={item.sender_name} imageUrl={item.sender_avatar_url} size="sm" previewable />}
               <div>
-                {item.reply_to && (
+                {!isDeleted && item.reply_to && (
                   <div className="chat-reply-bubble">
                     <button type="button" className="chat-message-reply-context" onClick={() => scrollToMessage(item.reply_to.id)}>
                       <strong>{getMessageAuthor(item.reply_to, profile.id)}에게 답장</strong>
@@ -2065,7 +2153,7 @@ export default function ChatRoomPage() {
                     {renderMessageBody(item, isImageMessage, isCustomStickerImage)}
                   </div>
                 )}
-                {!item.reply_to && renderMessageBody(item, isImageMessage, isCustomStickerImage)}
+                {(isDeleted || !item.reply_to) && renderMessageBody(item, isImageMessage, isCustomStickerImage)}
                 {reactionGroups.length > 0 && (
                   <div className="chat-message-reactions" aria-label="메시지 반응">
                     {reactionGroups.map((group) => {
@@ -2623,6 +2711,9 @@ export default function ChatRoomPage() {
             <button type="button" onClick={handleReplyToMessage}>답장</button>
             <button type="button" onClick={handleSetNotice} disabled={sending}>공지</button>
             <button type="button" onClick={handleCopyMessage}>복사</button>
+            {canDeleteChatMessage(actionMessage, profile.id) && (
+              <button type="button" className="danger" onClick={handleDeleteMessage} disabled={sending}>삭제</button>
+            )}
           </div>
         </div>
       )}

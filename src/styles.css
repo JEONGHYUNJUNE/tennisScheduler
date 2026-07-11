@@ -585,6 +585,9 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message-text { margin: 0; border-radius: 18px; padding: 11px 13px; display: block; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 800; }
 .chat-message.theirs .chat-message-text { color: #1f2b22; background: white; border-bottom-left-radius: 6px; box-shadow: 0 8px 20px rgba(49,95,59,.08); }
 .chat-message.mine .chat-message-text { color: white; background: var(--green-700); border-bottom-right-radius: 6px; }
+.chat-message.deleted .chat-message-text.deleted,
+.chat-message.mine.deleted .chat-message-text.deleted,
+.chat-message.theirs.deleted .chat-message-text.deleted { color: rgba(104,117,106,.82); background: rgba(237,246,234,.86); border: 1px solid rgba(217,228,213,.9); border-radius: 18px; box-shadow: none; font-style: normal; }
 .chat-message .chat-message-text.emoji-only { padding: 2px 4px; color: inherit; background: transparent; box-shadow: none; font-size: 3rem; line-height: 1.08; filter: drop-shadow(0 8px 14px rgba(37,48,38,.10)); }
 .chat-message.mine .chat-message-text.emoji-only,
 .chat-message.theirs .chat-message-text.emoji-only { color: inherit; background: transparent; border-radius: 0; box-shadow: none; }
@@ -766,6 +769,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-action-reactions button:hover,
 .chat-action-reactions button:focus-visible { background: rgba(255,255,255,.12) !important; transform: translateY(-2px) scale(1.08); }
 .chat-action-menu button { min-height: 44px; border: 1px solid rgba(63,116,75,.14); border-radius: 16px; color: var(--green-800); background: white; font-weight: 950; }
+.chat-action-menu button.danger { border-color: rgba(208,73,54,.22); color: #c54a37; background: rgba(255,238,232,.76); }
 .chat-action-menu button:disabled { opacity: .5; }
 @keyframes reaction-pop {
   0% { opacity: 0; transform: translateY(-8px) scale(.35); }

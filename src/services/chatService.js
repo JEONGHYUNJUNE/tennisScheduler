@@ -54,6 +54,8 @@ const baseMessageSelectColumns = `
   image_path,
   image_name,
   image_mime,
+  deleted_at,
+  deleted_by_member_id,
   created_at,
   sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
 `
@@ -68,6 +70,8 @@ const messageWithReplyIdSelectColumns = `
   image_name,
   image_mime,
   reply_to_message_id,
+  deleted_at,
+  deleted_by_member_id,
   created_at,
   sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
 `
@@ -82,6 +86,8 @@ const messageSelectColumns = `
   image_name,
   image_mime,
   reply_to_message_id,
+  deleted_at,
+  deleted_by_member_id,
   created_at,
   sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url),
   reply_to:chat_messages!chat_messages_reply_to_message_id_fkey(
@@ -93,6 +99,8 @@ const messageSelectColumns = `
     image_path,
     image_name,
     image_mime,
+    deleted_at,
+    deleted_by_member_id,
     created_at,
     sender:otmember!chat_messages_sender_member_id_fkey(id, username, display_name, avatar_url)
   )
@@ -226,41 +234,44 @@ export async function getChatRoom(roomId, currentMemberId) {
 }
 
 export async function getChatMessages(roomId, { before = null, limit = chatMessagePageSize } = {}) {
-  let query = supabase
-    .from('chat_messages')
-    .select(messageSelectColumns)
-    .eq('room_id', roomId)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (before) query = query.lt('created_at', before)
-
-  let { data, error } = await query
-
-  if (isMissingReplyRelationError(error)) {
-    query = supabase
+  let { data, error } = await runVisibleMessageQuery((withDeletedFilter) => {
+    let query = supabase
       .from('chat_messages')
-      .select(messageWithReplyIdSelectColumns)
+      .select(messageSelectColumns)
       .eq('room_id', roomId)
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (before) query = query.lt('created_at', before)
+    return query
+  })
 
-    const fallback = await query
+  if (isMissingReplyRelationError(error)) {
+    const fallback = await runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(messageWithReplyIdSelectColumns)
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (before) query = query.lt('created_at', before)
+      return query
+    })
     data = fallback.data
     error = fallback.error
   } else if (isMissingReplyNoticeSchemaError(error)) {
-    query = supabase
-      .from('chat_messages')
-      .select(baseMessageSelectColumns)
-      .eq('room_id', roomId)
-      .order('created_at', { ascending: false })
-      .limit(limit)
+    const fallback = await runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(baseMessageSelectColumns)
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
 
-    if (before) query = query.lt('created_at', before)
-
-    const fallback = await query
+      if (before) query = query.lt('created_at', before)
+      return query
+    })
     data = fallback.data
     error = fallback.error
   }
@@ -274,26 +285,38 @@ export async function getChatMessages(roomId, { before = null, limit = chatMessa
 }
 
 export async function getChatMessage(messageId) {
-  let { data, error } = await supabase
-    .from('chat_messages')
-    .select(messageSelectColumns)
-    .eq('id', messageId)
-    .maybeSingle()
-
-  if (isMissingReplyRelationError(error)) {
-    const fallback = await supabase
+  let { data, error } = await runVisibleMessageQuery((withDeletedFilter) => {
+    let query = supabase
       .from('chat_messages')
-      .select(messageWithReplyIdSelectColumns)
+      .select(messageSelectColumns)
       .eq('id', messageId)
       .maybeSingle()
+
+    return query
+  })
+
+  if (isMissingReplyRelationError(error)) {
+    const fallback = await runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(messageWithReplyIdSelectColumns)
+        .eq('id', messageId)
+        .maybeSingle()
+
+      return query
+    })
     data = fallback.data
     error = fallback.error
   } else if (isMissingReplyNoticeSchemaError(error)) {
-    const fallback = await supabase
-      .from('chat_messages')
-      .select(baseMessageSelectColumns)
-      .eq('id', messageId)
-      .maybeSingle()
+    const fallback = await runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(baseMessageSelectColumns)
+        .eq('id', messageId)
+        .maybeSingle()
+
+      return query
+    })
     data = fallback.data
     error = fallback.error
   }
@@ -312,14 +335,19 @@ export async function searchChatMessages(roomId, keyword, { limit = 30 } = {}) {
   const searchText = keyword.trim()
   if (!searchText) return []
 
-  const { data, error } = await supabase
-    .from('chat_messages')
-    .select(messageWithReplyIdSelectColumns)
-    .eq('room_id', roomId)
-    .ilike('body', `%${escapeLikePattern(searchText)}%`)
-    .neq('message_type', 'system')
-    .order('created_at', { ascending: false })
-    .limit(limit)
+  const { data, error } = await runVisibleMessageQuery((withDeletedFilter) => {
+    let query = supabase
+      .from('chat_messages')
+      .select(messageWithReplyIdSelectColumns)
+      .eq('room_id', roomId)
+      .ilike('body', `%${escapeLikePattern(searchText)}%`)
+      .neq('message_type', 'system')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (withDeletedFilter) query = query.is('deleted_at', null)
+    return query
+  })
 
   if (error) {
     if (isMissingChatTableError(error)) return []
@@ -333,20 +361,28 @@ export async function getChatMessagesAround(roomId, createdAt, { limit = 50 } = 
   if (!createdAt) return getChatMessages(roomId)
 
   const [olderResult, newerResult] = await Promise.all([
-    supabase
-      .from('chat_messages')
-      .select(messageWithReplyIdSelectColumns)
-      .eq('room_id', roomId)
-      .lte('created_at', createdAt)
-      .order('created_at', { ascending: false })
-      .limit(limit),
-    supabase
-      .from('chat_messages')
-      .select(messageWithReplyIdSelectColumns)
-      .eq('room_id', roomId)
-      .gt('created_at', createdAt)
-      .order('created_at', { ascending: true })
-      .limit(limit),
+    runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(messageWithReplyIdSelectColumns)
+        .eq('room_id', roomId)
+        .lte('created_at', createdAt)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      return query
+    }),
+    runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(messageWithReplyIdSelectColumns)
+        .eq('room_id', roomId)
+        .gt('created_at', createdAt)
+        .order('created_at', { ascending: true })
+        .limit(limit)
+
+      return query
+    }),
   ])
 
   const error = olderResult.error || newerResult.error
@@ -800,7 +836,15 @@ export async function setChatMessageReaction(messageId, reaction) {
   return data
 }
 
-export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged, onReactionChanged }) {
+export async function deleteChatMessage(messageId) {
+  const { error } = await supabase.rpc('soft_delete_chat_message', {
+    target_message_id: messageId,
+  })
+
+  if (error) throw error
+}
+
+export function subscribeToChatRoom(roomId, { onMessage, onMessageChanged, onRoomChanged, onReactionChanged }) {
   const suffix = `${Date.now()}:${Math.random().toString(36).slice(2)}`
   const messageChannel = supabase
     .channel(`chat-room-messages:${roomId}:${suffix}`)
@@ -808,6 +852,11 @@ export function subscribeToChatRoom(roomId, { onMessage, onRoomChanged, onReacti
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
       (payload) => onMessage?.(payload.new),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+      (payload) => onMessageChanged?.(payload),
     )
     .subscribe()
 
@@ -887,6 +936,7 @@ export function getRoomUnreadCount(room, memberId) {
   const ownLastReadTime = ownLastReadAt ? new Date(ownLastReadAt).getTime() : 0
 
   return (room.messages || []).filter((message) => {
+    if (message.deleted_at) return false
     if (!message.sender_member_id || message.sender_member_id === memberId || message.message_type === 'system') return false
     if (!ownLastReadTime) return true
     return new Date(message.created_at).getTime() > ownLastReadTime
@@ -904,6 +954,14 @@ function mergeMessageRows(messages) {
     messageMap.set(message.id, message)
   })
   return [...messageMap.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+}
+
+async function runVisibleMessageQuery(createQuery) {
+  let result = await createQuery(true)
+  if (isMissingSoftDeleteSchemaError(result.error)) {
+    result = await createQuery(false)
+  }
+  return result
 }
 
 function isRoomScopedChatImagePath(roomId, imagePath = '') {
@@ -1040,9 +1098,24 @@ async function getUnreadMessageCount(room, memberId) {
     .neq('sender_member_id', memberId)
     .neq('message_type', 'system')
 
+  query = query.is('deleted_at', null)
   if (ownLastReadAt) query = query.gt('created_at', ownLastReadAt)
 
-  const { count, error } = await query
+  let { count, error } = await query
+  if (isMissingSoftDeleteSchemaError(error)) {
+    query = supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', room.id)
+      .neq('sender_member_id', memberId)
+      .neq('message_type', 'system')
+
+    if (ownLastReadAt) query = query.gt('created_at', ownLastReadAt)
+
+    const fallback = await query
+    count = fallback.count
+    error = fallback.error
+  }
   if (error) {
     if (isMissingChatTableError(error)) return 0
     throw error
@@ -1090,6 +1163,11 @@ function normalizeMessage(message) {
 
 function isMissingChatTableError(error) {
   return ['42P01', 'PGRST200', 'PGRST205'].includes(error.code) || /relation .*chat_.* does not exist/i.test(error.message || '')
+}
+
+function isMissingSoftDeleteSchemaError(error) {
+  if (!error) return false
+  return error.code === '42703' && /deleted_at/i.test(error.message || '')
 }
 
 function isMissingReplyNoticeSchemaError(error) {
