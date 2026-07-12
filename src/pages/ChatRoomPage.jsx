@@ -5,7 +5,7 @@ import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteChatMessage, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteChatMessage, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMediaMessages, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
@@ -446,6 +446,10 @@ export default function ChatRoomPage() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [viewingSearchContext, setViewingSearchContext] = useState(false)
+  const [chatMenuOpen, setChatMenuOpen] = useState(false)
+  const [chatMediaMessages, setChatMediaMessages] = useState([])
+  const [chatMediaLoading, setChatMediaLoading] = useState(false)
+  const [chatMediaError, setChatMediaError] = useState('')
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
@@ -1998,6 +2002,28 @@ export default function ChatRoomPage() {
     }
   }
 
+  const openChatMenu = async () => {
+    setChatMenuOpen(true)
+    setStickerOpen(false)
+    setSearchOpen(false)
+    setSearchShareOpen(false)
+    setAttachmentSheetOpen(false)
+    setChatMediaLoading(true)
+    setChatMediaError('')
+
+    try {
+      const media = await getChatMediaMessages(roomId)
+      setChatMediaMessages(media.filter((item) => (
+        item.message_type === 'video' ||
+        (item.message_type === 'image' && !isChatStickerImagePath(item.image_path))
+      )))
+    } catch (err) {
+      setChatMediaError(err.message || '앨범을 불러오지 못했습니다.')
+    } finally {
+      setChatMediaLoading(false)
+    }
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
     sendTextMessage()
@@ -2010,6 +2036,60 @@ export default function ChatRoomPage() {
       <section className="chat-room-shell">
         <p className="error">채팅방을 찾을 수 없습니다.</p>
         <Link className="secondary-button" to="/chats">채팅 목록으로</Link>
+      </section>
+    )
+  }
+
+  if (chatMenuOpen) {
+    return (
+      <section className="chat-room-shell chat-menu-shell">
+        <div className="chat-room-head chat-menu-head">
+          <button type="button" className="chat-back-button" onClick={() => setChatMenuOpen(false)} aria-label="채팅방으로 돌아가기">‹</button>
+          <MemberAvatar name={otherMember.name} imageUrl={otherMember.avatar_url} size="sm" previewable />
+          <div>
+            <strong>채팅방 메뉴</strong>
+            <span>{otherMember.name}</span>
+          </div>
+        </div>
+        <div className="chat-menu-content">
+          <section className="chat-menu-card">
+            <div className="chat-menu-section-head">
+              <div>
+                <p className="eyebrow">ALBUM</p>
+                <h2>사진 · 동영상</h2>
+              </div>
+              <span>{chatMediaMessages.length}개</span>
+            </div>
+            {chatMediaLoading && <p className="chat-menu-empty">앨범을 불러오는 중입니다.</p>}
+            {chatMediaError && <p className="error chat-inline-error">{chatMediaError}</p>}
+            {!chatMediaLoading && !chatMediaError && chatMediaMessages.length === 0 && (
+              <p className="chat-menu-empty">아직 주고받은 사진이나 동영상이 없습니다.</p>
+            )}
+            {chatMediaMessages.length > 0 && (
+              <div className="chat-media-grid">
+                {chatMediaMessages.map((item) => (
+                  <div className="chat-media-tile" key={item.id}>
+                    {item.message_type === 'video' ? (
+                      <video src={item.image_url} controls playsInline preload="metadata" />
+                    ) : (
+                      <ImageLightbox
+                        src={item.image_url}
+                        alt={item.image_name || '채팅 이미지'}
+                        className="chat-media-lightbox-trigger"
+                      />
+                    )}
+                    <time>{formatMessageTime(item.created_at)}</time>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+          {room?.status !== 'ended' && (
+            <button type="button" className="chat-menu-end-button" onClick={handleEnd} disabled={sending}>
+              채팅방 나가기
+            </button>
+          )}
+        </div>
       </section>
     )
   }
@@ -2086,9 +2166,7 @@ export default function ChatRoomPage() {
         >
           ⌕
         </button>
-        {room?.status !== 'ended' && (
-          <button type="button" className="chat-end-button" onClick={handleEnd} disabled={sending}>종료</button>
-        )}
+        <button type="button" className="chat-menu-toggle" onClick={openChatMenu} aria-label="채팅방 메뉴">☰</button>
       </div>
       <div className="chat-message-list" ref={listRef} onScroll={handleMessageScroll} onPointerDown={dismissKeyboard}>
         {searchOpen && (

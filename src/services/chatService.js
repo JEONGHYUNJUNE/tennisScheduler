@@ -396,6 +396,28 @@ export async function getChatMessagesAround(roomId, createdAt, { limit = 50 } = 
   return hydrateChatMessages(mergeMessageRows([...olderMessages, ...newerMessages]))
 }
 
+export async function getChatMediaMessages(roomId, { limit = 120 } = {}) {
+  const { data, error } = await runVisibleMessageQuery((withDeletedFilter) => {
+    let query = supabase
+      .from('chat_messages')
+      .select(messageWithReplyIdSelectColumns)
+      .eq('room_id', roomId)
+      .in('message_type', ['image', 'video'])
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    if (withDeletedFilter) query = query.is('deleted_at', null)
+    return query
+  })
+
+  if (error) {
+    if (isMissingChatTableError(error)) return []
+    throw error
+  }
+
+  return hydrateChatMessages((data || []).map(normalizeMessage))
+}
+
 export async function requestChat(recipientMemberId) {
   const { data, error } = await supabase
     .rpc('request_one_to_one_chat', { target_member_id: recipientMemberId })
