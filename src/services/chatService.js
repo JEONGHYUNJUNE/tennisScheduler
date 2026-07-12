@@ -403,6 +403,8 @@ export async function getChatMediaMessages(roomId, { limit = 120 } = {}) {
       .select(messageWithReplyIdSelectColumns)
       .eq('room_id', roomId)
       .in('message_type', ['image', 'video'])
+      .not('image_path', 'like', 'chat-stickers/%')
+      .not('image_path', 'like', 'chat-custom-stickers/%')
       .order('created_at', { ascending: false })
       .limit(limit)
 
