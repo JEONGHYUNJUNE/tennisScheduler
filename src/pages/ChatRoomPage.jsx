@@ -211,6 +211,18 @@ const formatMessageTime = (dateText) => {
   }).format(new Date(dateText))
 }
 
+const formatMediaSummaryTime = (dateText) => {
+  if (!dateText) return ''
+  const date = new Date(dateText)
+  const today = new Date()
+  const isToday = date.toDateString() === today.toDateString()
+  return new Intl.DateTimeFormat('ko-KR', {
+    ...(isToday ? {} : { month: 'numeric', day: 'numeric' }),
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 const formatSearchResultTime = (dateText) => {
   if (!dateText) return ''
   return new Intl.DateTimeFormat('ko-KR', {
@@ -2078,7 +2090,7 @@ export default function ChatRoomPage() {
                         className="chat-media-lightbox-trigger"
                       />
                     )}
-                    <time>{formatMessageTime(item.created_at)}</time>
+                    <time>{formatMediaSummaryTime(item.created_at)}</time>
                   </div>
                 ))}
               </div>
