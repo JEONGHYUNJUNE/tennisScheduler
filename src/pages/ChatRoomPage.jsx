@@ -18,6 +18,8 @@ const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
 const customStickerPageSize = stickerPanelSlotCount
 const customStickerSize = 256
+const customStickerPreviewSize = 132
+const customStickerPreviewRatio = customStickerPreviewSize / customStickerSize
 const roomStickerPageSize = stickerPanelSlotCount
 const maxRoomStickerPages = 3
 
@@ -2856,7 +2858,8 @@ export default function ChatRoomPage() {
                   src={stickerEditor.dataUrl}
                   alt="커스텀 이모티콘 미리보기"
                   style={stickerEditor.isGif ? undefined : {
-                    transform: `translate(${stickerEditor.offsetX}px, ${stickerEditor.offsetY}px) scale(${stickerEditor.scale})`,
+                    objectFit: 'cover',
+                    transform: `translate(${stickerEditor.offsetX * customStickerPreviewRatio}px, ${stickerEditor.offsetY * customStickerPreviewRatio}px) scale(${stickerEditor.scale})`,
                   }}
                 />
               ) : (
