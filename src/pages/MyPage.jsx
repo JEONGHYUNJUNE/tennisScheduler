@@ -373,10 +373,6 @@ function NotificationSettingsModal({ profile, onClose }) {
     persistPreferences(nextPreferences)
   }
 
-  const handleSave = async () => {
-    await persistPreferences(preferences)
-  }
-
   return createPortal(
     <div className="inquiry-modal-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose()
@@ -430,15 +426,7 @@ function NotificationSettingsModal({ profile, onClose }) {
                 </button>
               ))}
             </div>
-
-            <button
-              className="primary-button notification-settings-save"
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? '저장 중...' : '설정 다시 저장'}
-            </button>
+            {saving && <p className="notification-settings-saving">저장 중...</p>}
           </>
         )}
       </div>

@@ -1072,7 +1072,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .notification-setting-row.enabled i { background: rgba(53,129,70,.86); }
 .notification-setting-row.enabled i::after { transform: translateX(20px); }
 .notification-setting-master { min-height: 80px; background: linear-gradient(135deg, rgba(237,246,234,.98), rgba(255,255,255,.9)); }
-.notification-settings-save { min-height: 50px; border-radius: 16px; }
+.notification-settings-saving { margin: 0; color: var(--muted); font-size: .82rem; font-weight: 850; text-align: center; }
 .inquiry-inbox { display: grid; gap: 12px; }
 .inquiry-thread { padding: 16px; border: 1px solid rgba(217,228,213,.86); border-radius: 20px; display: grid; gap: 12px; background: rgba(255,255,255,.62); box-shadow: 0 10px 24px rgba(49,95,59,.07); }
 .inquiry-thread.highlighted { border-color: rgba(53,129,70,.5); background: rgba(237,246,234,.94); animation: inquiry-highlight-pulse 1.8s ease-out 1; }
