@@ -340,27 +340,14 @@ function NotificationSettingsModal({ profile, onClose }) {
   const enabledCount = notificationSettingItems.filter((item) => preferences[item.key]).length
   const allEnabled = enabledCount === notificationSettingItems.length
 
-  const handleToggle = (key) => {
-    setSuccess('')
-    setPreferences((current) => ({ ...current, [key]: !current[key] }))
-  }
-
-  const handleToggleAll = () => {
-    const nextValue = !allEnabled
-    setSuccess('')
-    setPreferences((current) => ({
-      ...current,
-      ...Object.fromEntries(notificationSettingItems.map((item) => [item.key, nextValue])),
-    }))
-  }
-
-  const handleSave = async () => {
+  const persistPreferences = async (nextPreferences) => {
+    setPreferences(nextPreferences)
     setSaving(true)
     setError('')
     setSuccess('')
 
     try {
-      const saved = await saveNotificationPreferences(profile.id, preferences)
+      const saved = await saveNotificationPreferences(profile.id, nextPreferences)
       setPreferences(saved)
       setSuccess('알림 설정이 저장되었습니다.')
       window.dispatchEvent(new CustomEvent('ons-tennis-notification-preferences-changed'))
@@ -370,6 +357,24 @@ function NotificationSettingsModal({ profile, onClose }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleToggle = (key) => {
+    const nextPreferences = { ...preferences, [key]: !preferences[key] }
+    persistPreferences(nextPreferences)
+  }
+
+  const handleToggleAll = () => {
+    const nextValue = !allEnabled
+    const nextPreferences = {
+      ...preferences,
+      ...Object.fromEntries(notificationSettingItems.map((item) => [item.key, nextValue])),
+    }
+    persistPreferences(nextPreferences)
+  }
+
+  const handleSave = async () => {
+    await persistPreferences(preferences)
   }
 
   return createPortal(
@@ -399,6 +404,7 @@ function NotificationSettingsModal({ profile, onClose }) {
               type="button"
               className={`notification-setting-row notification-setting-master ${allEnabled ? 'enabled' : ''}`}
               onClick={handleToggleAll}
+              disabled={saving}
             >
               <span>
                 <strong>전체 알림</strong>
@@ -414,6 +420,7 @@ function NotificationSettingsModal({ profile, onClose }) {
                   type="button"
                   className={`notification-setting-row ${preferences[item.key] ? 'enabled' : ''}`}
                   onClick={() => handleToggle(item.key)}
+                  disabled={saving}
                 >
                   <span>
                     <strong>{item.title}</strong>
@@ -430,7 +437,7 @@ function NotificationSettingsModal({ profile, onClose }) {
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? '저장 중...' : '저장'}
+              {saving ? '저장 중...' : '설정 다시 저장'}
             </button>
           </>
         )}
