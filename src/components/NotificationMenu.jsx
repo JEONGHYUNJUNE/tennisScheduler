@@ -49,7 +49,8 @@ const getNotificationLink = (notification) => {
     notification.type === 'tennis_diary_liked' ||
     notification.type === 'tennis_diary_comment_liked' ||
     notification.type === 'tennis_diary_entry_mention' ||
-    notification.type === 'tennis_diary_comment_mention'
+    notification.type === 'tennis_diary_comment_mention' ||
+    notification.type === 'tennis_diary_entry_created'
   ) {
     const params = new URLSearchParams()
     if (notification.tennis_diary_entry_id) params.set('entry', notification.tennis_diary_entry_id)
@@ -99,7 +100,11 @@ export default function NotificationMenu({ profile }) {
     if (!profile?.id) return
     load()
     const timer = setInterval(load, 30000)
-    return () => clearInterval(timer)
+    window.addEventListener('ons-tennis-notification-preferences-changed', load)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('ons-tennis-notification-preferences-changed', load)
+    }
   }, [profile?.id, load])
 
   const handleToggle = async () => {

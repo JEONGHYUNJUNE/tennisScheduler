@@ -1016,8 +1016,11 @@ dd { margin: 0; white-space: pre-wrap; }
 .inactive-card p:not(.eyebrow) { color: var(--muted); line-height: 1.7; }
 .inactive-card button { margin-top: 20px; }
 .my-page-shell { display: grid; gap: 18px; }
-.my-page-card { padding: clamp(22px, 4vw, 34px); border: 1px solid rgba(217, 228, 213, .9); border-radius: 24px; display: grid; gap: 22px; background: rgba(255, 253, 248, .94); box-shadow: 0 16px 38px rgba(49, 95, 59, .1); backdrop-filter: blur(8px); }
+.my-page-card { position: relative; padding: clamp(22px, 4vw, 34px); border: 1px solid rgba(217, 228, 213, .9); border-radius: 24px; display: grid; gap: 22px; background: rgba(255, 253, 248, .94); box-shadow: 0 16px 38px rgba(49, 95, 59, .1); backdrop-filter: blur(8px); }
 .my-page-profile { display: flex; align-items: center; gap: 16px; }
+.my-page-card > .my-page-profile:first-of-type { padding-right: 112px; }
+.my-page-notification-settings-button { position: absolute; top: clamp(18px, 3vw, 26px); right: clamp(18px, 3vw, 26px); min-height: 38px; border: 1px solid rgba(63,116,75,.18); border-radius: 999px; padding: 0 14px; color: var(--green-800); background: rgba(237,246,234,.9); font-size: .82rem; font-weight: 950; box-shadow: 0 10px 22px rgba(49,95,59,.1); }
+.my-page-notification-settings-button:hover { background: white; transform: translateY(-1px); }
 .my-page-avatar-button { position: relative; border: 0; padding: 0; border-radius: 50%; background: transparent; }
 .my-page-avatar-button > span:not(.member-avatar) { position: absolute; right: -3px; bottom: 0; min-height: 23px; border: 1px solid rgba(217,228,213,.9); border-radius: 999px; padding: 5px 8px; color: var(--green-800); background: rgba(255,255,255,.94); font-size: .68rem; font-weight: 950; line-height: 1; box-shadow: 0 8px 18px rgba(49,95,59,.12); }
 .my-page-avatar-button:hover .member-avatar { transform: translateY(-1px); box-shadow: 0 15px 30px rgba(49,95,59,.22); }
@@ -1036,6 +1039,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .inquiry-open-button:hover:not(:disabled) { color: var(--green-800); background: white; }
 .inquiry-modal-backdrop { position: fixed; inset: 0; z-index: 22000; padding: 22px; display: grid; place-items: center; background: rgba(20, 35, 23, .42); backdrop-filter: blur(10px); animation: inquiry-backdrop-in .18s ease-out both; }
 .inquiry-modal { width: min(640px, 100%); max-height: min(760px, calc(100dvh - 44px)); padding: 24px; border: 1px solid rgba(217,228,213,.92); border-radius: 28px; display: grid; gap: 16px; overflow: auto; color: var(--text); background: linear-gradient(145deg, rgba(255,253,248,.98), rgba(247,251,244,.96)); box-shadow: 0 26px 80px rgba(23, 47, 28, .24); animation: inquiry-modal-rise .26s cubic-bezier(.2,.85,.25,1) both; transform-origin: 50% 100%; }
+.notification-settings-modal { width: min(560px, 100%); }
 .inquiry-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .inquiry-modal-head h2 { margin-top: 4px; color: var(--green-900); font-size: 1.55rem; }
 .inquiry-close-button { width: 40px; height: 40px; border: 1px solid rgba(217,228,213,.92); border-radius: 50%; display: grid; place-items: center; color: var(--green-800); background: rgba(255,255,255,.72); font-size: 1.55rem; line-height: 1; box-shadow: 0 10px 24px rgba(49,95,59,.1); }
@@ -1057,6 +1061,18 @@ dd { margin: 0; white-space: pre-wrap; }
 .inquiry-image-preview img { width: 100%; max-height: 240px; display: block; object-fit: cover; }
 .inquiry-image-preview button { position: absolute; top: 10px; right: 10px; min-height: 34px; border: 1px solid rgba(217,228,213,.86); border-radius: 999px; padding: 0 12px; color: #b0452d; background: rgba(255,255,255,.9); font-weight: 950; }
 .inquiry-submit-button { min-height: 52px; border-radius: 16px; background: linear-gradient(135deg, #358146, #3f744b); }
+.notification-settings-note { margin: 0; color: var(--muted); line-height: 1.55; font-weight: 800; }
+.notification-setting-list { display: grid; gap: 10px; }
+.notification-setting-row { width: 100%; min-height: 74px; border: 1px solid rgba(217,228,213,.86); border-radius: 20px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--text); background: rgba(255,255,255,.7); text-align: left; box-shadow: 0 10px 24px rgba(49,95,59,.06); }
+.notification-setting-row span { display: grid; gap: 5px; }
+.notification-setting-row strong { color: var(--green-900); font-size: 1rem; }
+.notification-setting-row em { color: var(--muted); font-size: .82rem; font-style: normal; font-weight: 760; line-height: 1.35; }
+.notification-setting-row i { position: relative; flex: 0 0 auto; width: 48px; height: 28px; border-radius: 999px; background: rgba(104,117,106,.18); transition: background .16s; }
+.notification-setting-row i::after { content: ""; position: absolute; top: 4px; left: 4px; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 4px 10px rgba(49,95,59,.18); transition: transform .16s; }
+.notification-setting-row.enabled i { background: rgba(53,129,70,.86); }
+.notification-setting-row.enabled i::after { transform: translateX(20px); }
+.notification-setting-master { min-height: 80px; background: linear-gradient(135deg, rgba(237,246,234,.98), rgba(255,255,255,.9)); }
+.notification-settings-save { min-height: 50px; border-radius: 16px; }
 .inquiry-inbox { display: grid; gap: 12px; }
 .inquiry-thread { padding: 16px; border: 1px solid rgba(217,228,213,.86); border-radius: 20px; display: grid; gap: 12px; background: rgba(255,255,255,.62); box-shadow: 0 10px 24px rgba(49,95,59,.07); }
 .inquiry-thread.highlighted { border-color: rgba(53,129,70,.5); background: rgba(237,246,234,.94); animation: inquiry-highlight-pulse 1.8s ease-out 1; }
@@ -1376,6 +1392,8 @@ dd { margin: 0; white-space: pre-wrap; }
   }
   .my-page-card { border-radius: 26px; }
   .my-page-profile { align-items: flex-start; }
+  .my-page-card > .my-page-profile:first-of-type { padding-right: 84px; }
+  .my-page-notification-settings-button { min-height: 34px; padding: 0 11px; font-size: .76rem; }
   .my-page-avatar { width: 58px; height: 58px; }
   .my-page-section-head { align-items: center; }
   .my-page-section-head h2 { font-size: 1.18rem; }

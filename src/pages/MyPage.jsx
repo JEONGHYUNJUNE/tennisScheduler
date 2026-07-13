@@ -12,6 +12,7 @@ import { getMyUpcomingEvents } from '../services/eventService'
 import { createInquiry, deleteInquiry, deleteInquiryReply, getAdminInquiries, getMyInquiries, replyToInquiry } from '../services/inquiryService'
 import { createDiaryGroup, deleteDiaryGroup, getDiaryGroupMembers, getDiaryInvitations, getMyDiaryGroups, inviteDiaryGroupMembers, respondDiaryInvitation } from '../services/diaryService'
 import { getMembers } from '../services/memberService'
+import { defaultNotificationPreferences, getNotificationPreferences, saveNotificationPreferences } from '../services/notificationPreferenceService'
 import { updateProfileAvatar } from '../services/profileService'
 
 const formatDate = (dateText) => {
@@ -53,6 +54,7 @@ export default function MyPage() {
   const [inquiryOpen, setInquiryOpen] = useState(false)
   const [diaryGroupOpen, setDiaryGroupOpen] = useState(false)
   const [avatarOpen, setAvatarOpen] = useState(false)
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false)
   // DX Insight easter egg entrypoint. Remove this state/ref and the handlers below to detach the feature.
   const [dxInsightOpen, setDxInsightOpen] = useState(false)
   const dxInsightPressTimerRef = useRef(null)
@@ -121,6 +123,13 @@ export default function MyPage() {
   return (
     <section className="my-page-shell">
       <div className="my-page-card">
+        <button
+          className="my-page-notification-settings-button"
+          type="button"
+          onClick={() => setNotificationSettingsOpen(true)}
+        >
+          알림설정
+        </button>
         <div className="my-page-profile">
           <button className="my-page-avatar-button" type="button" onClick={() => setAvatarOpen(true)} aria-label="프로필 사진 설정">
             <MemberAvatar name={profile?.name} imageUrl={profile?.avatar_url} size="xl" />
@@ -251,12 +260,186 @@ export default function MyPage() {
         />
       )}
 
+      {notificationSettingsOpen && (
+        <NotificationSettingsModal
+          profile={profile}
+          onClose={() => setNotificationSettingsOpen(false)}
+        />
+      )}
+
       {dxInsightOpen && (
         <DxInsightModal onClose={() => setDxInsightOpen(false)} />
       )}
     </section>
   )
 }
+
+const notificationSettingItems = [
+  {
+    key: 'schedule_enabled',
+    title: '일정',
+    description: '새 일정, 일정 댓글, 참석 관련 알림',
+  },
+  {
+    key: 'social_enabled',
+    title: '소통',
+    description: '소통 글, 댓글, 좋아요, 언급 알림',
+  },
+  {
+    key: 'diary_enabled',
+    title: '다이어리',
+    description: '전체공개/그룹다이어리 새 글과 댓글 알림',
+  },
+  {
+    key: 'inquiry_enabled',
+    title: '문의',
+    description: '문의 접수, 답변, 추가 댓글 알림',
+  },
+  {
+    key: 'chat_enabled',
+    title: '채팅',
+    description: '채팅 요청, 새 메시지, 반응 알림',
+  },
+  {
+    key: 'general_enabled',
+    title: '기타',
+    description: '시스템 또는 관리 알림',
+  },
+]
+
+function NotificationSettingsModal({ profile, onClose }) {
+  const [preferences, setPreferences] = useState(defaultNotificationPreferences)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    if (!profile?.id) return undefined
+
+    let ignore = false
+    setLoading(true)
+    setError('')
+
+    getNotificationPreferences(profile.id)
+      .then((nextPreferences) => {
+        if (!ignore) setPreferences(nextPreferences)
+      })
+      .catch((err) => {
+        if (!ignore) setError(err.message)
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [profile?.id])
+
+  const enabledCount = notificationSettingItems.filter((item) => preferences[item.key]).length
+  const allEnabled = enabledCount === notificationSettingItems.length
+
+  const handleToggle = (key) => {
+    setSuccess('')
+    setPreferences((current) => ({ ...current, [key]: !current[key] }))
+  }
+
+  const handleToggleAll = () => {
+    const nextValue = !allEnabled
+    setSuccess('')
+    setPreferences((current) => ({
+      ...current,
+      ...Object.fromEntries(notificationSettingItems.map((item) => [item.key, nextValue])),
+    }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const saved = await saveNotificationPreferences(profile.id, preferences)
+      setPreferences(saved)
+      setSuccess('알림 설정이 저장되었습니다.')
+      window.dispatchEvent(new CustomEvent('ons-tennis-notification-preferences-changed'))
+      window.dispatchEvent(new CustomEvent('ons-tennis-notification-unread-changed'))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return createPortal(
+    <div className="inquiry-modal-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose()
+    }}>
+      <div className="inquiry-modal notification-settings-modal" role="dialog" aria-modal="true" aria-labelledby="notification-settings-title">
+        <div className="inquiry-modal-head">
+          <div>
+            <p className="eyebrow">NOTIFICATION</p>
+            <h2 id="notification-settings-title">알림설정</h2>
+          </div>
+          <button type="button" className="inquiry-close-button" onClick={onClose} aria-label="알림설정 닫기">×</button>
+        </div>
+
+        <p className="notification-settings-note">
+          푸시ON 상태에서 메뉴별 알림만 골라 받을 수 있어요. 꺼둔 메뉴는 푸시 발송 직전에 제외됩니다.
+        </p>
+
+        {loading && <LoadingState message="알림 설정을 불러오는 중입니다." variant="inline" />}
+        {error && <p className="inquiry-alert error">{error}</p>}
+        {success && <p className="inquiry-alert success">{success}</p>}
+
+        {!loading && (
+          <>
+            <button
+              type="button"
+              className={`notification-setting-row notification-setting-master ${allEnabled ? 'enabled' : ''}`}
+              onClick={handleToggleAll}
+            >
+              <span>
+                <strong>전체 알림</strong>
+                <em>{allEnabled ? '모든 메뉴 알림을 받고 있어요.' : `${enabledCount}개 메뉴 알림이 켜져 있어요.`}</em>
+              </span>
+              <i aria-hidden="true" />
+            </button>
+
+            <div className="notification-setting-list">
+              {notificationSettingItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`notification-setting-row ${preferences[item.key] ? 'enabled' : ''}`}
+                  onClick={() => handleToggle(item.key)}
+                >
+                  <span>
+                    <strong>{item.title}</strong>
+                    <em>{item.description}</em>
+                  </span>
+                  <i aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="primary-button notification-settings-save"
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? '저장 중...' : '저장'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 function AvatarModal({ profile, onClose, onSaved }) {
   const cropStageSize = 236
   const outputSize = 512

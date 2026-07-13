@@ -37,6 +37,51 @@ const corsHeaders = {
 
 const selfActionNotificationTypes = new Set(['attendance_created', 'attendance_cancelled'])
 
+const notificationCategoryTypes = {
+  schedule: new Set([
+    'attendance_created',
+    'attendance_cancelled',
+    'waiting_promoted',
+    'event_created',
+    'event_updated',
+    'event_cancelled',
+    'event_reminder_day_before',
+    'event_reminder_today',
+    'tennis_event_comment_created',
+    'tennis_event_comment_reply_created',
+    'tennis_event_comment_mention',
+    'tennis_event_comment_liked',
+  ]),
+  social: new Set([
+    'free_opinion_created',
+    'free_opinion_comment_created',
+    'free_opinion_comment_reply_created',
+    'free_opinion_comment_liked',
+    'free_opinion_mention',
+    'free_opinion_comment_mention',
+  ]),
+  diary: new Set([
+    'tennis_diary_comment_created',
+    'tennis_diary_comment_reply_created',
+    'tennis_diary_liked',
+    'tennis_diary_comment_liked',
+    'tennis_diary_entry_mention',
+    'tennis_diary_comment_mention',
+    'tennis_diary_group_invited',
+    'tennis_diary_entry_created',
+  ]),
+  inquiry: new Set([
+    'member_inquiry_created',
+    'member_inquiry_replied',
+    'member_inquiry_followed_up',
+  ]),
+  chat: new Set([
+    'chat_requested',
+    'chat_message_created',
+    'chat_message_reaction_created',
+  ]),
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -57,6 +102,16 @@ Deno.serve(async (request) => {
       selfActionNotificationTypes.has(notification.type)
     ) {
       return jsonResponse({ ok: true, skipped: true, reason: 'self-action' })
+    }
+
+    if (!(await isNotificationEnabled(notification))) {
+      return jsonResponse({
+        ok: true,
+        skipped: true,
+        reason: 'notification-category-disabled',
+        notification_id: notification.id,
+        category: getNotificationCategory(notification),
+      })
     }
 
     const subscriptions = await getSubscriptions(notification.recipient_member_id)
@@ -110,6 +165,39 @@ async function getSubscriptions(memberId: string) {
 
   if (error) throw error
   return (data || []) as PushSubscriptionRow[]
+}
+
+async function isNotificationEnabled(notification: NotificationRecord) {
+  const category = getNotificationCategory(notification)
+  const column = `${category}_enabled`
+  const selectColumns = column === 'general_enabled' ? column : `${column}, general_enabled`
+  const { data, error } = await getSupabase()
+    .from('ot_notification_preferences')
+    .select(selectColumns)
+    .eq('member_id', notification.recipient_member_id)
+    .maybeSingle()
+
+  if (error) {
+    if (error.code === '42P01' || error.code === '42703') return true
+    throw error
+  }
+
+  if (!data) return true
+  return data[column] !== false
+}
+
+function getNotificationCategory(notification: NotificationRecord) {
+  if (notification.event_id || notification.type.startsWith('tennis_event_')) return 'schedule'
+  if (notification.chat_room_id || notification.type.startsWith('chat_')) return 'chat'
+  if (notification.inquiry_id || notification.type.startsWith('member_inquiry_')) return 'inquiry'
+  if (notification.tennis_diary_entry_id || notification.tennis_diary_comment_id || notification.tennis_diary_group_id || notification.type.startsWith('tennis_diary_')) return 'diary'
+  if (notification.free_opinion_id || notification.free_opinion_comment_id || notification.type.startsWith('free_opinion_')) return 'social'
+
+  for (const [category, types] of Object.entries(notificationCategoryTypes)) {
+    if (types.has(notification.type)) return category
+  }
+
+  return 'general'
 }
 
 async function sendPush(subscription: PushSubscriptionRow, notification: NotificationRecord) {
@@ -178,7 +266,8 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     notification.type === 'tennis_diary_liked' ||
     notification.type === 'tennis_diary_comment_liked' ||
     notification.type === 'tennis_diary_entry_mention' ||
-    notification.type === 'tennis_diary_comment_mention'
+    notification.type === 'tennis_diary_comment_mention' ||
+    notification.type === 'tennis_diary_entry_created'
   ) {
     const params = new URLSearchParams()
     if (notification.tennis_diary_entry_id) params.set('entry', notification.tennis_diary_entry_id)
