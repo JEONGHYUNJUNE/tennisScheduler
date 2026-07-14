@@ -1094,9 +1094,31 @@ export default function ChatRoomPage() {
     return true
   }
 
-  const scrollToMessage = (messageId) => {
-    if (!highlightMessage(messageId)) {
-      setError('이전 메시지를 위로 불러온 뒤 확인할 수 있어요.')
+  const scrollToMessage = async (messageId) => {
+    if (!messageId) return
+    setError('')
+    setStickerOpen(false)
+    if (highlightMessage(messageId)) return
+
+    setLoadingOlder(true)
+    try {
+      const loadedMessage = messages.find((item) => item.id === messageId)
+      const targetMessage = loadedMessage || await getChatMessage(messageId)
+      if (!targetMessage?.created_at) throw new Error('이 메시지를 찾지 못했습니다.')
+
+      const aroundMessages = await getChatMessagesAround(roomId, targetMessage.created_at)
+      shouldScrollToBottomRef.current = false
+      setMessages(aroundMessages)
+      setHasMoreMessages(aroundMessages.length >= chatMessagePageSize)
+      setViewingSearchContext(true)
+      setShowScrollBottom(true)
+      window.setTimeout(() => {
+        if (!highlightMessage(messageId)) setError('메시지를 불러왔지만 위치를 찾지 못했습니다.')
+      }, 120)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoadingOlder(false)
     }
   }
 
