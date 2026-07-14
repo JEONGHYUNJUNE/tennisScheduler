@@ -424,6 +424,7 @@ export default function ChatRoomPage() {
   const messageInputRef = useRef(null)
   const longPressTimerRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
+  const pendingBottomRestoreRef = useRef(false)
   const scrollCorrectionTimersRef = useRef([])
   const prependAnchorRef = useRef(null)
   const loadingOlderRef = useRef(false)
@@ -1023,6 +1024,12 @@ export default function ChatRoomPage() {
     scheduleScrollToBottom()
   }, [messages.length, scheduleScrollToBottom])
 
+  useEffect(() => {
+    if (!pendingBottomRestoreRef.current) return
+    pendingBottomRestoreRef.current = false
+    scheduleScrollToBottom({ behavior: 'auto' })
+  }, [messages, scheduleScrollToBottom])
+
   const loadOlderMessages = useCallback(async () => {
     if (!hasMoreMessages || loadingOlder || loadingOlderRef.current || messages.length === 0) return
 
@@ -1180,10 +1187,10 @@ export default function ChatRoomPage() {
     try {
       const latestMessages = await getChatMessages(roomId)
       shouldScrollToBottomRef.current = true
+      pendingBottomRestoreRef.current = true
       setMessages(latestMessages)
       setHasMoreMessages(latestMessages.length === chatMessagePageSize)
       setViewingSearchContext(false)
-      window.setTimeout(() => scheduleScrollToBottom({ behavior: 'auto' }), 80)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -1377,10 +1384,10 @@ export default function ChatRoomPage() {
 
     const latestMessages = await getChatMessages(roomId)
     shouldScrollToBottomRef.current = true
+    pendingBottomRestoreRef.current = true
     setMessages(mergeMessages(latestMessages, [sentMessage]))
     setHasMoreMessages(latestMessages.length === chatMessagePageSize)
     setViewingSearchContext(false)
-    window.setTimeout(() => scheduleScrollToBottom({ behavior: 'auto' }), 80)
   }
 
   const runSearchShare = async (query = searchShareQuery) => {
