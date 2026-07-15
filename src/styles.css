@@ -602,6 +602,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-message-text { margin: 0; border-radius: 18px; padding: 11px 13px; display: block; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 800; }
 .chat-message.theirs .chat-message-text { color: #1f2b22; background: white; border-bottom-left-radius: 6px; box-shadow: 0 8px 20px rgba(49,95,59,.08); }
 .chat-message.mine .chat-message-text { color: white; background: var(--green-700); border-bottom-right-radius: 6px; }
+.chat-message-text a { color: #1c68d8; text-decoration: underline; text-underline-offset: 3px; word-break: break-all; -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+.chat-message.mine .chat-message-text a { color: #e9f4ff; }
 .chat-message.deleted .chat-message-text.deleted,
 .chat-message.mine.deleted .chat-message-text.deleted,
 .chat-message.theirs.deleted .chat-message-text.deleted { color: rgba(104,117,106,.82); background: rgba(237,246,234,.86); border: 1px solid rgba(217,228,213,.9); border-radius: 18px; box-shadow: none; font-style: normal; }

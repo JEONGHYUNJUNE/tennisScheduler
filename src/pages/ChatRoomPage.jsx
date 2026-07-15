@@ -280,6 +280,49 @@ const isChatStickerImagePath = (imagePath = '') => (
   imagePath.startsWith('chat-stickers/') || isReusableChatStickerPath(imagePath)
 )
 
+const chatUrlPattern = /((?:https?:\/\/|www\.)[^\s<>"']+)/gi
+const trailingUrlPunctuationPattern = /[.,!?;:)\]}]+$/
+
+function normalizeChatLinkUrl(value) {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`
+}
+
+function renderLinkifiedChatText(text = '') {
+  const nodes = []
+  let lastIndex = 0
+  let match
+
+  chatUrlPattern.lastIndex = 0
+  while ((match = chatUrlPattern.exec(text)) !== null) {
+    const rawUrl = match[0]
+    const matchIndex = match.index
+    const trailingMatch = rawUrl.match(trailingUrlPunctuationPattern)
+    const trailing = trailingMatch?.[0] || ''
+    const urlText = trailing ? rawUrl.slice(0, -trailing.length) : rawUrl
+
+    if (matchIndex > lastIndex) nodes.push(text.slice(lastIndex, matchIndex))
+
+    nodes.push(
+      <a
+        href={normalizeChatLinkUrl(urlText)}
+        target="_blank"
+        rel="noreferrer"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+        key={`link-${matchIndex}-${urlText}`}
+      >
+        {urlText}
+      </a>,
+    )
+
+    if (trailing) nodes.push(trailing)
+    lastIndex = matchIndex + rawUrl.length
+  }
+
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
+  return nodes.length ? nodes : text
+}
+
 const isVideoFile = (file) => file?.type?.startsWith('video/') || videoFileExtensionPattern.test(file?.name || '')
 
 const getVideoDuration = (file) => new Promise((resolve, reject) => {
@@ -2189,7 +2232,11 @@ export default function ChatRoomPage() {
     }
 
     const emojiOnly = item.message_type === 'text' && isSingleEmojiMessage(item.body || '')
-    return <span className={`chat-message-text ${emojiOnly ? 'emoji-only' : ''}`}>{item.body}</span>
+    return (
+      <span className={`chat-message-text ${emojiOnly ? 'emoji-only' : ''}`}>
+        {emojiOnly ? item.body : renderLinkifiedChatText(item.body || '')}
+      </span>
+    )
   }
 
   return (
