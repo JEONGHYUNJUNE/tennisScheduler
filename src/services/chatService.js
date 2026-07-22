@@ -70,6 +70,7 @@ const messageWithReplyIdSelectColumns = `
   image_name,
   image_mime,
   reply_to_message_id,
+  media_pinned_at,
   deleted_at,
   deleted_by_member_id,
   created_at,
@@ -397,7 +398,7 @@ export async function getChatMessagesAround(roomId, createdAt, { limit = 50 } = 
 }
 
 export async function getChatMediaMessages(roomId, { limit = 120 } = {}) {
-  const { data, error } = await runVisibleMessageQuery((withDeletedFilter) => {
+  let { data, error } = await runVisibleMessageQuery((withDeletedFilter) => {
     let query = supabase
       .from('chat_messages')
       .select(messageWithReplyIdSelectColumns)
@@ -412,12 +413,45 @@ export async function getChatMediaMessages(roomId, { limit = 120 } = {}) {
     return query
   })
 
+  if (isMissingMediaPinSchemaError(error)) {
+    const fallback = await runVisibleMessageQuery((withDeletedFilter) => {
+      let query = supabase
+        .from('chat_messages')
+        .select(baseMessageSelectColumns)
+        .eq('room_id', roomId)
+        .in('message_type', ['image', 'video'])
+        .not('image_path', 'like', 'chat-stickers/%')
+        .not('image_path', 'like', 'chat-custom-stickers/%')
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+      if (withDeletedFilter) query = query.is('deleted_at', null)
+      return query
+    })
+    data = fallback.data
+    error = fallback.error
+  }
+
   if (error) {
     if (isMissingChatTableError(error)) return []
     throw error
   }
 
   return hydrateChatMessages((data || []).map(normalizeMessage))
+}
+
+export async function setChatMediaPinned(messageId, pinned) {
+  const { data, error } = await supabase
+    .rpc('set_chat_media_pinned', {
+      target_message_id: messageId,
+      should_pin: pinned,
+    })
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data) throw new Error('앨범 항목을 찾지 못했습니다.')
+  const [message] = await hydrateChatMessages([normalizeMessage(data)])
+  return message
 }
 
 export async function requestChat(recipientMemberId) {
@@ -1198,7 +1232,12 @@ function isMissingReplyNoticeSchemaError(error) {
   if (!error) return false
   return error.code === '42703' ||
     error.code === 'PGRST200' ||
-    /reply_to_message_id|notice_message_id|notice_set_by_member_id|notice_set_at|chat_messages_reply_to_message_id_fkey/i.test(error.message || '')
+    /reply_to_message_id|notice_message_id|notice_set_by_member_id|notice_set_at|media_pinned_at|chat_messages_reply_to_message_id_fkey/i.test(error.message || '')
+}
+
+function isMissingMediaPinSchemaError(error) {
+  if (!error) return false
+  return error.code === '42703' && /media_pinned_at/i.test(error.message || '')
 }
 
 function isMissingReplyRelationError(error) {

@@ -5,7 +5,7 @@ import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import chatStickerFaceIcon from '../assets/chat-sticker-face.png'
 import { useAuth } from '../contexts/AuthContext'
-import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteChatMessage, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMediaMessages, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
+import { acceptChatRoom, chatMessagePageSize, chatReactionOptions, chatStickerOptions, deleteChatMessage, deleteCustomChatSticker, endChatRoom, enterChatRoom, getChatMediaMessages, getChatMessage, getChatMessages, getChatMessagesAround, getChatReactionImageUrl, getChatRoom, getChatStickerReactionValue, getCustomChatStickers, isChatStickerReaction, isReusableChatStickerPath, markChatRoomInactive, markChatRoomRead, parseSearchShare, saveCustomChatStickerRecord, searchChatMessages, sendChatImage, sendChatMessage, sendChatStickerReference, sendChatVideo, serializeSearchShare, setChatMediaPinned, setChatMessageReaction, uploadReusableChatSticker, setChatRoomNotice, subscribeToChatRoom } from '../services/chatService'
 import { searchNaver } from '../services/naverSearchService'
 
 const maxCustomStickers = 24
@@ -512,6 +512,7 @@ export default function ChatRoomPage() {
   const [chatMediaMessages, setChatMediaMessages] = useState([])
   const [chatMediaLoading, setChatMediaLoading] = useState(false)
   const [chatMediaError, setChatMediaError] = useState('')
+  const [chatMediaPinningId, setChatMediaPinningId] = useState('')
 
   const isActive = room?.status === 'active'
   const isRequested = room?.status === 'requested'
@@ -699,6 +700,16 @@ export default function ChatRoomPage() {
     })
     return [...stickerMap.values()].slice(0, 30)
   }, [roomStickers])
+  const sortedChatMediaMessages = useMemo(() => (
+    [...chatMediaMessages].sort((a, b) => {
+      const aPinned = a.media_pinned_at ? new Date(a.media_pinned_at).getTime() : 0
+      const bPinned = b.media_pinned_at ? new Date(b.media_pinned_at).getTime() : 0
+      if (aPinned || bPinned) {
+        if (aPinned !== bPinned) return bPinned - aPinned
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  ), [chatMediaMessages])
 
   useEffect(() => {
     const draft = readSearchShareDraft(roomId)
@@ -2190,6 +2201,24 @@ export default function ChatRoomPage() {
     }
   }
 
+  const toggleChatMediaPinned = async (item) => {
+    if (!item?.id || chatMediaPinningId) return
+    setChatMediaPinningId(item.id)
+    setChatMediaError('')
+    try {
+      const updated = await setChatMediaPinned(item.id, !item.media_pinned_at)
+      setChatMediaMessages((current) => current.map((media) => (
+        media.id === item.id
+          ? { ...media, media_pinned_at: updated.media_pinned_at || null }
+          : media
+      )))
+    } catch (err) {
+      setChatMediaError(err.message || '고정 상태를 저장하지 못했습니다.')
+    } finally {
+      setChatMediaPinningId('')
+    }
+  }
+
   const handleSubmit = (event) => {
     event.preventDefault()
     sendTextMessage()
@@ -2231,10 +2260,12 @@ export default function ChatRoomPage() {
             {!chatMediaLoading && !chatMediaError && chatMediaMessages.length === 0 && (
               <p className="chat-menu-empty">아직 주고받은 사진이나 동영상이 없습니다.</p>
             )}
-            {chatMediaMessages.length > 0 && (
+            {sortedChatMediaMessages.length > 0 && (
               <div className="chat-media-grid">
-                {chatMediaMessages.map((item) => (
-                  <div className="chat-media-tile" key={item.id}>
+                {sortedChatMediaMessages.map((item) => {
+                  const isPinned = Boolean(item.media_pinned_at)
+                  return (
+                  <div className={`chat-media-tile ${isPinned ? 'pinned' : ''}`} key={item.id}>
                     {item.message_type === 'video' ? (
                       <video src={item.image_url} controls playsInline preload="metadata" />
                     ) : (
@@ -2244,9 +2275,23 @@ export default function ChatRoomPage() {
                         className="chat-media-lightbox-trigger"
                       />
                     )}
+                    <button
+                      type="button"
+                      className={`chat-media-pin-button ${isPinned ? 'active' : ''}`}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        toggleChatMediaPinned(item)
+                      }}
+                      disabled={chatMediaPinningId === item.id}
+                      aria-label={isPinned ? '앨범 상단 고정 해제' : '앨범 상단 고정'}
+                    >
+                      {isPinned ? '고정' : '핀'}
+                    </button>
+                    {isPinned && <span className="chat-media-pin-badge">상단 고정</span>}
                     <time>{formatMediaSummaryTime(item.created_at)}</time>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
