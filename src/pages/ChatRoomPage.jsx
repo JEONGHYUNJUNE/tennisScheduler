@@ -462,6 +462,7 @@ export default function ChatRoomPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
   const listRef = useRef(null)
+  const chatMenuContentRef = useRef(null)
   const photoInputRef = useRef(null)
   const videoInputRef = useRef(null)
   const stickerFileInputRef = useRef(null)
@@ -471,6 +472,7 @@ export default function ChatRoomPage() {
   const swipeGestureRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
   const pendingBottomRestoreRef = useRef(false)
+  const chatScrollRestoreRef = useRef(null)
   const scrollCorrectionTimersRef = useRef([])
   const prependAnchorRef = useRef(null)
   const loadingOlderRef = useRef(false)
@@ -830,11 +832,52 @@ export default function ChatRoomPage() {
     return list.scrollHeight - list.scrollTop - list.clientHeight < 96
   }, [])
 
+  const getChatScrollSnapshot = useCallback(() => {
+    const list = listRef.current
+    if (!list) return null
+    return {
+      top: list.scrollTop,
+      bottom: Math.max(0, list.scrollHeight - list.scrollTop - list.clientHeight),
+      nearBottom: isNearMessageBottom(),
+    }
+  }, [isNearMessageBottom])
+
   const scrollToMessageBottom = useCallback(({ behavior = 'smooth' } = {}) => {
     const list = listRef.current
     if (!list) return
     list.scrollTo({ top: list.scrollHeight, behavior })
     setShowScrollBottom(false)
+  }, [])
+
+  const restoreChatScrollSnapshot = useCallback((snapshot = chatScrollRestoreRef.current) => {
+    const list = listRef.current
+    if (!list || !snapshot) return
+
+    if (snapshot.nearBottom) {
+      list.scrollTop = list.scrollHeight
+      setShowScrollBottom(false)
+      return
+    }
+
+    const maxTop = Math.max(0, list.scrollHeight - list.clientHeight)
+    list.scrollTop = Math.min(snapshot.top, maxTop)
+    setShowScrollBottom(true)
+  }, [])
+
+  const scheduleRestoreChatScrollSnapshot = useCallback((snapshot = chatScrollRestoreRef.current) => {
+    if (!snapshot) return
+    restoreChatScrollSnapshot(snapshot)
+    window.requestAnimationFrame(() => restoreChatScrollSnapshot(snapshot))
+    ;[80, 240, 520].forEach((delay) => {
+      const timerId = window.setTimeout(() => restoreChatScrollSnapshot(snapshot), delay)
+      scrollCorrectionTimersRef.current.push(timerId)
+    })
+  }, [restoreChatScrollSnapshot])
+
+  const scrollChatMenuToTop = useCallback(() => {
+    const menu = chatMenuContentRef.current
+    if (!menu) return
+    menu.scrollTop = 0
   }, [])
 
   const scheduleScrollToBottom = useCallback(({ behavior = 'smooth' } = {}) => {
@@ -974,7 +1017,10 @@ export default function ChatRoomPage() {
       onMessage: (nextMessage) => getChatMessage(nextMessage.id)
         .then((hydratedMessage) => {
           if (hydratedMessage && !viewingSearchContext) {
-            appendMessages(hydratedMessage, { scrollToBottom: isNearMessageBottom() })
+            const shouldFollowLatest = chatMenuOpen
+              ? (chatScrollRestoreRef.current?.nearBottom ?? true)
+              : isNearMessageBottom()
+            appendMessages(hydratedMessage, { scrollToBottom: shouldFollowLatest })
           } else if (hydratedMessage) {
             setShowScrollBottom(true)
           }
@@ -1037,7 +1083,7 @@ export default function ChatRoomPage() {
           .catch((err) => setError(err.message))
       },
     })
-  }, [appendMessages, isNearMessageBottom, load, markRead, profile.id, roomId, viewingSearchContext])
+  }, [appendMessages, chatMenuOpen, isNearMessageBottom, load, markRead, profile.id, roomId, viewingSearchContext])
 
   useEffect(() => {
     if (!isActive) return undefined
@@ -1087,6 +1133,12 @@ export default function ChatRoomPage() {
     pendingBottomRestoreRef.current = false
     scheduleScrollToBottom({ behavior: 'auto' })
   }, [messages, scheduleScrollToBottom])
+
+  useEffect(() => {
+    if (!chatMenuOpen) return
+    scrollChatMenuToTop()
+    window.requestAnimationFrame(scrollChatMenuToTop)
+  }, [chatMenuOpen, scrollChatMenuToTop])
 
   const loadOlderMessages = useCallback(async () => {
     if (!hasMoreMessages || loadingOlder || loadingOlderRef.current || messages.length === 0) return
@@ -2180,6 +2232,9 @@ export default function ChatRoomPage() {
   }
 
   const openChatMenu = async () => {
+    const snapshot = getChatScrollSnapshot()
+    chatScrollRestoreRef.current = snapshot
+    shouldScrollToBottomRef.current = snapshot?.nearBottom ?? true
     setChatMenuOpen(true)
     setStickerOpen(false)
     setSearchOpen(false)
@@ -2199,6 +2254,13 @@ export default function ChatRoomPage() {
     } finally {
       setChatMediaLoading(false)
     }
+  }
+
+  const closeChatMenu = () => {
+    const snapshot = chatScrollRestoreRef.current
+    shouldScrollToBottomRef.current = snapshot?.nearBottom ?? true
+    setChatMenuOpen(false)
+    window.requestAnimationFrame(() => scheduleRestoreChatScrollSnapshot(snapshot))
   }
 
   const toggleChatMediaPinned = async (item) => {
@@ -2239,14 +2301,14 @@ export default function ChatRoomPage() {
     return (
       <section className="chat-room-shell chat-menu-shell">
         <div className="chat-room-head chat-menu-head">
-          <button type="button" className="chat-back-button" onClick={() => setChatMenuOpen(false)} aria-label="채팅방으로 돌아가기">‹</button>
+          <button type="button" className="chat-back-button" onClick={closeChatMenu} aria-label="채팅방으로 돌아가기">‹</button>
           <MemberAvatar name={otherMember.name} imageUrl={otherMember.avatar_url} size="sm" previewable />
           <div>
             <strong>채팅방 메뉴</strong>
             <span>{otherMember.name}</span>
           </div>
         </div>
-        <div className="chat-menu-content">
+        <div className="chat-menu-content" ref={chatMenuContentRef}>
           <section className="chat-menu-card">
             <div className="chat-menu-section-head">
               <div>
