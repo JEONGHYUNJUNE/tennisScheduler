@@ -13,6 +13,8 @@ const maxRoomStickers = 45
 const maxChatVideoSize = 50 * 1024 * 1024
 const maxChatVideoDuration = 60
 const chatDeleteWindowMs = 5 * 60 * 1000
+const replySwipeThreshold = 56
+const replySwipeMaxOffset = 72
 const videoFileExtensionPattern = /\.(mp4|mov|m4v|webm|3gp|3gpp|3g2|3gpp2)$/i
 const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
@@ -466,6 +468,7 @@ export default function ChatRoomPage() {
   const imageEditorCanvasRef = useRef(null)
   const messageInputRef = useRef(null)
   const longPressTimerRef = useRef(null)
+  const swipeGestureRef = useRef(null)
   const shouldScrollToBottomRef = useRef(true)
   const pendingBottomRestoreRef = useRef(false)
   const scrollCorrectionTimersRef = useRef([])
@@ -493,6 +496,7 @@ export default function ChatRoomPage() {
   const [imageEditorPointer, setImageEditorPointer] = useState(null)
   const [actionMessage, setActionMessage] = useState(null)
   const [replyTarget, setReplyTarget] = useState(null)
+  const [swipingMessage, setSwipingMessage] = useState(null)
   const [searchShareOpen, setSearchShareOpen] = useState(false)
   const [searchShareQuery, setSearchShareQuery] = useState('')
   const [searchShareResults, setSearchShareResults] = useState([])
@@ -1128,6 +1132,82 @@ export default function ChatRoomPage() {
     if (interactiveTarget && !interactiveTarget.classList.contains('chat-image-lightbox-trigger')) return
     clearLongPress()
     longPressTimerRef.current = window.setTimeout(() => openMessageActions(item), 520)
+  }
+
+  const setReplyTargetFromGesture = (item) => {
+    if (!item || item.message_type === 'system' || item.deleted_at) return
+    setActionMessage(null)
+    setStickerOpen(false)
+    setReplyTarget(item)
+    window.navigator?.vibrate?.(10)
+    window.requestAnimationFrame(() => messageInputRef.current?.focus())
+  }
+
+  const startMessagePointer = (event, item) => {
+    const interactiveTarget = event.target.closest('a, button, input, textarea, select')
+    if (interactiveTarget && !interactiveTarget.classList.contains('chat-image-lightbox-trigger')) return
+    if (!item || item.message_type === 'system' || item.deleted_at) return
+
+    swipeGestureRef.current = {
+      pointerId: event.pointerId,
+      message: item,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+      offset: 0,
+    }
+    startLongPress(event, item)
+  }
+
+  const cancelReplySwipe = () => {
+    clearLongPress()
+    swipeGestureRef.current = null
+    setSwipingMessage(null)
+  }
+
+  const handleMessagePointerMove = (event) => {
+    const gesture = swipeGestureRef.current
+    if (!gesture || gesture.pointerId !== event.pointerId) return
+
+    const dx = event.clientX - gesture.startX
+    const dy = event.clientY - gesture.startY
+
+    if (!gesture.active) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+        cancelReplySwipe()
+        return
+      }
+      if (dx < -12 && Math.abs(dx) > Math.abs(dy) + 8) {
+        gesture.active = true
+        clearLongPress()
+      } else {
+        return
+      }
+    }
+
+    event.preventDefault()
+    const offset = Math.max(-replySwipeMaxOffset, Math.min(0, dx))
+    gesture.offset = offset
+    setSwipingMessage({
+      id: gesture.message.id,
+      offset,
+      ready: Math.abs(offset) >= replySwipeThreshold,
+    })
+  }
+
+  const finishReplySwipe = (event) => {
+    const gesture = swipeGestureRef.current
+    clearLongPress()
+    if (!gesture || (event?.pointerId != null && gesture.pointerId !== event.pointerId)) {
+      setSwipingMessage(null)
+      return
+    }
+
+    const shouldReply = gesture.active && Math.abs(gesture.offset) >= replySwipeThreshold
+    const targetMessage = gesture.message
+    swipeGestureRef.current = null
+    setSwipingMessage(null)
+    if (shouldReply) setReplyTargetFromGesture(targetMessage)
   }
 
   const handleMessageContextMenu = (event, item) => {
@@ -2306,6 +2386,7 @@ export default function ChatRoomPage() {
           const isCustomStickerImage = item.message_type === 'image' && isChatStickerImagePath(item.image_path)
           const isImageMessage = item.message_type === 'image'
           const reactionGroups = isDeleted ? [] : getReactionGroups(item.reactions)
+          const swipeState = swipingMessage?.id === item.id ? swipingMessage : null
           const isReadByOther = mine &&
             !isDeleted &&
             room?.other_last_read_at &&
@@ -2313,19 +2394,26 @@ export default function ChatRoomPage() {
 
           return (
             <article
-              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''} ${isDeleted ? 'deleted' : ''}`}
+              className={`chat-message ${mine ? 'mine' : 'theirs'} ${item.message_type === 'sticker' ? 'sticker' : ''} ${isCustomStickerImage ? 'sticker-image' : ''} ${isDeleted ? 'deleted' : ''} ${swipeState?.ready ? 'reply-swipe-ready' : ''}`}
               key={item.id}
               data-message-id={item.id}
               onContextMenu={(event) => handleMessageContextMenu(event, item)}
-              onPointerDown={(event) => startLongPress(event, item)}
+              onPointerDown={(event) => startMessagePointer(event, item)}
+              onPointerMove={handleMessagePointerMove}
               onDragStart={(event) => event.preventDefault()}
               onSelectStart={(event) => event.preventDefault()}
-              onPointerUp={clearLongPress}
-              onPointerCancel={clearLongPress}
-              onPointerLeave={clearLongPress}
+              onPointerUp={finishReplySwipe}
+              onPointerCancel={cancelReplySwipe}
+              onPointerLeave={cancelReplySwipe}
             >
               {!mine && <MemberAvatar name={item.sender_name} imageUrl={item.sender_avatar_url} size="sm" previewable />}
-              <div>
+              <div
+                className="chat-message-content"
+                style={swipeState ? { transform: `translateX(${swipeState.offset}px)` } : undefined}
+              >
+                {swipeState && (
+                  <span className={`chat-reply-swipe-cue ${swipeState.ready ? 'ready' : ''}`} aria-hidden="true">↩</span>
+                )}
                 {!isDeleted && item.reply_to && (
                   <div className="chat-reply-bubble">
                     <button type="button" className="chat-message-reply-context" onClick={() => scrollToMessage(item.reply_to.id)}>
