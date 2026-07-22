@@ -565,9 +565,10 @@ dd { margin: 0; white-space: pre-wrap; }
 .chat-media-tile video,
 .chat-media-lightbox-trigger { width: 100%; height: 100%; display: block; object-fit: cover; }
 .chat-media-tile time { position: absolute; left: 7px; bottom: 7px; border-radius: 999px; padding: 3px 7px; color: white; background: rgba(18,31,21,.48); font-size: .62rem; font-weight: 900; backdrop-filter: blur(8px); }
-.chat-media-pin-button { position: absolute; right: 7px; top: 7px; z-index: 1; min-width: 38px; height: 28px; border: 1px solid rgba(255,255,255,.48); border-radius: 999px; padding: 0 9px; color: white; background: rgba(18,31,21,.44); box-shadow: 0 8px 18px rgba(18,31,21,.16); backdrop-filter: blur(10px); font-size: .68rem; font-weight: 950; }
+.chat-media-pin-button { position: absolute; right: 7px; top: 7px; z-index: 1; width: 32px; height: 32px; border: 1px solid rgba(255,255,255,.48); border-radius: 50%; padding: 0; display: grid; place-items: center; color: white; background: rgba(18,31,21,.44); box-shadow: 0 8px 18px rgba(18,31,21,.16); backdrop-filter: blur(10px); }
 .chat-media-pin-button.active { color: var(--green-900); background: rgba(255,253,248,.94); }
 .chat-media-pin-button:disabled { opacity: .58; }
+.chat-media-pin-button svg { width: 17px; height: 17px; display: block; fill: currentColor; transform: rotate(28deg); }
 .chat-media-pin-badge { position: absolute; left: 7px; top: 7px; border-radius: 999px; padding: 4px 8px; color: var(--green-900); background: rgba(255,253,248,.94); box-shadow: 0 8px 18px rgba(18,31,21,.12); backdrop-filter: blur(10px); font-size: .62rem; font-weight: 950; }
 .chat-menu-end-button { justify-self: end; min-height: 34px; border: 1px solid rgba(208,73,54,.24); border-radius: 999px; padding: 0 12px; color: #bd432f; background: rgba(255,238,232,.62); font-size: .78rem; font-weight: 950; }
 .chat-message-list { min-height: 0; overflow: auto; overflow-anchor: none; padding: 18px; display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }

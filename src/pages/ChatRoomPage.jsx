@@ -2284,8 +2284,11 @@ export default function ChatRoomPage() {
                       }}
                       disabled={chatMediaPinningId === item.id}
                       aria-label={isPinned ? '앨범 상단 고정 해제' : '앨범 상단 고정'}
+                      title={isPinned ? '고정 해제' : '상단 고정'}
                     >
-                      {isPinned ? '고정' : '핀'}
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M8.4 4.5h7.2l-.7 5.1 3.2 3.2v1.7h-5.2l-.9 6h-1.7l-.9-6H4.2v-1.7l3.2-3.2-.7-5.1h1.7Z" />
+                      </svg>
                     </button>
                     {isPinned && <span className="chat-media-pin-badge">상단 고정</span>}
                     <time>{formatMediaSummaryTime(item.created_at)}</time>
