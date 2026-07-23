@@ -13,8 +13,8 @@ const maxRoomStickers = 45
 const maxChatVideoSize = 50 * 1024 * 1024
 const maxChatVideoDuration = 60
 const chatDeleteWindowMs = 5 * 60 * 1000
-const replySwipeThreshold = 56
-const replySwipeMaxOffset = 72
+const replySwipeThreshold = 38
+const replySwipeMaxOffset = 58
 const videoFileExtensionPattern = /\.(mp4|mov|m4v|webm|3gp|3gpp|3g2|3gpp2)$/i
 const stickerPanelSlotCount = 15
 const firstCustomStickerPageSize = Math.max(1, stickerPanelSlotCount - chatStickerOptions.length)
@@ -1240,7 +1240,7 @@ export default function ChatRoomPage() {
         cancelReplySwipe()
         return
       }
-      if (dx < -12 && Math.abs(dx) > Math.abs(dy) + 8) {
+      if (dx < -7 && Math.abs(dx) > Math.abs(dy) + 5) {
         gesture.active = true
         clearLongPress()
       } else {
