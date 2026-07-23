@@ -1235,24 +1235,18 @@ export default function ChatRoomPage() {
     const dx = event.clientX - gesture.startX
     const dy = event.clientY - gesture.startY
     const isOwnMessage = gesture.message?.sender_member_id === profile.id
-    const verticalCancelDistance = isOwnMessage ? 18 : 12
-    const verticalCancelBias = isOwnMessage ? 7 : 0
-    const horizontalStartDistance = isOwnMessage ? 4 : 7
-    const horizontalBias = isOwnMessage ? 0 : 5
+    const horizontalStartDistance = isOwnMessage ? 5 : 7
+    const horizontalDominance = isOwnMessage ? 0.55 : 0.7
+    const verticalCancelDistance = 24
+    const verticalDominance = 1.75
 
     if (!gesture.active) {
-      if (Math.abs(dy) > verticalCancelDistance && Math.abs(dy) > Math.abs(dx) + verticalCancelBias) {
-        cancelReplySwipe()
-        return
-      }
-      if (dx < -horizontalStartDistance && Math.abs(dx) > Math.abs(dy) + horizontalBias) {
+      if (dx < -horizontalStartDistance && Math.abs(dx) >= Math.abs(dy) * horizontalDominance) {
         gesture.active = true
         clearLongPress()
-        try {
-          event.currentTarget.setPointerCapture?.(event.pointerId)
-        } catch {
-          // Pointer capture is a best-effort aid for mobile swipe stability.
-        }
+      } else if (Math.abs(dy) > verticalCancelDistance && Math.abs(dy) > Math.abs(dx) * verticalDominance) {
+        cancelReplySwipe()
+        return
       } else {
         return
       }
