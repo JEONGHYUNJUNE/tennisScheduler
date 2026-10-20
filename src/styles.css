@@ -384,7 +384,8 @@ dd { margin: 0; white-space: pre-wrap; }
 .attendee-copy { min-width: 0; margin-right: auto; display: grid; gap: 6px; }
 .attendee-remove { color: var(--warm); font-weight: 900; }
 .past-event-notice { margin: 18px 0 0; padding: 13px 15px; border: 1px solid rgba(217, 228, 213, .9); border-radius: 12px; color: var(--muted); background: rgba(237, 246, 234, .7); font-weight: 900; text-align: center; }
-.event-detail-shell { display: grid; gap: 18px; }
+.event-detail-shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; min-width: 0; }
+.event-detail-shell > * { min-width: 0; }
 .event-detail-hero { position: relative; isolation: isolate; min-height: 0; padding: clamp(16px, 2.7vw, 24px); border: 1px solid rgba(255, 255, 255, .78); border-radius: 28px; overflow: hidden; display: grid; align-content: start; gap: 10px; background: #e7f3e8; box-shadow: 0 20px 56px rgba(49, 95, 59, .14); }
 .event-detail-hero::before { content: ""; position: absolute; inset: 0; z-index: -2; background: url('./assets/home-hero-court.png') 74% center / cover no-repeat; opacity: .86; }
 .event-detail-hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, rgba(247,251,244,.98) 0%, rgba(247,251,244,.88) 42%, rgba(237,246,234,.42) 72%, rgba(237,246,234,.78) 100%); pointer-events: none; }
@@ -436,7 +437,7 @@ dd { margin: 0; white-space: pre-wrap; }
 .event-info-list dd span { min-width: 0; overflow-wrap: anywhere; }
 .event-author-inline { display: inline-flex; align-items: center; gap: 8px; }
 .event-author-inline b { color: #172019; font-size: .98rem; font-weight: 900; }
-.event-memo-card p { margin: 0; padding: 18px 20px; border-radius: 16px; color: #1f2b22; background: linear-gradient(135deg, rgba(237,246,234,.92), rgba(247,251,244,.72)); font-weight: 800; line-height: 1.65; white-space: pre-wrap; }
+.event-memo-card p { overflow-wrap: anywhere; min-width: 0; margin: 0; padding: 18px 20px; border-radius: 16px; color: #1f2b22; background: linear-gradient(135deg, rgba(237,246,234,.92), rgba(247,251,244,.72)); font-weight: 800; line-height: 1.65; white-space: pre-wrap; }
 .post-image-field { position: relative; min-height: 48px; border: 1px dashed rgba(63,116,75,.24); border-radius: 16px; padding: 13px 16px; display: flex; align-items: center; justify-content: center; color: var(--green-800); background: rgba(237,246,234,.58); font-size: .9rem; font-weight: 950; text-align: center; overflow: hidden; cursor: pointer; }
 .post-image-field input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .post-image-field span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
