@@ -450,7 +450,7 @@ export default function EventDetailPage() {
         </div>
 
         <div className="event-detail-hero-copy">
-          <span className="event-status-pill">{isPastEvent ? '지난 일정' : '정기 모임'}</span>
+          <span className="event-status-pill">{event.repeat_monthly_day ? '반복 일정' : isPastEvent ? '지난 일정' : '정기 모임'}</span>
           <h3>{event.title}</h3>
         </div>
 

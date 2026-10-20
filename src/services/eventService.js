@@ -32,6 +32,9 @@ const formatLocalDate = (date) => {
 export const getTodayDateText = localDate
 
 export async function getUpcomingEvents() {
+  const twoWeeksLater = new Date()
+  twoWeeksLater.setDate(twoWeeksLater.getDate() + 14)
+  const untilDate = formatLocalDate(twoWeeksLater)
   const withGuestColumns = await supabase
     .from('tennis_events')
     .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
@@ -39,7 +42,7 @@ export async function getUpcomingEvents() {
     .order('event_date')
     .order('start_time')
 
-  if (!withGuestColumns.error) return upcomingEvents(withGuestColumns.data, true)
+  if (!withGuestColumns.error) return upcomingEvents(withGuestColumns.data, true, untilDate)
   if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
 
   const { data, error } = await supabase
@@ -49,7 +52,7 @@ export async function getUpcomingEvents() {
     .order('event_date')
     .order('start_time')
   if (error) throw error
-  return upcomingEvents(data, false)
+  return upcomingEvents(data, false, untilDate)
 }
 
 export async function getMonthEvents(targetDate = new Date()) {
@@ -91,8 +94,9 @@ export async function getMyUpcomingEvents(memberId) {
   return upcomingEvents(data)
 }
 
-function upcomingEvents(events, supportsGuests = true) {
+function upcomingEvents(events, supportsGuests = true, untilDate = null) {
   return events.map((event) => normalizeEvent(event, supportsGuests))
+    .filter((event) => !untilDate || event.event_date < untilDate)
     .filter((event) => !event.repeat_monthly_day || nextEventDate({ ...event, event_date: event.original_event_date }, localDate()))
     .sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''))
 }
