@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { nextEventDate } from './eventRecurrence'
+import { attendanceEventDates, nextEventDate } from './eventRecurrence'
 import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
 import { filterMentionsInText, saveMentions } from './mentionService'
 
@@ -114,47 +114,48 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
   const withPosition = await supabase
     .from('tennis_events')
     .select(`
-      id, title, event_date,
+      id, title, event_date, repeat_monthly_day, repeat_until,
       tennis_attendances(
-        id, member_id, status,
+        id, member_id, status, created_at,
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, club_position, is_active, avatar_url)
       )
     `)
-    .gte('event_date', formatLocalDate(rangeStart))
+    .or(`event_date.gte.${formatLocalDate(rangeStart)},repeat_monthly_day.not.is.null`)
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
-    .is('repeat_monthly_day', null)
     .order('event_date', { ascending: false })
 
-  if (!withPosition.error) return buildRanking(withPosition.data)
+  if (!withPosition.error) return buildRanking(withPosition.data, formatLocalDate(rangeStart), formatLocalDate(nextMonthStart))
   if (!/club_position/.test(withPosition.error.message || '')) throw withPosition.error
 
   const { data, error } = await supabase
     .from('tennis_events')
     .select(`
-      id, title, event_date,
+      id, title, event_date, repeat_monthly_day, repeat_until,
       tennis_attendances(
-        id, member_id, status,
+        id, member_id, status, created_at,
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, is_active, avatar_url)
       )
     `)
-    .gte('event_date', formatLocalDate(rangeStart))
+    .or(`event_date.gte.${formatLocalDate(rangeStart)},repeat_monthly_day.not.is.null`)
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
-    .is('repeat_monthly_day', null)
     .order('event_date', { ascending: false })
 
   if (error) throw error
-  return buildRanking(data)
+  return buildRanking(data, formatLocalDate(rangeStart), formatLocalDate(nextMonthStart))
 }
 
-function buildRanking(events) {
+function buildRanking(events, rangeStart, rangeEnd) {
+  const cutoff = localDate() < rangeEnd ? localDate() : rangeEnd
   const rankingMap = new Map()
 
   for (const event of events || []) {
     for (const attendance of event.tennis_attendances || []) {
       if (attendance.status !== 'attending' || !attendance.member_id || attendance.otmember?.is_active === false) continue
 
+      const dates = attendanceEventDates(event, attendance, rangeStart, cutoff)
+      if (!dates.length) continue
       const member = normalizeMember(attendance.otmember)
       const current = rankingMap.get(attendance.member_id) || {
         member_id: attendance.member_id,
@@ -166,8 +167,8 @@ function buildRanking(events) {
         events: [],
       }
 
-      current.count += 1
-      current.events.push({ id: event.id, title: event.title, event_date: event.event_date })
+      current.count += dates.length
+      current.events.push(...dates.map((date) => ({ id: event.id, title: event.title, event_date: date })))
       rankingMap.set(attendance.member_id, current)
     }
   }

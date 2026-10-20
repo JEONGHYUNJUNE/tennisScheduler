@@ -19,3 +19,23 @@ export function nextEventDate(event, fromDate) {
 export function recurrenceLabel(event) {
   return event.repeat_monthly_day ? `매월 ${event.repeat_monthly_day}일 반복` : ''
 }
+
+// Recurring attendance applies from the signup date, never retroactively.
+export function attendanceEventDates(event, attendance, fromDate, untilDate) {
+  if (!event.repeat_monthly_day) {
+    return event.event_date >= fromDate && event.event_date < untilDate ? [event.event_date] : []
+  }
+  const joinedAt = Date.parse(attendance.created_at)
+  const joinedDate = Number.isFinite(joinedAt)
+    ? new Date(joinedAt + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    : event.event_date
+  const dates = []
+  let candidate = nextEventDate(event, joinedDate > fromDate ? joinedDate : fromDate)
+  while (candidate && candidate < untilDate) {
+    dates.push(candidate)
+    const [year, month] = candidate.split('-').map(Number)
+    const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10)
+    candidate = nextEventDate(event, nextMonth)
+  }
+  return dates
+}
