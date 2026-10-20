@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getEvent, getTodayDateText, saveEvent } from '../services/eventService'
 import { validatePostImageFile } from '../services/imageAttachmentService'
 
-const emptyForm = { title: '', event_date: '', start_time: '', end_time: '', location: '', max_players: '', memo: '', memo_image_path: '', memo_image_url: '', memo_image_file: null, remove_memo_image: false }
+const emptyForm = { title: '', event_date: '', start_time: '', end_time: '', location: '', max_players: '', memo: '', memo_image_path: '', memo_image_url: '', memo_image_file: null, remove_memo_image: false, repeat_enabled: false, repeat_monthly_day: '1', repeat_until: '' }
 
 export default function EventFormPage() {
   const { eventId } = useParams()
@@ -27,7 +27,11 @@ export default function EventFormPage() {
         setForm({
           id: data.id,
           title: data.title,
-          event_date: data.event_date,
+          event_date: data.original_event_date || data.event_date,
+          original_event_date: data.original_event_date || data.event_date,
+          repeat_enabled: Boolean(data.repeat_monthly_day),
+          repeat_monthly_day: String(data.repeat_monthly_day || 1),
+          repeat_until: data.repeat_until || '',
           start_time: data.start_time?.slice(0, 5) || '',
           end_time: data.end_time?.slice(0, 5) || '',
           location: data.location,
@@ -98,7 +102,7 @@ export default function EventFormPage() {
     event.preventDefault()
     setSubmitting(true)
     setError('')
-    if (form.event_date < getTodayDateText()) {
+    if (form.event_date < getTodayDateText() && !(form.id && form.repeat_enabled && form.event_date === form.original_event_date)) {
       setError('오늘 이전 날짜로는 일정을 저장할 수 없습니다.')
       setSubmitting(false)
       return
@@ -140,10 +144,27 @@ export default function EventFormPage() {
         <label className="event-form-field">
           <span className="event-form-icon calendar-icon" aria-hidden="true" />
           <span className="event-form-control">
-            <strong>날짜</strong>
-            <input required type="date" min={getTodayDateText()} value={form.event_date} onChange={update('event_date')} />
+            <strong>{form.repeat_enabled ? '반복 시작 날짜' : '날짜'}</strong>
+            <input required type="date" min={form.id && form.repeat_enabled ? form.original_event_date : getTodayDateText()} value={form.event_date} onChange={update('event_date')} />
           </span>
         </label>
+
+        <div className="event-repeat-settings">
+          <label className="event-repeat-toggle">
+            <input type="checkbox" checked={form.repeat_enabled} onChange={(event) => setForm((current) => ({ ...current, repeat_enabled: event.target.checked, repeat_monthly_day: current.event_date ? String(Number(current.event_date.slice(8, 10))) : current.repeat_monthly_day }))} />
+            <strong>매월 반복 일정</strong>
+          </label>
+          {form.repeat_enabled && (
+            <div className="event-repeat-options">
+              <label>반복 날짜<select value={form.repeat_monthly_day} onChange={update('repeat_monthly_day')}>
+                {Array.from({ length: 31 }, (_, index) => <option key={index + 1} value={index + 1}>매월 {index + 1}일</option>)}
+              </select></label>
+              <label>반복 종료일 (선택)<input type="date" min={form.event_date || getTodayDateText()} value={form.repeat_until} onChange={update('repeat_until')} /></label>
+              <p>선택한 시작 날짜부터 매월 반복합니다. 종료일을 비우면 계속 반복하며, 해당 날짜가 없는 달은 말일에 진행합니다.</p>
+              <p>참석하면 매월 전날 오후 8시·당일 오전 8시에 알림을 받습니다. 참석 취소 또는 일정 삭제 시 이후 반복 알림도 중단됩니다.</p>
+            </div>
+          )}
+        </div>
 
         <label className="event-form-field">
           <span className="event-form-icon event-form-member-icon" aria-hidden="true">
@@ -168,6 +189,7 @@ export default function EventFormPage() {
             <input required type="time" value={form.start_time} onChange={update('start_time')} />
           </span>
         </label>
+
 
         <label className="event-form-field">
           <span className="event-form-icon clock-icon" aria-hidden="true" />

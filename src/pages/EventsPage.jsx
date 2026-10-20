@@ -1,3 +1,4 @@
+import { recurrenceLabel } from '../services/eventRecurrence'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
@@ -36,7 +37,8 @@ export default function EventsPage() {
   useEffect(() => { load() }, [load])
 
   const handleAttendance = async (eventItem, mine) => {
-    if (mine && isCancellationBlocked(eventItem.event_date)) {
+    if (eventItem.repeat_monthly_day && !confirm(mine ? '반복 참석을 취소할까요? 이후 매월 알림도 중단됩니다.' : '이 반복 일정에 참석할까요? 참석 확정 시 매월 알림을 받습니다.')) return
+    if (mine && !eventItem.repeat_monthly_day && isCancellationBlocked(eventItem.event_date)) {
       alert('5일내 취소는 모집장에게 팀즈 해주시기 바랍니다')
       return
     }
@@ -51,7 +53,7 @@ export default function EventsPage() {
   }
 
   const handleDelete = async (eventItem) => {
-    if (!confirm(`${eventItem.title} 일정을 삭제할까요?`)) return
+    if (!confirm(`${eventItem.title} 일정을 삭제할까요?${eventItem.repeat_monthly_day ? " 이후 매월 반복 알림도 모두 중단됩니다." : ""}`)) return
     try {
       await deleteEvent(eventItem.id)
       await load()
@@ -114,7 +116,7 @@ export default function EventsPage() {
           return (
             <article className="event-card" key={event.id}>
               <Link className="event-main" to={`/events/${event.id}`}>
-                <time>{formatDate(event.event_date)}</time>
+                <time>{formatDate(event.event_date)}{event.repeat_monthly_day ? ` · ${recurrenceLabel(event)}` : ''}</time>
                 <h2>{event.title}</h2>
                 <p>{formatTime(event.start_time, event.end_time)}</p>
                 <p>{event.location || '장소 미정'}</p>

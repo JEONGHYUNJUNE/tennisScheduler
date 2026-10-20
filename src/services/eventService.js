@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { nextEventDate } from './eventRecurrence'
 import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
 import { filterMentionsInText, saveMentions } from './mentionService'
 
@@ -34,21 +35,21 @@ export async function getUpcomingEvents() {
   const withGuestColumns = await supabase
     .from('tennis_events')
     .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
-    .gte('event_date', localDate())
+    .or(`event_date.gte.${localDate()},repeat_monthly_day.not.is.null`)
     .order('event_date')
     .order('start_time')
 
-  if (!withGuestColumns.error) return withGuestColumns.data.map((event) => normalizeEvent(event, true))
+  if (!withGuestColumns.error) return upcomingEvents(withGuestColumns.data, true)
   if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
 
   const { data, error } = await supabase
     .from('tennis_events')
     .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
-    .gte('event_date', localDate())
+    .or(`event_date.gte.${localDate()},repeat_monthly_day.not.is.null`)
     .order('event_date')
     .order('start_time')
   if (error) throw error
-  return data.map((event) => normalizeEvent(event, false))
+  return upcomingEvents(data, false)
 }
 
 export async function getMonthEvents(targetDate = new Date()) {
@@ -58,24 +59,22 @@ export async function getMonthEvents(targetDate = new Date()) {
   const withGuestColumns = await supabase
     .from('tennis_events')
     .select('*, tennis_attendances(id, member_id, guest_name, guest_memo, created_by, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
-    .gte('event_date', formatLocalDate(monthStart))
-    .lt('event_date', formatLocalDate(nextMonthStart))
+    .or(`and(event_date.gte.${formatLocalDate(monthStart)},event_date.lt.${formatLocalDate(nextMonthStart)}),repeat_monthly_day.not.is.null`)
     .order('event_date')
     .order('start_time')
 
-  if (!withGuestColumns.error) return withGuestColumns.data.map((event) => normalizeEvent(event, true))
+  if (!withGuestColumns.error) return eventsInMonth(withGuestColumns.data, monthStart, nextMonthStart, true)
   if (!isRecoverableAttendanceEmbedError(withGuestColumns.error)) throw withGuestColumns.error
 
   const { data, error } = await supabase
     .from('tennis_events')
     .select('*, tennis_attendances(id, member_id, status, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))')
-    .gte('event_date', formatLocalDate(monthStart))
-    .lt('event_date', formatLocalDate(nextMonthStart))
+    .or(`and(event_date.gte.${formatLocalDate(monthStart)},event_date.lt.${formatLocalDate(nextMonthStart)}),repeat_monthly_day.not.is.null`)
     .order('event_date')
     .order('start_time')
 
   if (error) throw error
-  return data.map((event) => normalizeEvent(event, false))
+  return eventsInMonth(data, monthStart, nextMonthStart, false)
 }
 
 export async function getMyUpcomingEvents(memberId) {
@@ -84,12 +83,28 @@ export async function getMyUpcomingEvents(memberId) {
     .select('*, tennis_attendances!inner(id, member_id, status)')
     .eq('tennis_attendances.member_id', memberId)
     .in('tennis_attendances.status', ['attending', 'waiting'])
-    .gte('event_date', localDate())
+    .or(`event_date.gte.${localDate()},repeat_monthly_day.not.is.null`)
     .order('event_date')
     .order('start_time')
 
   if (error) throw error
-  return data.map(normalizeEvent)
+  return upcomingEvents(data)
+}
+
+function upcomingEvents(events, supportsGuests = true) {
+  return events.map((event) => normalizeEvent(event, supportsGuests))
+    .filter((event) => !event.repeat_monthly_day || nextEventDate({ ...event, event_date: event.original_event_date }, localDate()))
+    .sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''))
+}
+
+function eventsInMonth(events, start, end, supportsGuests) {
+  const first = formatLocalDate(start)
+  const limit = formatLocalDate(end)
+  return events.flatMap((event) => {
+    const occurrence = nextEventDate(event, first)
+    if (!occurrence || occurrence < first || occurrence >= limit) return []
+    return [{ ...normalizeEvent(event, supportsGuests), event_date: occurrence }]
+  }).sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''))
 }
 
 export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
@@ -108,6 +123,7 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
     .gte('event_date', formatLocalDate(rangeStart))
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
+    .is('repeat_monthly_day', null)
     .order('event_date', { ascending: false })
 
   if (!withPosition.error) return buildRanking(withPosition.data)
@@ -125,6 +141,7 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
     .gte('event_date', formatLocalDate(rangeStart))
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
+    .is('repeat_monthly_day', null)
     .order('event_date', { ascending: false })
 
   if (error) throw error
@@ -303,11 +320,18 @@ export async function getEvent(eventId) {
 }
 
 export async function saveEvent(event, memberId) {
-  if (event.event_date < localDate()) {
+  if (event.event_date < localDate() && !(event.id && event.repeat_enabled && event.event_date === event.original_event_date)) {
     throw new Error('오늘 이전 날짜로는 일정을 저장할 수 없습니다.')
   }
 
+  const repeatDay = event.repeat_enabled ? Number(event.repeat_monthly_day) : null
+  if (repeatDay !== null && (!Number.isInteger(repeatDay) || repeatDay < 1 || repeatDay > 31)) throw new Error('반복 날짜를 1~31일 중 선택해 주세요.')
+  if (repeatDay && event.repeat_until && event.repeat_until < event.event_date) throw new Error('반복 종료일은 시작 날짜 이후여야 합니다.')
+  if (repeatDay && !nextEventDate({ ...event, repeat_monthly_day: repeatDay }, event.event_date)) throw new Error('선택한 기간에 반복 일정이 없습니다.')
+
   const payload = {
+    repeat_monthly_day: repeatDay,
+    repeat_until: repeatDay ? event.repeat_until || null : null,
     title: event.title.trim(),
     event_date: event.event_date,
     start_time: event.start_time,
@@ -516,6 +540,8 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
 
   return {
     ...event,
+    original_event_date: event.event_date,
+    event_date: nextEventDate(event, localDate()) || event.event_date,
     max_players: event.max_participants,
     memo_image_path: event.memo_image_path || '',
     memo_image_name: event.memo_image_name || '',

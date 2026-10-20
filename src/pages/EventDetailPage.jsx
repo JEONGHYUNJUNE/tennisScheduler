@@ -1,3 +1,4 @@
+import { recurrenceLabel } from '../services/eventRecurrence'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
@@ -124,7 +125,8 @@ export default function EventDetailPage() {
   const attendanceCountText = event.max_players ? `${attending.length} / ${event.max_players}명` : `${attending.length}명`
 
   const handleAttendance = async () => {
-    if (myAttendance && isCancellationBlocked(event.event_date)) {
+    if (event.repeat_monthly_day && !confirm(myAttendance ? '반복 참석을 취소할까요? 이후 매월 알림도 중단됩니다.' : '이 반복 일정에 참석할까요? 참석 확정 시 매월 알림을 받습니다.')) return
+    if (myAttendance && !event.repeat_monthly_day && isCancellationBlocked(event.event_date)) {
       alert('5일내 취소는 모집장에게 팀즈 해주시기 바랍니다')
       return
     }
@@ -167,7 +169,7 @@ export default function EventDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!confirm(`${event.title} 일정을 삭제할까요?`)) return
+    if (!confirm(`${event.title} 일정을 삭제할까요?${event.repeat_monthly_day ? " 이후 매월 반복 알림도 모두 중단됩니다." : ""}`)) return
 
     setError('')
     try {
@@ -483,7 +485,7 @@ export default function EventDetailPage() {
           <h2>일정 정보</h2>
         </div>
         <dl className="event-info-list">
-          <div><dt><span className="detail-mini-icon calendar-icon" /></dt><dd><strong>날짜</strong><span>{formatDetailDate(event.event_date)}</span></dd></div>
+          <div><dt><span className="detail-mini-icon calendar-icon" /></dt><dd><strong>날짜</strong><span>{formatDetailDate(event.event_date)}{event.repeat_monthly_day ? ` · ${recurrenceLabel(event)}` : ''}</span></dd></div>
           <div><dt><span className="detail-mini-icon clock-icon" /></dt><dd><strong>시간</strong><span>{formatEventTime(event.start_time, event.end_time)}</span></dd></div>
           <div><dt><span className="detail-mini-icon pin-icon" /></dt><dd><strong>장소</strong><span>{event.location || '장소 미정'}</span></dd></div>
           <div>
