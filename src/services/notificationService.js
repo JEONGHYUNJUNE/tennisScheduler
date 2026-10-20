@@ -8,16 +8,17 @@ const hiddenMenuNotificationTypes = new Set([
   'chat_requested',
   'chat_message_created',
   'chat_message_reaction_created',
+  'group_chat_message_created',
 ])
 const readNotificationVisibleDays = 30
 const maxVisibleNotifications = 20
-const notificationSelectColumns = 'id, type, title, message, event_id, free_opinion_id, free_opinion_comment_id, tennis_event_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, inquiry_id, inquiry_reply_id, actor_member_id, is_read, created_at'
+const notificationSelectColumns = 'id, type, title, message, event_id, free_opinion_id, free_opinion_comment_id, tennis_event_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, group_chat_room_id, inquiry_id, inquiry_reply_id, actor_member_id, is_read, created_at'
 const fallbackNotificationSelectColumns = 'id, type, title, message, event_id, actor_member_id, is_read, created_at'
 
 function getNotificationCategory(notification) {
   const type = notification.type || ''
   if (notification.event_id || type.startsWith('tennis_event_')) return 'schedule'
-  if (notification.chat_room_id || type.startsWith('chat_')) return 'chat'
+  if (notification.chat_room_id || notification.group_chat_room_id || type.startsWith('chat_') || type.startsWith('group_chat_')) return 'chat'
   if (notification.inquiry_id || type.startsWith('member_inquiry_')) return 'inquiry'
   if (notification.tennis_diary_entry_id || notification.tennis_diary_comment_id || notification.tennis_diary_group_id || type.startsWith('tennis_diary_')) return 'diary'
   if (notification.free_opinion_id || notification.free_opinion_comment_id || type.startsWith('free_opinion_')) return 'social'

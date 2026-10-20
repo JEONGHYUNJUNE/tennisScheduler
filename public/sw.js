@@ -16,6 +16,7 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'ONS Tennis'
   const tag = payload.tag || payload.notificationId || 'ons-tennis-notification'
   const chatRoomId = payload.chatRoomId || null
+  const groupChatRoomId = payload.groupChatRoomId || null
   const options = {
     body: payload.body || payload.message || '새 알림이 있습니다.',
     badge: payload.badge || notificationBadgeUrl,
@@ -24,6 +25,7 @@ self.addEventListener('push', (event) => {
       url: payload.url || '/#/',
       notificationId: payload.notificationId || null,
       chatRoomId,
+      groupChatRoomId,
       tag,
     },
     tag,
@@ -38,13 +40,14 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   const chatRoomId = event.notification.data?.chatRoomId || null
+  const groupChatRoomId = event.notification.data?.groupChatRoomId || null
   const tag = event.notification.data?.tag || event.notification.tag || null
   event.notification.close()
 
   const targetUrl = new URL(event.notification.data?.url || '/#/', self.location.origin).href
 
   event.waitUntil(
-    closeRelatedChatNotifications(chatRoomId, tag).then(() => refreshAppBadge()).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((clientList) => {
+    closeRelatedChatNotifications(chatRoomId, groupChatRoomId, tag).then(() => refreshAppBadge()).then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then((clientList) => {
       const sameOriginClient = clientList.find((client) => new URL(client.url).origin === self.location.origin)
 
       if (sameOriginClient) {
@@ -65,7 +68,7 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
-function closeRelatedChatNotifications(chatRoomId, tag) {
+function closeRelatedChatNotifications(chatRoomId, groupChatRoomId, tag) {
   if (!self.registration.getNotifications) return Promise.resolve()
 
   return self.registration.getNotifications()
@@ -73,6 +76,7 @@ function closeRelatedChatNotifications(chatRoomId, tag) {
       notifications.forEach((notification) => {
         if (
           (chatRoomId && notification.data?.chatRoomId === chatRoomId) ||
+          (groupChatRoomId && notification.data?.groupChatRoomId === groupChatRoomId) ||
           (tag && notification.tag === tag)
         ) {
           notification.close()

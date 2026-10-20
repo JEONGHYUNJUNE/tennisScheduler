@@ -70,6 +70,9 @@ const getNotificationLink = (notification) => {
   ) {
     return notification.chat_room_id ? `/chats/${notification.chat_room_id}` : '/chats'
   }
+  if (notification.type === 'group_chat_message_created') {
+    return notification.group_chat_room_id ? `/group-chats/${notification.group_chat_room_id}` : '/chats'
+  }
   return '/events'
 }
 

@@ -15,6 +15,7 @@ type NotificationRecord = {
   tennis_diary_comment_id?: string | null
   tennis_diary_group_id?: string | null
   chat_room_id?: string | null
+  group_chat_room_id?: string | null
   inquiry_id?: string | null
   inquiry_reply_id?: string | null
   type: string
@@ -79,6 +80,7 @@ const notificationCategoryTypes = {
     'chat_requested',
     'chat_message_created',
     'chat_message_reaction_created',
+    'group_chat_message_created',
   ]),
 }
 
@@ -140,7 +142,7 @@ async function resolveNotification(payload: Record<string, unknown>) {
 
   const result = await getSupabase()
     .from('ot_notifications')
-    .select('id, recipient_member_id, actor_member_id, event_id, tennis_event_comment_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
+    .select('id, recipient_member_id, actor_member_id, event_id, tennis_event_comment_id, free_opinion_id, free_opinion_comment_id, tennis_diary_entry_id, tennis_diary_comment_id, tennis_diary_group_id, chat_room_id, group_chat_room_id, inquiry_id, inquiry_reply_id, type, title, message, created_at')
     .eq('id', notificationId)
     .single()
 
@@ -188,7 +190,7 @@ async function isNotificationEnabled(notification: NotificationRecord) {
 
 function getNotificationCategory(notification: NotificationRecord) {
   if (notification.event_id || notification.type.startsWith('tennis_event_')) return 'schedule'
-  if (notification.chat_room_id || notification.type.startsWith('chat_')) return 'chat'
+  if (notification.chat_room_id || notification.group_chat_room_id || notification.type.startsWith('chat_') || notification.type.startsWith('group_chat_')) return 'chat'
   if (notification.inquiry_id || notification.type.startsWith('member_inquiry_')) return 'inquiry'
   if (notification.tennis_diary_entry_id || notification.tennis_diary_comment_id || notification.tennis_diary_group_id || notification.type.startsWith('tennis_diary_')) return 'diary'
   if (notification.free_opinion_id || notification.free_opinion_comment_id || notification.type.startsWith('free_opinion_')) return 'social'
@@ -225,6 +227,7 @@ async function sendPush(subscription: PushSubscriptionRow, notification: Notific
       url,
       notificationId: notification.id,
       chatRoomId: notification.chat_room_id || null,
+      groupChatRoomId: notification.group_chat_room_id || null,
       tag: `ot-${notification.id}`,
     }),
   )
@@ -286,6 +289,9 @@ function getNotificationUrl(appUrl: string, notification: NotificationRecord) {
     notification.type === 'chat_message_reaction_created'
   ) {
     return `${appUrl}/#/chats${notification.chat_room_id ? `/${notification.chat_room_id}` : ''}`
+  }
+  if (notification.type === 'group_chat_message_created') {
+    return `${appUrl}/#/group-chats${notification.group_chat_room_id ? `/${notification.group_chat_room_id}` : ''}`
   }
   return `${appUrl}/#/`
 }

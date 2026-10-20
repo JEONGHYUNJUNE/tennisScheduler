@@ -5,6 +5,7 @@ import PushNotificationButton from './PushNotificationButton'
 import UserMenu from './UserMenu'
 import { useAuth } from '../contexts/AuthContext'
 import { getUnreadChatCount, getUnreadChatMessageCount, subscribeToChatUpdates } from '../services/chatService'
+import { getGroupChatUnreadSummary, subscribeToGroupChatUpdates } from '../services/groupChatService'
 import { getUnreadFreeOpinionCount, markFreeOpinionsRead } from '../services/freeOpinionService'
 import { clearAppBadge, updateAppBadge } from '../services/appBadgeService'
 import { getUnreadNotificationCount } from '../services/notificationService'
@@ -166,13 +167,14 @@ export default function Layout() {
 
     const loadChatCount = async () => {
       try {
-        const [roomCount, messageCount] = await Promise.all([
+        const [roomCount, messageCount, groupSummary] = await Promise.allSettled([
           getUnreadChatCount(profile.id),
           getUnreadChatMessageCount(profile.id),
+          getGroupChatUnreadSummary(profile.id),
         ])
         if (!ignore) {
-          setChatUnreadCount(roomCount)
-          setChatUnreadMessageCount(messageCount)
+          setChatUnreadCount((roomCount.status === 'fulfilled' ? roomCount.value : 0) + (groupSummary.status === 'fulfilled' ? groupSummary.value.rooms : 0))
+          setChatUnreadMessageCount((messageCount.status === 'fulfilled' ? messageCount.value : 0) + (groupSummary.status === 'fulfilled' ? groupSummary.value.messages : 0))
         }
       } catch {
         if (!ignore) {
@@ -192,7 +194,8 @@ export default function Layout() {
 
     loadChatCount()
     const timer = setInterval(loadChatCount, 120000)
-    const unsubscribe = subscribeToChatUpdates(scheduleChatCountLoad)
+    const unsubscribeChat = subscribeToChatUpdates(scheduleChatCountLoad)
+    const unsubscribeGroupChat = subscribeToGroupChatUpdates(scheduleChatCountLoad)
     window.addEventListener('ons-tennis-chat-unread-changed', scheduleChatCountLoad)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') loadChatCount()
@@ -206,7 +209,8 @@ export default function Layout() {
         window.clearTimeout(chatUnreadRefreshTimerRef.current)
         chatUnreadRefreshTimerRef.current = null
       }
-      unsubscribe()
+      unsubscribeChat()
+      unsubscribeGroupChat()
       window.removeEventListener('ons-tennis-chat-unread-changed', scheduleChatCountLoad)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
@@ -365,7 +369,7 @@ export default function Layout() {
     setIsCreateMenuOpen(false)
   }, [location.pathname, location.search])
 
-  const isChatRoomRoute = location.pathname.startsWith('/chats/')
+  const isChatRoomRoute = location.pathname.startsWith('/chats/') || location.pathname.startsWith('/group-chats/')
 
   return (
     <div className={`app-shell ${isKeyboardOpen ? 'keyboard-open' : ''} ${isChatRoomRoute ? 'chat-route' : ''}`} ref={shellRef}>

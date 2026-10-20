@@ -15,6 +15,7 @@ import CompleteProfilePage from './pages/CompleteProfilePage'
 import ChatListPage from './pages/ChatListPage'
 import ChatRoomPage from './pages/ChatRoomPage'
 import DiaryPage from './pages/DiaryPage'
+import GroupChatRoomPage from './pages/GroupChatRoomPage'
 import MemberListPage from './pages/MemberListPage'
 import MyPage from './pages/MyPage'
 import RankingPage from './pages/RankingPage'
@@ -56,6 +57,7 @@ export default function App() {
             <Route path="/members" element={<MemberListPage />} />
             <Route path="/chats" element={<ChatListPage />} />
             <Route path="/chats/:roomId" element={<ChatRoomPage />} />
+            <Route path="/group-chats/:roomId" element={<GroupChatRoomPage />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/ranking" element={<RankingPage />} />
             <Route path="/tennis-news" element={<TennisNewsPage />} />
