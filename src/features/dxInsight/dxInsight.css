@@ -40,3 +40,13 @@
 .dx-insight-note-list strong { color: var(--green-900); line-height: 1.4; }
 .dx-insight-note-list p { margin: 0; color: #b0452d; font-size: .9rem; font-weight: 900; line-height: 1.45; }
 .dx-insight-note-list small { color: var(--muted); line-height: 1.45; font-weight: 800; }
+
+.dx-insight-modal > *, .dx-insight-quiz > *, .dx-insight-note-list article { min-width: 0; }
+.dx-insight-modal { overflow-wrap: anywhere; }
+.dx-insight-controls select { padding-block: 10px; height: auto; }
+.competency-help { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.6; }
+.competency-question-text, .dx-insight-options span { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.dx-insight-answer p { margin: 0; }
+.dx-insight-quiz textarea { border-radius: 12px; resize: vertical; }
+.dx-insight-options button:disabled { opacity: 1; cursor: default; }
+.dx-insight-actions { flex-wrap: wrap; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
@@ -6,7 +6,7 @@ import ImageLightbox from '../components/ImageLightbox'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
 import { useAuth } from '../contexts/AuthContext'
-import DxInsightModal from '../features/dxInsight/DxInsightModal'
+
 import { signOut } from '../services/authService'
 import { getMyUpcomingEvents } from '../services/eventService'
 import { createInquiry, deleteInquiry, deleteInquiryReply, getAdminInquiries, getMyInquiries, replyToInquiry } from '../services/inquiryService'
@@ -14,6 +14,8 @@ import { createDiaryGroup, deleteDiaryGroup, getDiaryGroupMembers, getDiaryInvit
 import { getMembers } from '../services/memberService'
 import { defaultNotificationPreferences, getNotificationPreferences, saveNotificationPreferences } from '../services/notificationPreferenceService'
 import { updateProfileAvatar } from '../services/profileService'
+
+const DxInsightModal = lazy(() => import('../features/dxInsight/DxInsightModal'))
 
 const formatDate = (dateText) => {
   if (!dateText) return ''
@@ -268,7 +270,7 @@ export default function MyPage() {
       )}
 
       {dxInsightOpen && (
-        <DxInsightModal onClose={() => setDxInsightOpen(false)} />
+        <Suspense fallback={<LoadingState message="퀴즈를 불러오는 중입니다." />}><DxInsightModal onClose={() => setDxInsightOpen(false)} /></Suspense>
       )}
     </section>
   )
