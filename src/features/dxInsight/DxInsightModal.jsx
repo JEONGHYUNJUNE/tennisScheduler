@@ -91,7 +91,9 @@ export default function DxInsightModal({ onClose }) {
 
   return createPortal(
     <div className="dx-insight-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <div className="dx-insight-modal" role="dialog" aria-modal="true" aria-labelledby="dx-insight-title">
+      <div className="dx-insight-modal" onDragStart={(event) => {
+        if (!event.target.closest('input, textarea')) event.preventDefault()
+      }} role="dialog" aria-modal="true" aria-labelledby="dx-insight-title">
         <div className="dx-insight-head">
           <div><p className="eyebrow">QUIZ</p><h2 id="dx-insight-title">역량평가 퀴즈</h2></div>
           <button className="inquiry-close-button" type="button" onClick={onClose} aria-label="닫기">×</button>

@@ -152,6 +152,9 @@ export default function MyPage() {
           <div>
             <dt
               className="dx-insight-trigger"
+              draggable={false}
+              onDragStart={(event) => event.preventDefault()}
+              onContextMenu={(event) => event.preventDefault()}
               onPointerDown={startDxInsightPress}
               onPointerUp={cancelDxInsightPress}
               onPointerCancel={cancelDxInsightPress}

@@ -50,3 +50,6 @@
 .dx-insight-quiz textarea { border-radius: 12px; resize: vertical; }
 .dx-insight-options button:disabled { opacity: 1; cursor: default; }
 .dx-insight-actions { flex-wrap: wrap; }
+
+.dx-insight-modal { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dx-insight-modal input, .dx-insight-modal textarea { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
