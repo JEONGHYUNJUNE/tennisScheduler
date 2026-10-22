@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { attendanceEventDates, nextEventDate } from './eventRecurrence'
+import { attendanceEventDates, nextEventDate, nextUpcomingEventDate } from './eventRecurrence'
 import { getPostImageUrl, removePostImage, uploadPostImage } from './imageAttachmentService'
 import { filterMentionsInText, saveMentions } from './mentionService'
 
@@ -97,7 +97,7 @@ export async function getMyUpcomingEvents(memberId) {
 function upcomingEvents(events, supportsGuests = true, untilDate = null) {
   return events.map((event) => normalizeEvent(event, supportsGuests))
     .filter((event) => !untilDate || event.event_date < untilDate)
-    .filter((event) => !event.repeat_monthly_day || nextEventDate({ ...event, event_date: event.original_event_date }, localDate()))
+    .filter((event) => !event.repeat_monthly_day || event.has_upcoming_occurrence)
     .sort((a, b) => a.event_date.localeCompare(b.event_date) || (a.start_time || '').localeCompare(b.start_time || ''))
 }
 
@@ -534,6 +534,7 @@ function normalizeMember(member) {
 }
 
 function normalizeEvent(event, supportsGuestAttendance = true) {
+  const upcomingDate = nextUpcomingEventDate(event)
   const creator = normalizeMember(event.creator)
   const attendances = event.tennis_attendances?.map((attendance) => ({
     ...attendance,
@@ -546,7 +547,8 @@ function normalizeEvent(event, supportsGuestAttendance = true) {
   return {
     ...event,
     original_event_date: event.event_date,
-    event_date: nextEventDate(event, localDate()) || event.event_date,
+    event_date: upcomingDate || event.event_date,
+    has_upcoming_occurrence: !event.repeat_monthly_day || Boolean(upcomingDate),
     max_players: event.max_participants,
     memo_image_path: event.memo_image_path || '',
     memo_image_name: event.memo_image_name || '',

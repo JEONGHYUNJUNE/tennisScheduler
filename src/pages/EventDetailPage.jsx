@@ -120,7 +120,7 @@ export default function EventDetailPage() {
   const totalCommentCount = (event.flat_comments || comments).length
   const myAttendance = event.tennis_attendances?.find((item) => item.member_id === profile.id)
   const canManageEvent = isAdmin || event.created_by === profile.id
-  const isPastEvent = event.event_date < getTodayDateText()
+  const isPastEvent = event.event_date < getTodayDateText() || (Boolean(event.repeat_monthly_day) && !event.has_upcoming_occurrence)
   const isFull = event.max_players && attending.length >= event.max_players
   const attendanceCountText = event.max_players ? `${attending.length} / ${event.max_players}명` : `${attending.length}명`
 

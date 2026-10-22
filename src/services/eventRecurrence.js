@@ -39,3 +39,16 @@ export function attendanceEventDates(event, attendance, fromDate, untilDate) {
   }
   return dates
 }
+
+// Calendar/history calculations stay date-only; upcoming views use Korean event time.
+export function nextUpcomingEventDate(event, now = new Date()) {
+  if (!event.repeat_monthly_day) return event.event_date
+  const today = new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const candidate = nextEventDate(event, today)
+  const cutoffTime = event.end_time || event.start_time
+  if (!candidate || !cutoffTime) return candidate
+  const cutoff = Date.parse(`${candidate}T${cutoffTime.slice(0, 8)}+09:00`)
+  if (now.getTime() < cutoff) return candidate
+  const [year, month] = candidate.split('-').map(Number)
+  return nextEventDate(event, new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10))
+}
