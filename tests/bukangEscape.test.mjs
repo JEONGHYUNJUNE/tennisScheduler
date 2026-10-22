@@ -2,6 +2,7 @@
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
+import {drawWaterways} from '../public/bukang/waterways.js';
 import * as harbor from '../public/bukang/harbor.js';
 import * as difficulty from '../public/bukang/difficulty.js';
 import {formatTime,validNickname} from '../public/bukang/records.js';
@@ -11,7 +12,7 @@ const makeElement=()=>({hidden:false,textContent:'',value:'',disabled:false,styl
 const el=id=>{if(!elements.has(id))elements.set(id,makeElement());return elements.get(id)};
 const fakeRecords={start:async()=>{if(startFails)throw Error('network');return{token:`test-${++starts}`}},finish:async()=>({duration_ms:65000}),list:async()=>[{rank:1,nickname:'상어왕',duration_ms:64000}],register:async(token,name)=>{submits++;if(saveFails)throw Error('offline');return{nickname:name,rank:2,duration_ms:65000,personal_best_ms:65000}}};
 
-const sandbox={...harbor,...difficulty,records:fakeRecords,formatTime,validNickname,document:{getElementById:el,createElement:makeElement,addEventListener:(name,cb)=>events.set(name,cb)},innerWidth:390,innerHeight:844,devicePixelRatio:2,addEventListener:noop,requestAnimationFrame:noop,localStorage:{getItem:()=>null,setItem:noop},console,Image:class{},performance:{now:()=>now}};
+const sandbox={drawWaterways,...harbor,...difficulty,records:fakeRecords,formatTime,validNickname,document:{getElementById:el,createElement:makeElement,addEventListener:(name,cb)=>events.set(name,cb)},innerWidth:390,innerHeight:844,devicePixelRatio:2,addEventListener:noop,requestAnimationFrame:noop,localStorage:{getItem:()=>null,setItem:noop},console,Image:class{},performance:{now:()=>now}};
 vm.createContext(sandbox);const code=readFileSync('public/bukang/game.js','utf8').replace(/^import .*;\n/gm,'');vm.runInContext(code+`;globalThis.test={start,update,attack,setup,resume,pause,draw,takeDamage,loop,goHome,finishEscape,clock:()=>hazardClock,hold:()=>keyHold,move:(x,y)=>{player.x=x;player.y=y},walk:(x,y)=>{input.x=x;input.y=y},snapshot:()=>({state,chapter,hp,got,caught,score,cooldown,dash,finishMs,x:player.x,y:player.y,projectiles:projectiles.length,throwers:throwers.length,chase:chase?{x:chase.x,y:chase.y}:null,chaseDelay}),action:()=>modalAction(),clearInvuln:()=>{invuln=0},hit:kind=>{invuln=0;projectiles.push({sx:player.x,sy:player.y,x:player.x,y:player.y,tx:player.x,ty:player.y,kind,age:.84,flight:.85,life:1.45,hit:false})}}`,sandbox);
 assert.equal(formatTime(59999),'00:59.99');assert.equal(formatTime(60000),'01:00.00');assert.equal(validNickname('<script>'),false);assert.equal(validNickname('   '),false);assert.equal(validNickname('부캉이_1'),true);
 const t=sandbox.test;await t.start();assert.equal(t.snapshot().hp,100);assert.equal(t.snapshot().throwers,2);assert.throws(()=>t.setup(2),/COMING_SOON/);
