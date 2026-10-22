@@ -1,0 +1,32 @@
+// Run after node scripts/build-bukang-config.mjs; all records calls are mocked.
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import * as harbor from '../public/bukang/harbor.js';
+import * as difficulty from '../public/bukang/difficulty.js';
+import {formatTime,validNickname} from '../public/bukang/records.js';
+const noop=()=>{},elements=new Map(),events=new Map();let now=1000,starts=0,submits=0,startFails=false,saveFails=false;
+const context=new Proxy({createLinearGradient:()=>({addColorStop:noop}),createRadialGradient:()=>({addColorStop:noop})},{get:(o,k)=>k in o?o[k]:noop,set:(o,k,v)=>(o[k]=v,true)});
+const makeElement=()=>({hidden:false,textContent:'',value:'',disabled:false,style:{},children:[],handlers:{},classList:{add:noop,remove:noop,toggle:noop},setAttribute:noop,addEventListener(name,cb){this.handlers[name]=cb},getContext:()=>context,focus:noop,replaceChildren(){this.children=[]},appendChild(child){this.children.push(child)}});
+const el=id=>{if(!elements.has(id))elements.set(id,makeElement());return elements.get(id)};
+const fakeRecords={start:async()=>{if(startFails)throw Error('network');return{token:`test-${++starts}`}},finish:async()=>({duration_ms:65000}),list:async()=>[{rank:1,nickname:'상어왕',duration_ms:64000}],register:async(token,name)=>{submits++;if(saveFails)throw Error('offline');return{nickname:name,rank:2,duration_ms:65000,personal_best_ms:65000}}};
+
+const sandbox={...harbor,...difficulty,records:fakeRecords,formatTime,validNickname,document:{getElementById:el,createElement:makeElement,addEventListener:(name,cb)=>events.set(name,cb)},innerWidth:390,innerHeight:844,devicePixelRatio:2,addEventListener:noop,requestAnimationFrame:noop,localStorage:{getItem:()=>null,setItem:noop},console,Image:class{},performance:{now:()=>now}};
+vm.createContext(sandbox);const code=readFileSync('public/bukang/game.js','utf8').replace(/^import .*;\n/gm,'');vm.runInContext(code+`;globalThis.test={start,update,attack,setup,resume,pause,draw,takeDamage,loop,goHome,finishEscape,clock:()=>hazardClock,hold:()=>keyHold,move:(x,y)=>{player.x=x;player.y=y},walk:(x,y)=>{input.x=x;input.y=y},snapshot:()=>({state,chapter,hp,got,caught,score,cooldown,dash,finishMs,x:player.x,y:player.y,projectiles:projectiles.length,throwers:throwers.length}),action:()=>modalAction(),clearInvuln:()=>{invuln=0},hit:kind=>{invuln=0;projectiles.push({sx:player.x,sy:player.y,x:player.x,y:player.y,tx:player.x,ty:player.y,kind,age:.84,flight:.85,life:1.45,hit:false})}}`,sandbox);
+assert.equal(formatTime(59999),'00:59.99');assert.equal(formatTime(60000),'01:00.00');assert.equal(validNickname('<script>'),false);assert.equal(validNickname('   '),false);assert.equal(validNickname('부캉이_1'),true);
+const t=sandbox.test;await t.start();assert.equal(t.snapshot().hp,100);assert.equal(t.snapshot().throwers,2);assert.throws(()=>t.setup(2),/COMING_SOON/);
+// Projectile damage and full chapter-one restart are preserved.
+t.hit('chicken');t.update(.02);assert.equal(t.snapshot().hp,78);t.update(.02);assert.equal(t.snapshot().hp,78);t.hit('can');t.update(.02);assert.equal(t.snapshot().hp,50);t.clearInvuln();t.takeDamage(100,'test');assert.equal(t.snapshot().state,'modal');await t.action();assert.equal(t.snapshot().hp,100);assert.equal(t.snapshot().got,0);
+// Hazards pause, while competitive wall-clock time continues.
+const clock=t.clock();t.pause();now+=12000;t.loop(now);assert.equal(t.clock(),clock);assert.equal(el('race-timer').textContent,'00:12.00');t.action();
+for(const net of difficulty.NETS){const openClock=8-net.phase,n=difficulty.netState(net,openClock);assert.equal(n.active,false);assert.equal(difficulty.netCollision(n.x,n.y,openClock),null)}
+await t.start();const n=difficulty.netState(difficulty.NETS[0],0),across=150;t.move(n.x+Math.cos(n.a)*55-Math.sin(n.a)*across,n.y+Math.sin(n.a)*55+Math.cos(n.a)*across);t.walk(-Math.cos(n.a),-Math.sin(n.a));t.update(.1);assert.equal(t.snapshot().hp,84);assert.ok((t.snapshot().x-n.x)*Math.cos(n.a)+(t.snapshot().y-n.y)*Math.sin(n.a)>=39);
+// Objective hold is ordered and interrupted by damage.
+await t.start();t.move(harbor.KEY_POINTS[1].x,harbor.KEY_POINTS[1].y);t.update(.2);assert.equal(t.snapshot().got,0);t.move(harbor.KEY_POINTS[0].x,harbor.KEY_POINTS[0].y);t.update(.2);assert.ok(t.hold()>0);t.clearInvuln();t.takeDamage(1,'test');assert.equal(t.hold(),0);
+// Completing chapter one ends the game with a frozen time and nickname form, never chapter two.
+await t.start();for(const [index,p] of harbor.KEY_POINTS.entries()){t.move(p.x,p.y);for(let i=0;i<400&&t.snapshot().got<=index&&t.snapshot().state==='play';i++)t.update(.016)}assert.equal(t.snapshot().got,3);now+=65000;t.move(harbor.EXIT.x,harbor.EXIT.y);t.update(.016);await new Promise(setImmediate);assert.equal(t.snapshot().state,'result');assert.equal(t.snapshot().chapter,1);assert.equal(t.snapshot().finishMs,65000);assert.equal(el('finish-time').textContent,'01:05.00');assert.equal(el('record-form').hidden,false);assert.equal(el('save-record').disabled,false);const frozen=t.snapshot().finishMs;now+=10000;t.loop(now);assert.equal(t.snapshot().finishMs,frozen);
+// Failed registration retains nickname and can be retried; success prevents duplicate submits.
+el('nickname').value='상어왕2';saveFails=true;await el('record-form').handlers.submit({preventDefault:noop});assert.equal(el('nickname').value,'상어왕2');assert.equal(el('save-record').disabled,false);saveFails=false;await el('record-form').handlers.submit({preventDefault:noop});assert.equal(el('record-form').hidden,true);assert.match(el('record-status').textContent,/2위/);const saved=submits;await el('record-form').handlers.submit({preventDefault:noop});assert.equal(submits,saved);assert.equal(el('ranking-body').children[0].children[1].textContent,'상어왕');
+// Network failure cannot start an unranked race accidentally.
+t.goHome();startFails=true;await t.start();assert.equal(t.snapshot().state,'modal');assert.equal(el('start').disabled,false);startFails=false;await t.action();assert.equal(t.snapshot().state,'play');assert.equal(t.snapshot().got,0);t.draw();
+let prevented=false;events.get('dblclick')({preventDefault(){prevented=true}});assert.ok(prevented);console.log('PASS: chapter-two lock, timed chapter-one finish, wall-clock pause, shared ranking UI, nickname retry/dedup, network failure, hazard collision, ordered keys, energy reset, rendering, zoom guard');
