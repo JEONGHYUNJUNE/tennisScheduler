@@ -124,7 +124,7 @@ export default function MyPage() {
 
   return (
     <section className="my-page-shell" onDragStart={(event) => {
-      if (!event.target.closest('input, textarea')) event.preventDefault()
+      if (event.currentTarget.contains(event.target) && !event.target.closest('input, textarea')) event.preventDefault()
     }}>
       <div className="my-page-card">
         <button
