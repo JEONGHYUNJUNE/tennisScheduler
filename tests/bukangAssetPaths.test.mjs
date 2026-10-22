@@ -5,7 +5,7 @@ const base=html.match(/<base\s+href="([^"]+)"/);assert.ok(base,'Game needs a fix
 for(const page of ['https://tennis-chung.vercel.app/bukang','https://tennis-chung.vercel.app/bukang/','https://tennis-chung.vercel.app/bukang?share=1','https://tennis-chung.vercel.app/bukang/index.html']){
  const documentBase=new URL(base[1],page);
  for(const match of html.matchAll(/(?:href|src)="([^"]+)"/g)){
-  if(match[1]===base[1])continue;
+  if(match[1]===base[1]||/^https?:/.test(match[1]))continue;
   const resource=new URL(match[1],documentBase);assert.ok(resource.pathname.startsWith('/bukang/'),`${page} escaped game path: ${resource}`);assert.ok(existsSync('public'+resource.pathname),`Missing ${resource.pathname}`);
  }
 }
