@@ -123,7 +123,9 @@ export default function MyPage() {
   useEffect(() => cancelDxInsightPress, [cancelDxInsightPress])
 
   return (
-    <section className="my-page-shell">
+    <section className="my-page-shell" onDragStart={(event) => {
+      if (!event.target.closest('input, textarea')) event.preventDefault()
+    }}>
       <div className="my-page-card">
         <button
           className="my-page-notification-settings-button"
