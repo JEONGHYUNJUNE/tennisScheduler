@@ -11,7 +11,7 @@ for(const filename of ['index.html','about.html','privacy.html']){
  const html=readFileSync(root+filename,'utf8');
  assert.match(html,/<meta name="description" content="[^"]+"/);assert.match(html,/<link rel="canonical" href="https:\/\/bukang-chung\.vercel\.app\//);
  for(const match of html.matchAll(/(?:href|src)="([^"]+)"/g)){
-  const ref=match[1];if(/^(https?:|mailto:|#|\/)/.test(ref)||ref==='./')continue;assert.ok(existsSync(root+ref),'Broken local link: '+filename+' '+ref);
+  const ref=match[1];if(/^(https?:|mailto:|#|\/)/.test(ref)||ref==='./')continue;assert.ok(existsSync(root+ref.split('?')[0]),'Broken local link: '+filename+' '+ref);
  }
 }
 assert.ok(readFileSync(root+'about.html','utf8').includes('id="site-ad"'));
