@@ -292,6 +292,8 @@ export default function Layout() {
     const needsSafariViewportPatch = isIOSWebKit && !isStandalonePwa
 
     const syncViewportHeight = () => {
+      root.style.setProperty('--chat-viewport-height', `${Math.round(visualViewport.height)}px`)
+      root.style.setProperty('--chat-viewport-top', `${Math.round(visualViewport.offsetTop)}px`)
       if (!needsSafariViewportPatch) return
       const activeEditable = isEditableElement(document.activeElement)
       const nextHeight = Math.round(activeEditable ? visualViewport.height : (window.innerHeight || visualViewport.height))
@@ -355,6 +357,8 @@ export default function Layout() {
     return () => {
       root.classList.remove('ios-safari-browser')
       root.style.removeProperty('--app-viewport-height')
+      root.style.removeProperty('--chat-viewport-height')
+      root.style.removeProperty('--chat-viewport-top')
       visualViewport.removeEventListener('resize', updateKeyboardState)
       visualViewport.removeEventListener('scroll', updateKeyboardState)
       window.removeEventListener('focusin', updateKeyboardState)
