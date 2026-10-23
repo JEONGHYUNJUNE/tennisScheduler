@@ -17,17 +17,17 @@ const events=[
   {id:'ordinary',title:'일반',event_date:'2026-09-01',tennis_attendances:[attendee('A','2026-08-01')]},
   {id:'monthly',title:'반복',event_date:'2026-01-01',repeat_monthly_day:10,tennis_attendances:[attendee('A','2026-09-11'),attendee('B','2026-01-01'),attendee('waiting','2026-01-01','waiting'),attendee('inactive','2026-01-01','attending',false)]},
 ]
-for(const fallback of [false,true]) test(`ranking counts repeated dates and preserves ordinary attendance${fallback?' with legacy profile fallback':''}`,async()=>{
+for(const fallback of [false,true]) test(`ranking excludes all recurring events and preserves ordinary attendance${fallback?' with legacy profile fallback':''}`,async()=>{
   const queries=[]
   const supabase={from(table){const calls=[['from',table]];queries.push(calls);const q={then(resolve){return Promise.resolve(fallback&&queries.length===1?{error:{message:'column club_position does not exist'}}:{data:events,error:null}).then(resolve)}};for(const method of ['select','gte','lt','or','is','order'])q[method]=(...args)=>{calls.push([method,...args]);return q};return q}}
   const context=vm.createContext({supabase,Date:FixedDate,attendanceEventDates,nextEventDate})
   vm.runInContext(source,context)
   const result=JSON.parse(JSON.stringify(await context.getMonthlyAttendanceRanking(new FixedDate())))
-  assert.deepEqual(result.map(x=>[x.member_id,x.count]),[['B',3],['A',2]])
-  assert.deepEqual(result.find(x=>x.member_id==='B').events.map(x=>x.event_date),['2026-08-10','2026-09-10','2026-10-10'])
+  assert.deepEqual(result.map(x=>[x.member_id,x.count]),[['A',1]])
+  assert.deepEqual(result[0].events.map(x=>x.id),['ordinary'])
   assert.equal(queries.length,fallback?2:1)
   for(const query of queries){
-    assert.ok(query.some(([method,value])=>method==='or'&&value.includes('repeat_monthly_day.not.is.null')))
-    assert.ok(!query.some(([method,column])=>method==='is'&&column==='repeat_monthly_day'))
+    assert.ok(query.some(([method,column])=>method==='gte'&&column==='event_date'))
+    assert.ok(query.some(([method,column,value])=>method==='is'&&column==='repeat_monthly_day'&&value===null))
   }
 })

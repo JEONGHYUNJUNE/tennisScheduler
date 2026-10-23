@@ -124,7 +124,8 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, club_position, is_active, avatar_url)
       )
     `)
-    .or(`event_date.gte.${formatLocalDate(rangeStart)},repeat_monthly_day.not.is.null`)
+    .gte('event_date', formatLocalDate(rangeStart))
+    .is('repeat_monthly_day', null)
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
     .order('event_date', { ascending: false })
@@ -141,7 +142,8 @@ export async function getMonthlyAttendanceRanking(targetDate = new Date()) {
         otmember!tennis_attendances_member_id_fkey(id, username, display_name, tennis_start_date, is_active, avatar_url)
       )
     `)
-    .or(`event_date.gte.${formatLocalDate(rangeStart)},repeat_monthly_day.not.is.null`)
+    .gte('event_date', formatLocalDate(rangeStart))
+    .is('repeat_monthly_day', null)
     .lt('event_date', formatLocalDate(nextMonthStart))
     .lt('event_date', localDate())
     .order('event_date', { ascending: false })
@@ -155,6 +157,7 @@ function buildRanking(events, rangeStart, rangeEnd) {
   const rankingMap = new Map()
 
   for (const event of events || []) {
+    if (event.repeat_monthly_day) continue
     for (const attendance of event.tennis_attendances || []) {
       if (attendance.status !== 'attending' || !attendance.member_id || attendance.otmember?.is_active === false) continue
 
