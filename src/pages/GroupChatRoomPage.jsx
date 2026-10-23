@@ -1,3 +1,4 @@
+import useChatViewportScroll from '../hooks/useChatViewportScroll'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
@@ -78,6 +79,7 @@ export default function GroupChatRoomPage() {
   const photoInputRef = useRef(null)
   const videoInputRef = useRef(null)
   const [room, setRoom] = useState(null)
+  useChatViewportScroll(listRef, room?.id)
   const [messages, setMessages] = useState([])
   const [message, setMessage] = useState('')
   const [attachmentSheetOpen, setAttachmentSheetOpen] = useState(false)

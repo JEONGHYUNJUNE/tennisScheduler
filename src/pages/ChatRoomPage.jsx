@@ -1,3 +1,4 @@
+import useChatViewportScroll from '../hooks/useChatViewportScroll'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ImageLightbox from '../components/ImageLightbox'
@@ -478,6 +479,7 @@ export default function ChatRoomPage() {
   const loadingOlderRef = useRef(false)
   const loadedMessageIdsRef = useRef(new Set())
   const [room, setRoom] = useState(null)
+  useChatViewportScroll(listRef, room?.id)
   const [messages, setMessages] = useState([])
   const [hasMoreMessages, setHasMoreMessages] = useState(false)
   const [loadingOlder, setLoadingOlder] = useState(false)
