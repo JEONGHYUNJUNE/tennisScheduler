@@ -11,15 +11,15 @@
 - 광고는 소개 페이지의 독립 영역에만 준비. `site-config.js`의 `adsense.enabled`와 `approved`가 모두 true이고 유효한 게시자·광고 단위 ID가 있을 때만 광고 스크립트와 영역을 활성화한다. 기본값은 모두 비활성.
 - 표시 이름·문의 이메일은 `site-config.js`의 creator/contactEmail을 입력하면 소개와 안내 페이지에 표시된다. 연락처를 지어 넣지 않는다.
 
-## Google Search Console에서 남은 절차
+## Google Search Console 등록 현황 (2026-10-23)
 
-1. 본인 계정으로 https://search.google.com/search-console/ 에 로그인한다.
-2. URL 접두어 속성으로 `https://bukang-chung.vercel.app/`을 추가한다.
-3. Google이 발급한 HTML 인증 태그를 홈페이지 head에 넣거나 인증 파일을 배포한다. 계정에서 발급한 실제 값을 사용해야 한다.
-4. 소유권 확인 후 `https://bukang-chung.vercel.app/sitemap.xml`을 제출한다.
-5. URL 검사에서 대표 게임 URL 및 소개 페이지의 색인 생성을 요청한다.
+- URL 접두어 속성 `https://bukang-chung.vercel.app/` 등록 및 HTML 메타 태그 소유권 인증 완료.
+- 인증 태그는 전용 배포 저장소 `bukang-game/src/index.html`에 유지한다. 삭제하면 인증이 해제될 수 있다.
+- `https://bukang-chung.vercel.app/sitemap.xml` 제출 성공. Search Console에서 페이지 3개 발견 확인.
+- 홈페이지 URL 검사: 발견됨 / 현재 색인이 생성되지 않음.
+- 개별 ‘색인 생성 요청’은 Google의 ‘일일 할당량 초과’로 접수되지 않았다. Google 안내에 따라 다음 날 다시 요청 가능하다. 자동 재시도는 예약하지 않았다.
+- 사이트맵 접수와 실제 검색 노출은 다르며, ‘부캉이’·‘부캉이 게임’ 검색의 노출 시점이나 순위는 보장되지 않는다.
 
-기술적 준비 및 파일 배포는 Search Console 계정 등록·소유권 확인·색인 요청 완료와 다르다. 검색 노출이나 순위는 보장되지 않는다.
 공식 안내: https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl?hl=ko
 
 ## 애드센스를 실제로 연결할 때
