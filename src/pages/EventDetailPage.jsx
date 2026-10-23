@@ -1,3 +1,4 @@
+import AppIcon from '../components/AppIcon'
 import { recurrenceLabel } from '../services/eventRecurrence'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
@@ -509,21 +510,16 @@ export default function EventDetailPage() {
 
       <section className="detail-card event-info-card">
         <div className="event-card-title">
-          <span className="event-card-title-icon calendar-icon" />
+          <AppIcon type="events" className="event-card-title-icon" />
           <h2>일정 정보</h2>
         </div>
         <dl className="event-info-list">
-          <div><dt><span className="detail-mini-icon calendar-icon" /></dt><dd><strong>날짜</strong><span>{formatDetailDate(event.event_date)}{event.repeat_monthly_day ? ` · ${recurrenceLabel(event)}` : ''}</span></dd></div>
-          <div><dt><span className="detail-mini-icon clock-icon" /></dt><dd><strong>시간</strong><span>{formatEventTime(event.start_time, event.end_time)}</span></dd></div>
-          <div><dt><span className="detail-mini-icon pin-icon" /></dt><dd><strong>장소</strong><span>{event.location || '장소 미정'}</span></dd></div>
+          <div><dt><AppIcon type="events" className="detail-mini-icon" /></dt><dd><strong>날짜</strong><span>{formatDetailDate(event.event_date)}{event.repeat_monthly_day ? ` · ${recurrenceLabel(event)}` : ''}</span></dd></div>
+          <div><dt><AppIcon type="clock" className="detail-mini-icon" /></dt><dd><strong>시간</strong><span>{formatEventTime(event.start_time, event.end_time)}</span></dd></div>
+          <div><dt><AppIcon type="pin" className="detail-mini-icon" /></dt><dd><strong>장소</strong><span>{event.location || '장소 미정'}</span></dd></div>
           <div>
             <dt>
-              <span className="detail-mini-icon event-author-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
-                  <path d="M4.5 20c.8-4.2 3.4-6.4 7.5-6.4s6.7 2.2 7.5 6.4" />
-                </svg>
-              </span>
+              <AppIcon type="mypage" className="detail-mini-icon" />
             </dt>
             <dd>
               <strong>작성자</strong>
@@ -541,14 +537,7 @@ export default function EventDetailPage() {
           </div>
           <div>
             <dt>
-              <span className="detail-mini-icon detail-member-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-                  <path d="M15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-                  <path d="M3.5 19c.6-3.2 2.4-5 5-5s4.4 1.8 5 5" />
-                  <path d="M13.5 14.5c2.7.2 4.5 1.8 5 4.5" />
-                </svg>
-              </span>
+              <AppIcon type="members" className="detail-mini-icon" />
             </dt>
             <dd><strong>정원</strong><span>{attendanceCountText}</span></dd>
           </div>
@@ -558,7 +547,7 @@ export default function EventDetailPage() {
       {(event.memo || event.memo_image_url) && (
         <section className="detail-card event-memo-card">
           <div className="event-card-title">
-            <span className="event-card-title-icon memo-icon" />
+            <AppIcon type="diary" className="event-card-title-icon" />
             <h2>메모</h2>
           </div>
           {event.memo && <p>{event.memo}</p>}
@@ -595,14 +584,7 @@ export default function EventDetailPage() {
 
       <section className="detail-card attendee-section event-member-card">
         <div className="event-card-title">
-          <span className="event-card-title-icon event-member-title-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-              <path d="M15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-              <path d="M3.5 19c.6-3.2 2.4-5 5-5s4.4 1.8 5 5" />
-              <path d="M13.5 14.5c2.7.2 4.5 1.8 5 4.5" />
-            </svg>
-          </span>
+          <AppIcon type="members" className="event-card-title-icon" />
           <h2>참가 멤버</h2>
           <em>{attendanceCountText}</em>
         </div>
@@ -638,7 +620,7 @@ export default function EventDetailPage() {
 
       <section className="detail-card attendee-section event-member-card waiting-card">
         <div className="event-card-title">
-          <span className="event-card-title-icon waiting-icon" />
+          <AppIcon type="clock" className="event-card-title-icon" />
           <h2>대기자</h2>
           <em>{waiting.length}명</em>
         </div>

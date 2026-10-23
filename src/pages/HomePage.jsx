@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import MemberAvatar from '../components/MemberAvatar'
+import AppIcon from '../components/AppIcon'
 import { useAuth } from '../contexts/AuthContext'
 import { getMonthEvents, getMonthlyAttendanceRanking, getTodayDateText, getUpcomingEvents } from '../services/eventService'
 import { defaultHomeWidgetOrder, getHomeWidgetOrder, saveHomeWidgetOrder } from '../services/homeWidgetService'
@@ -279,7 +280,7 @@ export default function HomePage() {
       return (
         <article className="widget-card">
           <div className="widget-card-head">
-            <h2><span className="widget-icon calendar-icon" />다가오는 일정</h2>
+            <h2><AppIcon type="events" className="widget-icon" />다가오는 일정</h2>
             <Link to="/events">전체 보기</Link>
           </div>
 
@@ -322,7 +323,7 @@ export default function HomePage() {
       return (
         <article className="widget-card">
           <div className="widget-card-head">
-            <h2><span className="widget-icon member-icon" />멤버 현황</h2>
+            <h2><AppIcon type="members" className="widget-icon" />멤버 현황</h2>
             <Link to="/members">전체 보기</Link>
           </div>
 
@@ -358,7 +359,7 @@ export default function HomePage() {
       return (
         <article className="widget-card">
           <div className="widget-card-head">
-            <h2><span className="widget-icon trophy-icon" />참석 현황</h2>
+            <h2><AppIcon type="ranking" className="widget-icon" />참석 현황</h2>
             <Link to="/ranking">전체 보기</Link>
           </div>
 
@@ -393,7 +394,7 @@ export default function HomePage() {
       return (
         <section className="month-calendar-card">
           <div className="widget-card-head">
-            <h2><span className="widget-icon calendar-icon" />{getMonthLabel(calendarMonth)} 일정</h2>
+            <h2><AppIcon type="events" className="widget-icon" />{getMonthLabel(calendarMonth)} 일정</h2>
             <div className="month-calendar-actions">
               <button className="calendar-nav-arrow" type="button" aria-label="이전달" onClick={() => moveCalendarMonth(-1)}>‹</button>
               <button className="calendar-nav-today" type="button" onClick={resetCalendarMonth}>오늘</button>

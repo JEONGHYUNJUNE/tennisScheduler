@@ -1,3 +1,4 @@
+import AppIcon from '../components/AppIcon'
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom'
 import LoadingState from '../components/LoadingState'
@@ -134,7 +135,7 @@ export default function EventFormPage() {
 
       <form className="event-form-card" onSubmit={handleSubmit}>
         <label className="event-form-field">
-          <span className="event-form-icon calendar-icon" aria-hidden="true" />
+          <AppIcon type="events" className="event-form-icon" />
           <span className="event-form-control">
             <strong>일정명</strong>
             <input required value={form.title} onChange={update('title')} placeholder="일정명을 입력해주세요" />
@@ -142,7 +143,7 @@ export default function EventFormPage() {
         </label>
 
         <label className="event-form-field">
-          <span className="event-form-icon calendar-icon" aria-hidden="true" />
+          <AppIcon type="events" className="event-form-icon" />
           <span className="event-form-control">
             <strong>{form.repeat_enabled ? '반복 시작 날짜' : '날짜'}</strong>
             <input required type="date" min={form.id && form.repeat_enabled ? form.original_event_date : getTodayDateText()} value={form.event_date} onChange={update('event_date')} />
@@ -167,14 +168,7 @@ export default function EventFormPage() {
         </div>
 
         <label className="event-form-field">
-          <span className="event-form-icon event-form-member-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24">
-              <path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-              <path d="M15.5 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
-              <path d="M3.5 19c.6-3.2 2.4-5 5-5s4.4 1.8 5 5" />
-              <path d="M13.5 14.5c2.7.2 4.5 1.8 5 4.5" />
-            </svg>
-          </span>
+          <AppIcon type="members" className="event-form-icon" />
           <span className="event-form-control has-suffix">
             <strong>최대 인원</strong>
             <input min="1" type="number" value={form.max_players} onChange={update('max_players')} placeholder="최대 인원을 입력해주세요" />
@@ -183,7 +177,7 @@ export default function EventFormPage() {
         </label>
 
         <label className="event-form-field">
-          <span className="event-form-icon clock-icon" aria-hidden="true" />
+          <AppIcon type="clock" className="event-form-icon" />
           <span className="event-form-control">
             <strong>시작 시간</strong>
             <input required type="time" value={form.start_time} onChange={update('start_time')} />
@@ -192,7 +186,7 @@ export default function EventFormPage() {
 
 
         <label className="event-form-field">
-          <span className="event-form-icon clock-icon" aria-hidden="true" />
+          <AppIcon type="clock" className="event-form-icon" />
           <span className="event-form-control">
             <strong>종료 시간</strong>
             <input type="time" value={form.end_time} onChange={update('end_time')} />
@@ -200,7 +194,7 @@ export default function EventFormPage() {
         </label>
 
         <label className="event-form-field">
-          <span className="event-form-icon pin-icon" aria-hidden="true" />
+          <AppIcon type="pin" className="event-form-icon" />
           <span className="event-form-control">
             <strong>장소</strong>
             <input required value={form.location} onChange={update('location')} placeholder="장소를 입력해주세요" />
@@ -208,7 +202,7 @@ export default function EventFormPage() {
         </label>
 
         <label className="event-form-field event-form-field-textarea">
-          <span className="event-form-icon memo-icon" aria-hidden="true" />
+          <AppIcon type="diary" className="event-form-icon" />
           <span className="event-form-control">
             <strong>메모</strong>
             <span className="event-form-textarea-wrap">
