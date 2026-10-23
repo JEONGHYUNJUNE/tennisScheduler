@@ -10,6 +10,7 @@ import MentionTextarea from '../components/MentionTextarea'
 import { useAuth } from '../contexts/AuthContext'
 import { addEventComment, addGuestAttendance, attendEvent, cancelAttendance, deleteEvent, deleteEventComment, getEvent, getEventCommentLikeSummaries, getEventLikeSummaries, getTodayDateText, isCancellationBlocked, removeGuestAttendance, toggleEventCommentLike, toggleEventLike, updateEventComment } from '../services/eventService'
 import { getMembers } from '../services/memberService'
+import { createGroupChat } from '../services/groupChatService'
 
 const emptyGuestForm = {
   guest_name: '',
@@ -55,6 +56,8 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState(null)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [creatingGroupChat, setCreatingGroupChat] = useState(false)
+  const [groupChatError, setGroupChatError] = useState('')
   const [guestForm, setGuestForm] = useState(emptyGuestForm)
   const [guestSubmitting, setGuestSubmitting] = useState(false)
   const [likeSummary, setLikeSummary] = useState({ count: 0, likedByMe: false })
@@ -115,6 +118,7 @@ export default function EventDetailPage() {
   if (!event) return <LoadingState message="일정을 불러오는 중입니다." />
 
   const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
+  const invitedAttendeeIds = [...new Set(attending.filter((item) => item.member_id && !item.is_guest && item.member_id !== profile.id).map((item) => item.member_id))]
   const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []
   const comments = event.comments || []
   const totalCommentCount = (event.flat_comments || comments).length
@@ -140,6 +144,30 @@ export default function EventDetailPage() {
       setError(err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleCreateAttendeeGroupChat = async () => {
+    if (creatingGroupChat) return
+    setCreatingGroupChat(true)
+    setGroupChatError('')
+    try {
+      // Refresh attendance at click time so recent cancellations/waiting changes are respected.
+      const currentEvent = await getEvent(event.id)
+      if (!currentEvent) throw new Error('삭제된 일정입니다.')
+      const memberIds = [...new Set((currentEvent.tennis_attendances || [])
+        .filter((item) => item.status === 'attending' && item.member_id && !item.is_guest && item.member_id !== profile.id)
+        .map((item) => item.member_id))]
+      if (!memberIds.length) throw new Error('함께 초대할 참석 회원이 없습니다. 게스트와 대기자는 초대되지 않습니다.')
+      const roomName = Array.from(`${currentEvent.event_date} ${currentEvent.title}`).slice(0, 40).join('')
+      const room = await createGroupChat(roomName, memberIds)
+      if (!room?.id) throw new Error('단체톡방을 만들지 못했습니다. 다시 시도해 주세요.')
+      window.dispatchEvent(new CustomEvent('ons-tennis-chat-unread-changed'))
+      navigate(`/group-chats/${room.id}`)
+    } catch (err) {
+      setGroupChatError(err.message || '단체톡방을 만들지 못했습니다.')
+    } finally {
+      setCreatingGroupChat(false)
     }
   }
 
@@ -577,6 +605,13 @@ export default function EventDetailPage() {
           </span>
           <h2>참가 멤버</h2>
           <em>{attendanceCountText}</em>
+        </div>
+        <div className="event-attendee-chat-actions">
+          <button className="secondary-button event-attendee-chat-button" type="button" onClick={handleCreateAttendeeGroupChat} disabled={creatingGroupChat || !invitedAttendeeIds.length}>
+            {creatingGroupChat ? '단체방 만드는 중...' : '이 멤버로 단체방 만들기'}
+          </button>
+          <p>참석 확정 회원을 초대합니다. 방을 만든 회원도 함께 참여하며, 게스트·대기자는 제외됩니다.</p>
+          {groupChatError && <p className="error" role="alert">{groupChatError}</p>}
         </div>
         <ul className="attendee-list">
           {attending.length === 0 && <li><strong>아직 없습니다.</strong><span /></li>}
