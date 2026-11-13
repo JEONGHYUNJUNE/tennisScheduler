@@ -1,10 +1,10 @@
 import { recurrenceLabel } from '../services/eventRecurrence'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import EmptyState from '../components/EmptyState'
 import LoadingState from '../components/LoadingState'
 import { useAuth } from '../contexts/AuthContext'
-import { attendEvent, cancelAttendance, deleteEvent, getEventLikeSummaries, getUpcomingEvents, isCancellationBlocked, toggleEventLike } from '../services/eventService'
+import { attendEvent, cancelAttendance, deleteEvent, getAllEvents, getTodayDateText, getEventLikeSummaries, getUpcomingEvents, isCancellationBlocked, toggleEventLike } from '../services/eventService'
 
 const formatDate = (dateText) => new Intl.DateTimeFormat('ko-KR', {
   month: 'long', day: 'numeric', weekday: 'short',
@@ -20,21 +20,45 @@ export default function EventsPage() {
   const [eventLikes, setEventLikes] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const loadVersion = useRef(0)
+  const [query, setQuery] = useState('')
+  const [scope, setScope] = useState('upcoming')
+  const [eventType, setEventType] = useState('all')
 
   const load = useCallback(async () => {
+    const version = ++loadVersion.current
     try {
+      setLoading(true)
       setError('')
-      const nextEvents = await getUpcomingEvents()
+      const nextEvents = await (scope === 'all' ? getAllEvents() : getUpcomingEvents())
+      const likes = {}
+      for (let offset = 0; offset < nextEvents.length; offset += 100) {
+        if (version !== loadVersion.current) return
+        Object.assign(likes, await getEventLikeSummaries(nextEvents.slice(offset, offset + 100).map((event) => event.id), profile.id))
+      }
+      if (version !== loadVersion.current) return
       setEvents(nextEvents)
-      setEventLikes(await getEventLikeSummaries(nextEvents.map((event) => event.id), profile.id))
+      setEventLikes(likes)
     } catch (err) {
-      setError(err.message)
+      if (version === loadVersion.current) setError(err.message)
     } finally {
-      setLoading(false)
+      if (version === loadVersion.current) setLoading(false)
     }
-  }, [profile.id])
+  }, [profile.id, scope])
 
   useEffect(() => { load() }, [load])
+
+  const visibleEvents = useMemo(() => {
+    const terms = query.trim().toLocaleLowerCase('ko-KR').split(/\s+/).filter(Boolean)
+    return events.filter((event) => {
+      if (eventType === 'recurring' && !event.repeat_monthly_day) return false
+      if (eventType === 'regular' && event.repeat_monthly_day) return false
+      const text = [event.title, event.location, event.memo, event.event_date, event.original_event_date,
+        ...(event.tennis_attendances || []).map((item) => item.display_name || item.identifier)]
+        .filter(Boolean).join(' ').toLocaleLowerCase('ko-KR')
+      return terms.every((term) => text.includes(term))
+    })
+  }, [events, query, eventType])
 
   const handleAttendance = async (eventItem, mine) => {
     if (eventItem.repeat_monthly_day && !confirm(mine ? '반복 참석을 취소할까요? 이후 매월 알림도 중단됩니다.' : '이 반복 일정에 참석할까요? 참석 확정 시 매월 알림을 받습니다.')) return
@@ -92,22 +116,39 @@ export default function EventsPage() {
           <span>새 일정 등록</span>
         </Link>
       </div>
+      <section className="event-search-panel" aria-label="일정 검색 및 필터">
+        <label className="event-search-field">
+          <span>전체 일정 검색</span>
+          <input type="search" value={query} placeholder="일정명, 장소, 메모, 참석자 검색"
+            onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim()) setScope('all') }} />
+        </label>
+        <label><span>조회 범위</span><select aria-label="조회 범위" value={scope} onChange={(e) => setScope(e.target.value)}>
+          <option value="upcoming">다가오는 2주</option><option value="all">전체 일정 · 과거 포함</option>
+        </select></label>
+        <label><span>일정 종류</span><select aria-label="일정 종류" value={eventType} onChange={(e) => setEventType(e.target.value)}>
+          <option value="all">전체</option><option value="recurring">반복 일정</option><option value="regular">일반 일정</option>
+        </select></label>
+        <p className="event-search-summary" role="status">{loading ? '검색 중…' : `${visibleEvents.length}개 일정`}
+          {scope === 'all' ? ' · 과거 및 2주 이후 일정 포함' : ' · 2주 이내 일정'}
+        </p>
+      </section>
       {loading && <LoadingState message="일정을 불러오는 중입니다." />}
       {error && <p className="error">{error}</p>}
-      {!loading && !events.length && (
+      {!loading && !error && !visibleEvents.length && (
         <EmptyState
-          title="아직 예정된 일정이 없어요."
-          description="새 모임이 등록되면 이곳에서 바로 확인하고 참석할 수 있어요."
+          title={query || eventType !== 'all' ? '검색 조건에 맞는 일정이 없어요.' : '조회할 일정이 없어요.'}
+          description="검색어나 조회 범위, 일정 종류를 변경해 보세요."
           actionLabel="새 일정 등록"
           actionTo="/events/new"
         />
       )}
       <div className="event-list">
-        {events.map((event) => {
+        {!loading && !error && visibleEvents.map((event) => {
           const attending = event.tennis_attendances?.filter((item) => item.status === 'attending') || []
           const waiting = event.tennis_attendances?.filter((item) => item.status === 'waiting') || []
           const mine = event.tennis_attendances?.find((item) => item.member_id === profile.id)
           const canManageEvent = isAdmin || event.created_by === profile.id
+          const isPast = event.event_date < getTodayDateText() || (event.repeat_monthly_day && !event.has_upcoming_occurrence)
           const isFull = event.max_players && attending.length >= event.max_players
           const likeSummary = eventLikes[event.id] ?? { count: 0, likedByMe: false }
           const nextActionLabel = mine
@@ -133,7 +174,7 @@ export default function EventsPage() {
                   <strong>{likeSummary.count}</strong>
                 </button>
                 <div className="capacity"><strong>{attending.length}{event.max_players ? ` / ${event.max_players}` : ''}</strong><span>참석</span></div>
-                <button className={`event-card-action attendance ${mine ? 'active' : ''}`} onClick={() => handleAttendance(event, mine)}>
+                <button className={`event-card-action attendance ${mine ? 'active' : ''}`} disabled={Boolean(isPast)} onClick={() => handleAttendance(event, mine)}>
                   {mine ? (
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M6 12h12" />
@@ -143,7 +184,7 @@ export default function EventsPage() {
                       <path d="M12 5v14M5 12h14" />
                     </svg>
                   )}
-                  <span>{nextActionLabel}</span>
+                  <span>{isPast ? '종료된 일정' : nextActionLabel}</span>
                 </button>
                 {canManageEvent && (
                   <div className="admin-card-actions">

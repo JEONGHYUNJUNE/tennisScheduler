@@ -55,6 +55,32 @@ export async function getUpcomingEvents() {
   return upcomingEvents(data, false, untilDate)
 }
 
+// Fetch every page so full search is not limited to Supabase's default row cap.
+export async function getAllEvents() {
+  const fetchPages = async (supportsGuests) => {
+    const results = []
+    const attendanceColumns = supportsGuests
+      ? 'id, member_id, guest_name, guest_memo, created_by, status'
+      : 'id, member_id, status'
+    const pageSize = 500
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase.from('tennis_events')
+        .select(`*, tennis_attendances(${attendanceColumns}, otmember!tennis_attendances_member_id_fkey(id, username, display_name, avatar_url))`)
+        .order('event_date', { ascending: false }).order('start_time').order('id')
+        .range(offset, offset + pageSize - 1)
+      if (error) throw error
+      results.push(...data.map((event) => normalizeEvent(event, supportsGuests)))
+      if (data.length < pageSize) return results
+    }
+  }
+  try {
+    return await fetchPages(true)
+  } catch (error) {
+    if (!isRecoverableAttendanceEmbedError(error)) throw error
+    return fetchPages(false)
+  }
+}
+
 export async function getMonthEvents(targetDate = new Date()) {
   const monthStart = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1)
   const nextMonthStart = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 1)
