@@ -329,3 +329,8 @@ input:focus, textarea:focus, select:focus { border-color: #98af7b; box-shadow: 0
   .event-search-field { grid-column: 1 / -1; }
   .event-search-panel input, .event-search-panel select { font-size: 16px; }
 }
+
+.event-personal-actions { border: 1px solid var(--line); border-radius: 15px; padding: 16px; background: #fff; }
+.event-personal-actions > div { display: flex; flex-wrap: wrap; gap: 10px; }
+.event-personal-actions p { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 10px 0 0; }
+.event-personal-actions button[aria-pressed="true"] { background: #f0f2ec; color: #6b7567; }

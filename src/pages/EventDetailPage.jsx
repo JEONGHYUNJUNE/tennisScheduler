@@ -1,3 +1,4 @@
+import EventPersonalActions from '../components/EventPersonalActions'
 import AppIcon from '../components/AppIcon'
 import { recurrenceLabel } from '../services/eventRecurrence'
 import { useEffect, useState } from 'react'
@@ -507,6 +508,8 @@ export default function EventDetailPage() {
       </section>
 
       {error && <p className="error">{error}</p>}
+
+      <EventPersonalActions event={event} memberId={profile.id} />
 
       <section className="detail-card event-info-card">
         <div className="event-card-title">
