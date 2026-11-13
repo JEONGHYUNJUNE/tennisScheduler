@@ -1,4 +1,4 @@
-const escapeText = (value = '') => String(value).replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,')
+const escapeText = (value = '') => String(value ?? '').replace(/\\/g, '\\\\').replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,')
 const utcStamp = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 const fold = (line) => {
   const encoder = new TextEncoder()
@@ -13,7 +13,7 @@ const fold = (line) => {
 }
 
 // Export the displayed occurrence only; the app remains the source of recurrence updates.
-export function buildEventCalendar(event, url, now = new Date()) {
+export function buildEventCalendar(event, now = new Date()) {
   const date = event.event_date
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ONS Tennis//Schedule//KO', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
     `UID:${event.id}-${date}@ons-tennis`, `DTSTAMP:${utcStamp(now)}`]
@@ -27,14 +27,12 @@ export function buildEventCalendar(event, url, now = new Date()) {
     lines.push(`DTSTART;VALUE=DATE:${date.replaceAll('-', '')}`, `DTEND;VALUE=DATE:${nextDay.toISOString().slice(0, 10).replaceAll('-', '')}`)
   }
   lines.push(`SUMMARY:${escapeText(event.title)}`, `LOCATION:${escapeText(event.location)}`,
-    `DESCRIPTION:${escapeText([event.memo, event.repeat_monthly_day ? '반복 일정의 이번 회차입니다. 다음 회차는 앱에서 추가해 주세요.' : '', url].filter(Boolean).join('\n\n'))}`,
-    `URL:${escapeText(url)}`, 'END:VEVENT', 'END:VCALENDAR')
+    `DESCRIPTION:${escapeText(event.memo)}`, 'END:VEVENT', 'END:VCALENDAR')
   return lines.map(fold).join('\r\n') + '\r\n'
 }
 
 export function downloadEventCalendar(event) {
-  const url = `${window.location.origin}${window.location.pathname}#/events/${event.id}`
-  const blob = new Blob([buildEventCalendar(event, url)], { type: 'text/calendar;charset=utf-8' })
+  const blob = new Blob([buildEventCalendar(event)], { type: 'text/calendar;charset=utf-8' })
   const objectUrl = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = objectUrl
